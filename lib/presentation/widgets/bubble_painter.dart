@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../../core/constants/bubble_styles.dart';
 import '../../data/models/bubble_model.dart';
 
 /// Level → Bubble skin mapping
@@ -13,8 +14,13 @@ import '../../data/models/bubble_model.dart';
 class BubblePainter extends CustomPainter {
   final List<BubbleModel> bubbles;
   final int level;
+  final BubbleStyle style;
 
-  BubblePainter({required this.bubbles, required this.level});
+  BubblePainter({
+    required this.bubbles,
+    required this.level,
+    this.style = BubbleStyle.classic,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -22,6 +28,31 @@ class BubblePainter extends CustomPainter {
       if (b.isBursting) {
         _paintBurst(canvas, b);
       } else if (!b.isPopped) {
+        if (b.isSpecial) {
+          _paintSpecial(canvas, b);
+        } else {
+          _paintWithStyle(canvas, b);
+        }
+      }
+    }
+  }
+
+  void _paintWithStyle(Canvas canvas, BubbleModel b) {
+    switch (style) {
+      case BubbleStyle.blur:
+        _paintBlur(canvas, b);
+        break;
+      case BubbleStyle.heart:
+        _paintHeart(canvas, b);
+        break;
+      case BubbleStyle.star:
+        _paintStar(canvas, b);
+        break;
+      case BubbleStyle.diamond:
+        _paintDiamond(canvas, b);
+        break;
+      case BubbleStyle.classic:
+      default:
         switch (level.clamp(1, 7)) {
           case 1: _paintSoap(canvas, b); break;
           case 2: _paintVivid(canvas, b); break;
@@ -31,7 +62,6 @@ class BubblePainter extends CustomPainter {
           case 6: _paintFire(canvas, b); break;
           default: _paintRainbow(canvas, b); break;
         }
-      }
     }
   }
 
@@ -428,6 +458,460 @@ class BubblePainter extends CustomPainter {
   }
 
   // ══════════════════════════════════════════════════════════
+  //  STAR – Golden glowing 5-point star bubble
+  // ══════════════════════════════════════════════════════════
+
+  Path _starPath(double cx, double cy, double outer, double inner) {
+    final path = Path();
+    for (int i = 0; i < 10; i++) {
+      final angle = (i * math.pi / 5) - math.pi / 2;
+      final rad = i.isEven ? outer : inner;
+      final x = cx + math.cos(angle) * rad;
+      final y = cy + math.sin(angle) * rad;
+      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+    }
+    path.close();
+    return path;
+  }
+
+  void _paintStar(Canvas canvas, BubbleModel b) {
+    final cx = b.x; final cy = b.y; final r = b.radius;
+    final outer = r * 0.95;
+    final inner = r * 0.42;
+    final starBounds = Rect.fromCenter(center: Offset(cx, cy), width: r * 2.0, height: r * 2.0);
+    final path = _starPath(cx, cy, outer, inner);
+
+    // Outer golden glow
+    canvas.drawPath(path, Paint()
+      ..color = const Color(0xFFFFB300).withOpacity(0.25)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.60));
+
+    // Golden body gradient
+    canvas.drawPath(path, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.25, -0.35), radius: 0.88,
+        colors: [
+          const Color(0xFFFFF9C4).withOpacity(0.85),
+          const Color(0xFFFFD54F).withOpacity(0.65),
+          const Color(0xFFFF8F00).withOpacity(0.35),
+          Colors.transparent,
+        ],
+      ).createShader(starBounds));
+
+    // Rainbow iridescent sweep
+    canvas.drawPath(path, Paint()
+      ..shader = SweepGradient(
+        colors: [
+          Colors.yellow.withOpacity(0.30),
+          Colors.orange.withOpacity(0.25),
+          Colors.pink.withOpacity(0.20),
+          Colors.purple.withOpacity(0.18),
+          Colors.cyan.withOpacity(0.22),
+          Colors.yellow.withOpacity(0.30),
+        ],
+      ).createShader(starBounds));
+
+    // Golden iridescent rim
+    canvas.drawPath(path, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.12
+      ..shader = SweepGradient(
+        startAngle: -math.pi * 0.3,
+        endAngle:    math.pi * 1.7,
+        colors: [
+          Colors.white,
+          const Color(0xFFFFEE58).withOpacity(0.95),
+          const Color(0xFFFF9100).withOpacity(0.90),
+          Colors.pinkAccent.withOpacity(0.80),
+          Colors.cyanAccent.withOpacity(0.85),
+          const Color(0xFFFFEE58).withOpacity(0.92),
+          Colors.white,
+        ],
+      ).createShader(starBounds));
+
+    // Inner bright ring
+    canvas.drawPath(_starPath(cx, cy, outer * 0.84, inner * 0.84), Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.03
+      ..color = Colors.white.withOpacity(0.45));
+
+    // Large top-left highlight
+    final hlRect = Rect.fromCenter(center: Offset(cx - r * 0.22, cy - r * 0.28), width: r * 0.80, height: r * 0.50);
+    canvas.drawOval(hlRect, Paint()
+      ..shader = RadialGradient(
+        colors: [Colors.white.withOpacity(0.90), Colors.white.withOpacity(0.0)],
+        stops: const [0.0, 1.0],
+      ).createShader(hlRect));
+
+    // Corner sparkles
+    _drawStar(canvas, cx + r * 0.72, cy - r * 0.68, r * 0.13, const Color(0xFFFFEE58).withOpacity(0.95));
+    _drawStar(canvas, cx - r * 0.75, cy + r * 0.60, r * 0.09, Colors.white.withOpacity(0.85));
+    _sparkle(canvas, cx + r * 0.18, cy - r * 0.58, r * 0.09);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  HEART – Rainbow iridescent heart bubble (matches photo)
+  // ══════════════════════════════════════════════════════════
+
+  /// Perfect heart using the parametric equation:
+  ///   x(t) = 16·sin³(t)
+  ///   y(t) = 13·cos(t) − 5·cos(2t) − 2·cos(3t) − cos(4t)
+  /// 120 segments → smooth curve, visually identical to a real heart.
+  Path _heartPath(double cx, double cy, double r) {
+    final path = Path();
+    // Scale so the heart fits neatly inside radius r.
+    // Formula x∈[-16,16] → width=32; scale = r/16 → width = 2r.
+    // Formula y center ≈ -2.5 (midpoint of [-17, 12]); we shift to truly centre it.
+    final scale = r / 16.0;
+    const vCenter = -2.5; // vertical midpoint of the formula's y-range
+
+    for (int i = 0; i <= 120; i++) {
+      final t = (i / 120) * 2 * math.pi;
+      final hx = 16.0 * math.pow(math.sin(t), 3).toDouble();
+      final hy = 13.0 * math.cos(t)
+               - 5.0  * math.cos(2.0 * t)
+               - 2.0  * math.cos(3.0 * t)
+               -        math.cos(4.0 * t);
+
+      // Flutter y-axis is inverted relative to the formula.
+      final px = cx + hx * scale;
+      final py = cy - (hy - vCenter) * scale;
+
+      if (i == 0) path.moveTo(px, py); else path.lineTo(px, py);
+    }
+    path.close();
+    return path;
+  }
+
+  void _paintHeart(Canvas canvas, BubbleModel b) {
+    final cx = b.x;
+    final cy = b.y;
+    // Use full bubble radius — the parametric path already fits inside 2r × 1.8r.
+    final r  = b.radius * 0.78;
+    // Bounding rect that covers the heart (width = 2r, height ≈ 1.82r).
+    final heartBounds = Rect.fromCenter(
+        center: Offset(cx, cy), width: r * 2.0, height: r * 1.85);
+    final path = _heartPath(cx, cy, r);
+
+    // ── Outer bokeh glow (matches the background haze in the photo)
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = b.color.withOpacity(0.18)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.70),
+    );
+
+    // ── Translucent glass body — very slight colour tint
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(-0.20, -0.35),
+          radius: 0.85,
+          colors: [
+            Colors.white.withOpacity(0.22),
+            b.color.withOpacity(0.10),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.55, 1.0],
+        ).createShader(heartBounds),
+    );
+
+    // ── Rainbow iridescent sweep body (the colourful interior from the photo)
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = SweepGradient(
+          startAngle: -math.pi * 0.5,
+          endAngle:    math.pi * 1.5,
+          colors: [
+            Colors.pink.withOpacity(0.28),
+            Colors.purple.withOpacity(0.24),
+            Colors.cyan.withOpacity(0.26),
+            Colors.blue.withOpacity(0.22),
+            Colors.teal.withOpacity(0.24),
+            Colors.yellow.withOpacity(0.20),
+            Colors.orange.withOpacity(0.22),
+            Colors.pink.withOpacity(0.28),
+          ],
+        ).createShader(heartBounds),
+    );
+
+    // ── Iridescent rim stroke (thick rainbow outline — key feature in photo)
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.14
+        ..shader = SweepGradient(
+          startAngle: -math.pi * 0.4,
+          endAngle:    math.pi * 1.6,
+          colors: [
+            Colors.white,
+            Colors.pink.withOpacity(0.95),
+            Colors.purple.withOpacity(0.92),
+            Colors.cyanAccent.withOpacity(0.95),
+            Colors.blue.withOpacity(0.90),
+            Colors.teal.withOpacity(0.92),
+            Colors.yellow.withOpacity(0.90),
+            Colors.orange.withOpacity(0.88),
+            Colors.pink.withOpacity(0.92),
+            Colors.white,
+          ],
+        ).createShader(heartBounds),
+    );
+
+    // ── Inner bright rim line (secondary halo visible in the photo)
+    canvas.drawPath(
+      _heartPath(cx, cy, r * 0.84),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.035
+        ..color = Colors.white.withOpacity(0.42),
+    );
+
+    // ── Large top-left specular highlight (the big white glare spot)
+    final hlRect = Rect.fromCenter(
+      center: Offset(cx - r * 0.28, cy - r * 0.32),
+      width: r * 0.90, height: r * 0.58,
+    );
+    canvas.drawOval(
+      hlRect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            Colors.white.withOpacity(0.92),
+            Colors.white.withOpacity(0.45),
+            Colors.white.withOpacity(0.0),
+          ],
+          stops: const [0.0, 0.40, 1.0],
+        ).createShader(hlRect),
+    );
+
+    // ── Small secondary sparkle (top-right)
+    _sparkle(canvas, cx + r * 0.22, cy - r * 0.58, r * 0.10);
+
+    // ── Tiny caustic reflection at bottom
+    final causticRect = Rect.fromCenter(
+      center: Offset(cx + r * 0.06, cy + r * 0.60),
+      width: r * 0.42, height: r * 0.18,
+    );
+    canvas.drawOval(
+      causticRect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [Colors.white.withOpacity(0.30), Colors.transparent],
+        ).createShader(causticRect),
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  DIAMOND – Proper 4-point gem diamond (rhombus)
+  // ══════════════════════════════════════════════════════════
+
+  /// Classic gem diamond: narrow top/bottom points, wide left/right equator.
+  /// Upper half is shorter (crown), lower half is taller (pavilion).
+  Path _diamondPath(double cx, double cy, double r) {
+    final path = Path();
+    final hw = r * 0.78;      // half-width at equator
+    final top   = cy - r * 0.55; // top point (crown tip)
+    final bot   = cy + r * 1.00; // bottom point (pavilion tip)
+    final mid   = cy - r * 0.08; // equator (widest)
+    // Top girdle corners (shoulders)
+    final gL    = cx - hw;
+    final gR    = cx + hw;
+
+    path.moveTo(cx, top);           // top tip
+    path.lineTo(gR, mid);           // top-right shoulder
+    path.lineTo(cx, bot);           // bottom tip
+    path.lineTo(gL, mid);           // top-left shoulder
+    path.close();
+    return path;
+  }
+
+  void _paintDiamond(Canvas canvas, BubbleModel b) {
+    final cx = b.x; final cy = b.y; final r = b.radius * 0.90;
+    final bounds = Rect.fromCenter(center: Offset(cx, cy), width: r * 1.6, height: r * 1.8);
+    final path = _diamondPath(cx, cy, r);
+
+    // Outer icy glow
+    canvas.drawPath(path, Paint()
+      ..color = const Color(0xFF80DEEA).withOpacity(0.22)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.60));
+
+    // Glass body — icy blue-white gradient
+    canvas.drawPath(path, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.20, -0.35), radius: 0.90,
+        colors: [
+          Colors.white.withOpacity(0.55),
+          const Color(0xFFB3E5FC).withOpacity(0.35),
+          const Color(0xFF81D4FA).withOpacity(0.18),
+          Colors.transparent,
+        ],
+      ).createShader(bounds));
+
+    // Iridescent sweep
+    canvas.drawPath(path, Paint()
+      ..shader = SweepGradient(
+        colors: [
+          Colors.cyan.withOpacity(0.30),
+          Colors.blue.withOpacity(0.25),
+          Colors.purple.withOpacity(0.20),
+          Colors.pink.withOpacity(0.18),
+          Colors.cyan.withOpacity(0.30),
+        ],
+      ).createShader(bounds));
+
+    // Facet lines from top tip to equator corners
+    final facetPaint = Paint()
+      ..color = Colors.white.withOpacity(0.25)
+      ..strokeWidth = 0.8;
+    canvas.drawLine(Offset(cx, cy - r * 0.55), Offset(cx - r * 0.78 * 0.5, cy - r * 0.08), facetPaint);
+    canvas.drawLine(Offset(cx, cy - r * 0.55), Offset(cx + r * 0.78 * 0.5, cy - r * 0.08), facetPaint);
+    canvas.drawLine(Offset(cx - r * 0.78, cy - r * 0.08), Offset(cx, cy - r * 0.08), facetPaint);
+    canvas.drawLine(Offset(cx + r * 0.78, cy - r * 0.08), Offset(cx, cy - r * 0.08), facetPaint);
+
+    // Rainbow iridescent rim stroke
+    canvas.drawPath(path, Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.10
+      ..shader = SweepGradient(
+        startAngle: -math.pi * 0.3,
+        endAngle:    math.pi * 1.7,
+        colors: [
+          Colors.white,
+          const Color(0xFF80DEEA).withOpacity(0.95),
+          const Color(0xFF4DD0E1).withOpacity(0.90),
+          Colors.white.withOpacity(0.88),
+          const Color(0xFF80CBC4).withOpacity(0.85),
+          Colors.purpleAccent.withOpacity(0.80),
+          Colors.cyanAccent.withOpacity(0.88),
+          Colors.white,
+        ],
+      ).createShader(bounds));
+
+    // Large specular highlight (top-left)
+    final hlRect = Rect.fromCenter(
+      center: Offset(cx - r * 0.20, cy - r * 0.25),
+      width: r * 0.75, height: r * 0.48,
+    );
+    canvas.drawOval(hlRect, Paint()
+      ..shader = RadialGradient(
+        colors: [Colors.white.withOpacity(0.92), Colors.white.withOpacity(0.0)],
+        stops: const [0.0, 1.0],
+      ).createShader(hlRect));
+
+    // Small sparkles at corners
+    _sparkle(canvas, cx + r * 0.62, cy - r * 0.12, r * 0.08);
+    _sparkle(canvas, cx - r * 0.62, cy - r * 0.12, r * 0.06);
+    _sparkle(canvas, cx, cy - r * 0.50, r * 0.07);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  BLUR – Frosted / soft glass
+  // ══════════════════════════════════════════════════════════
+
+  void _paintBlur(Canvas canvas, BubbleModel b) {
+    final c = Offset(b.x, b.y);
+    final r = b.radius;
+
+    // Soft outer halo
+    canvas.drawCircle(c, r * 1.25,
+        Paint()
+          ..color = b.color.withOpacity(0.15)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.55));
+    // Frosted body
+    canvas.drawCircle(c, r,
+        Paint()
+          ..color = b.color.withOpacity(0.38)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.30));
+    canvas.drawCircle(c, r,
+        Paint()..color = b.color.withOpacity(0.28));
+    // Soft white overlay
+    canvas.drawCircle(c, r,
+        Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(-0.2, -0.3),
+            colors: [Colors.white.withOpacity(0.55), Colors.transparent],
+            stops: const [0.0, 0.8],
+          ).createShader(Rect.fromCircle(center: c, radius: r)));
+    // Thin rim
+    canvas.drawCircle(c, r,
+        Paint()
+          ..color = Colors.white.withOpacity(0.50)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = r * 0.06);
+    // Highlight
+    _highlight(canvas, b.x - r * 0.22, b.y - r * 0.28, r * 0.60, r * 0.38);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  SPECIAL – Golden home-style 10-pt bubble
+  // ══════════════════════════════════════════════════════════
+
+  void _paintSpecial(Canvas canvas, BubbleModel b) {
+    final c = Offset(b.x, b.y);
+    final r = b.radius;
+    final rect = Rect.fromCircle(center: c, radius: r);
+
+    // Pulsing outer aura
+    canvas.drawCircle(c, r * 1.35,
+        Paint()
+          ..color = const Color(0xFFFFD700).withOpacity(0.18)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.55));
+    canvas.drawCircle(c, r * 1.18,
+        Paint()
+          ..color = const Color(0xFFFFD700).withOpacity(0.28)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.28));
+
+    // Glass body — semi-transparent gold fill
+    canvas.drawCircle(c, r, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.28, -0.35),
+        colors: [
+          const Color(0xFFFFF9C4).withOpacity(0.55),
+          const Color(0xFFFFD700).withOpacity(0.30),
+          const Color(0xFFFF8F00).withOpacity(0.12),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.45, 0.75, 1.0],
+      ).createShader(rect));
+
+    // Full-spectrum rainbow rim (makes it look like the home screen bubbles)
+    _rimStroke(canvas, b, [
+      Colors.white,
+      Colors.yellow.withOpacity(0.95),
+      Colors.orange.withOpacity(0.90),
+      Colors.red.withOpacity(0.85),
+      Colors.pink.withOpacity(0.88),
+      Colors.purple.withOpacity(0.85),
+      Colors.cyan.withOpacity(0.90),
+      Colors.white.withOpacity(0.92),
+      Colors.yellow.withOpacity(0.95),
+      Colors.white,
+    ], widthFactor: 0.10);
+
+    // Top-left specular highlight
+    final hcx = b.x - r * 0.28;
+    final hcy = b.y - r * 0.30;
+    canvas.drawCircle(Offset(hcx, hcy), r * 0.26,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [Colors.white.withOpacity(0.90), Colors.transparent],
+          ).createShader(
+              Rect.fromCircle(center: Offset(hcx, hcy), radius: r * 0.26)));
+
+    // Stars around the bubble
+    _drawStar(canvas, b.x + r * 0.75, b.y - r * 0.65, r * 0.14,
+        const Color(0xFFFFEE58).withOpacity(0.95));
+    _drawStar(canvas, b.x - r * 0.78, b.y + r * 0.55, r * 0.10,
+        Colors.white.withOpacity(0.85));
+    _drawStar(canvas, b.x + r * 0.60, b.y + r * 0.72, r * 0.12,
+        const Color(0xFFFFD700).withOpacity(0.90));
+  }
+
+  // ══════════════════════════════════════════════════════════
   //  BURST (level-tinted pop)
   // ══════════════════════════════════════════════════════════
 
@@ -492,5 +976,5 @@ class BubblePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(BubblePainter old) =>
-      old.level != level || true; // always repaint for animation
+      old.level != level || old.style != style || true;
 }

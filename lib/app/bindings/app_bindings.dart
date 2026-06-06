@@ -19,9 +19,12 @@ class SplashBinding extends Bindings {
 class HomeBinding extends Bindings {
   @override
   void dependencies() {
-    Get.put<IScoreRepository>(ScoreRepositoryImpl());
-    Get.put(GetScoresUseCase(Get.find<IScoreRepository>()));
-    Get.put<HomeController>(HomeController(Get.find<GetScoresUseCase>()));
+    Get.put<IScoreRepository>(ScoreRepositoryImpl(), permanent: true);
+    Get.put(GetScoresUseCase(Get.find<IScoreRepository>()), permanent: true);
+    Get.put<HomeController>(
+      HomeController(Get.find<GetScoresUseCase>()),
+      permanent: true,
+    );
   }
 }
 

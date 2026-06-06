@@ -1,9 +1,13 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/background_assets.dart';
+import '../../data/services/sound_service.dart';
+import '../../data/services/style_service.dart';
 import '../controllers/game_controller.dart';
 import '../widgets/bubble_painter.dart';
+import '../widgets/safe_asset_background.dart';
 
 class GameScreen extends GetView<GameController> {
   const GameScreen({super.key});
@@ -11,7 +15,7 @@ class GameScreen extends GetView<GameController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFF87CEEB),
       body: LayoutBuilder(
         builder: (context, constraints) => _GameBody(
           controller: controller,
@@ -33,9 +37,9 @@ class _GameBody extends StatefulWidget {
 
 class _GameBodyState extends State<_GameBody> {
   @override
-  void initState() {
-    super.initState();
-    // Provide exact canvas size to the controller so bubbles spawn correctly.
+  void initState() { super.initState(); _onInit(); }
+
+  void _onInit() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.controller.setScreenSize(widget.size);
     });
@@ -56,7 +60,8 @@ class _GameBodyState extends State<_GameBody> {
             () => CustomPaint(
               painter: BubblePainter(
                 bubbles: widget.controller.bubbles.toList(),
-                level: widget.controller.level.value, // triggers skin change
+                level: widget.controller.level.value,
+                style: Get.find<StyleService>().selectedStyle.value,
               ),
               child: const SizedBox.expand(),
             ),
@@ -91,6 +96,12 @@ class _GameBodyState extends State<_GameBody> {
                 child: _GameOverOverlay(controller: widget.controller),
               )
             : const SizedBox.shrink()),
+        // Hearts-over popup
+        Obx(() => widget.controller.isHeartsOver.value
+            ? Positioned.fill(
+                child: _HeartsOverOverlay(controller: widget.controller),
+              )
+            : const SizedBox.shrink()),
       ],
     );
   }
@@ -111,67 +122,58 @@ class _GameHUD extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // ── Score
           _HudCard(
             child: Obx(() => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.stars_rounded,
-                        color: AppColors.scoreGold, size: 20),
-                    const SizedBox(width: 6),
-                    Text(
-                      '${controller.score.value}',
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textDark,
-                      ),
-                    ),
-                  ],
-                )),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 20),
+                const SizedBox(width: 6),
+                Text(
+                  '${controller.score.value}',
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textDark),
+                ),
+              ],
+            )),
           ),
           const SizedBox(width: 8),
+          // ── Level
           _HudCard(
             child: Obx(() => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.trending_up_rounded,
-                        color: AppColors.levelGreen, size: 20),
-                    const SizedBox(width: 6),
-                    Text(
-                      'LVL ${controller.level.value}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.levelGreen,
-                      ),
-                    ),
-                  ],
-                )),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.trending_up_rounded, color: AppColors.levelGreen, size: 18),
+                const SizedBox(width: 4),
+                Text(
+                  'LVL ${controller.level.value}',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.levelGreen),
+                ),
+              ],
+            )),
           ),
-          const Spacer(),
+                    const Spacer(),
+
+          // ── Hearts counter pill
           _HudCard(
             child: Obx(() => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      controller.lives.value > 0
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_outline_rounded,
-                      color: AppColors.liveRed,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      '× ${controller.lives.value}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.liveRed,
-                      ),
-                    ),
-                  ],
-                )),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.favorite, color: Color(0xFFFF4D6D), size: 20),
+                const SizedBox(width: 5),
+                Text(
+                  '+${controller.lives.value}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFFFF4D6D),
+                  ),
+                ),
+              ],
+            )),
           ),
+                    const SizedBox(width: 8),
+
+          _SoundToggleButton(),
           const SizedBox(width: 8),
           _PauseButton(onTap: controller.togglePause),
         ],
@@ -189,18 +191,51 @@ class _HudCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.92),
+        color: Colors.white.withOpacity(0.75),
         borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-        boxShadow: const [
+        border: Border.all(color: Colors.white.withOpacity(0.6), width: 1.2),
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: Offset(0, 3),
+            color: Colors.white.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: child,
     );
+  }
+}
+
+class _SoundToggleButton extends StatelessWidget {
+  _SoundToggleButton();
+
+  final _sound = Get.find<SoundService>();
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final muted = _sound.isMuted.value;
+      return GestureDetector(
+        onTap: _sound.toggleMute,
+        child: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
+            ],
+          ),
+          child: Icon(
+            muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+            color: muted ? Colors.red.shade400 : AppColors.textDark,
+            size: 22,
+          ),
+        ),
+      );
+    });
   }
 }
 
@@ -257,10 +292,8 @@ class _LevelUpBannerState extends State<_LevelUpBanner>
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
   }
 
-  @override
-  void dispose() {
+  void _onDispose() {
     _ctrl.dispose();
-    super.dispose();
   }
 
   @override
@@ -312,60 +345,452 @@ class _LevelUpBannerState extends State<_LevelUpBanner>
 
 // ─── Pause overlay ──────────────────────────────────────────────────────────
 
-class _PauseOverlay extends StatelessWidget {
+class _PauseOverlay extends StatefulWidget {
   final GameController controller;
   const _PauseOverlay({required this.controller});
 
   @override
+  State<_PauseOverlay> createState() => _PauseOverlayState();
+}
+
+class _PauseOverlayState extends State<_PauseOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+  late Animation<double> _fade;
+
+  @override
+  void initState() { super.initState(); _onInit(); }
+
+  @override
+  void dispose() { _onDispose(); super.dispose(); }
+
+  void _onInit() {
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500))..forward();
+    _scale = Tween<double>(begin: 0.75, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+  }
+
+  void _onDispose() => _ctrl.dispose();
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black45,
-      child: Center(
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => FadeTransition(
+        opacity: _fade,
         child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 40),
-          padding: const EdgeInsets.all(AppDimensions.paddingXL),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
-            boxShadow: const [
-              BoxShadow(
-                  color: Colors.black26, blurRadius: 30, offset: Offset(0, 10))
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('⏸', style: TextStyle(fontSize: 48)),
-              const SizedBox(height: 12),
-              const Text(
-                'PAUSED',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.textDark,
-                  letterSpacing: 3,
+          color: Colors.black.withOpacity(0.45),
+          child: Center(
+            child: ScaleTransition(
+              scale: _scale,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 28),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(32),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.18), blurRadius: 40, offset: const Offset(0, 16)),
+                    BoxShadow(color: const Color(0xFF4FC3F7).withOpacity(0.20), blurRadius: 24, offset: const Offset(0, 6)),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Colourful top banner
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 22),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Color(0xFF00D4FF), Color(0xFF007AFF)],
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                        ),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                      ),
+                      child: Column(children: [
+                        // Bubble emoji row
+                        const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text('🫧', style: TextStyle(fontSize: 16)),
+                            SizedBox(width: 4),
+                            Text('🫧', style: TextStyle(fontSize: 24)),
+                            SizedBox(width: 4),
+                            Text('🫧', style: TextStyle(fontSize: 16)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Pause icon circle
+                        Container(
+                          width: 68, height: 68,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withOpacity(0.22),
+                            border: Border.all(color: Colors.white.withOpacity(0.60), width: 2.5),
+                          ),
+                          child: const Icon(Icons.pause_rounded, color: Colors.white, size: 36),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Game Paused!',
+                          style: TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white,
+                            letterSpacing: 0.5,
+                            shadows: [Shadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
+                          ),
+                        ),
+                      ]),
+                    ),
+                    // ── White body
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Score + Hearts chips
+                          Obx(() => Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _PauseStatChip(
+                                emoji: '⭐',
+                                label: '${widget.controller.score.value} pts',
+                                bg: const Color(0xFFFFF8E1),
+                                border: const Color(0xFFFFCA28),
+                                textColor: const Color(0xFF7A5300),
+                              ),
+                              const SizedBox(width: 10),
+                              _PauseStatChip(
+                                emoji: '❤️',
+                                label: '+${widget.controller.lives.value}',
+                                bg: const Color(0xFFFFEBEE),
+                                border: const Color(0xFFFF8A80),
+                                textColor: const Color(0xFFD32F2F),
+                              ),
+                            ],
+                          )),
+                          const SizedBox(height: 22),
+                          // Resume button
+                          _PauseActionBtn(
+                            label: '▶  Resume',
+                            gradient: const [Color(0xFF43E97B), Color(0xFF11998E)],
+                            glowColor: const Color(0xFF43E97B),
+                            onTap: widget.controller.togglePause,
+                          ),
+                          const SizedBox(height: 12),
+                          // Home button — outlined style on white bg
+                          _PauseOutlineBtn(
+                            label: '🏠  Go Home',
+                            color: const Color(0xFF0288D1),
+                            onTap: widget.controller.navigateHome,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 28),
-              _OverlayButton(
-                label: 'RESUME',
-                icon: Icons.play_arrow_rounded,
-                color: AppColors.levelGreen,
-                onTap: controller.togglePause,
-              ),
-              const SizedBox(height: 12),
-              _OverlayButton(
-                label: 'HOME',
-                icon: Icons.home_rounded,
-                color: AppColors.primary,
-                onTap: controller.navigateHome,
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+}
+
+class _PauseStatChip extends StatelessWidget {
+  final String emoji, label;
+  final Color bg, border, textColor;
+  const _PauseStatChip({
+    required this.emoji, required this.label,
+    required this.bg, required this.border, required this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: border, width: 1.5),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(emoji, style: const TextStyle(fontSize: 16)),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: textColor)),
+      ]),
+    );
+  }
+}
+
+class _PauseActionBtn extends StatefulWidget {
+  final String label;
+  final List<Color> gradient;
+  final Color glowColor;
+  final VoidCallback onTap;
+  const _PauseActionBtn({required this.label, required this.gradient, required this.glowColor, required this.onTap});
+
+  @override
+  State<_PauseActionBtn> createState() => _PauseActionBtnState();
+}
+
+class _PauseActionBtnState extends State<_PauseActionBtn> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: widget.gradient),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [BoxShadow(color: widget.glowColor.withOpacity(0.45), blurRadius: 14, offset: const Offset(0, 6))],
+          ),
+          child: Text(
+            widget.label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PauseOutlineBtn extends StatefulWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  const _PauseOutlineBtn({required this.label, required this.color, required this.onTap});
+
+  @override
+  State<_PauseOutlineBtn> createState() => _PauseOutlineBtnState();
+}
+
+class _PauseOutlineBtnState extends State<_PauseOutlineBtn> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          decoration: BoxDecoration(
+            color: widget.color.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: widget.color.withOpacity(0.50), width: 1.8),
+          ),
+          child: Text(
+            widget.label,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: widget.color, letterSpacing: 0.3),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Hearts Over overlay ─────────────────────────────────────────────────────
+
+class _HeartsOverOverlay extends StatefulWidget {
+  final GameController controller;
+  const _HeartsOverOverlay({required this.controller});
+
+  @override
+  State<_HeartsOverOverlay> createState() => _HeartsOverOverlayState();
+}
+
+class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+  late Animation<double> _fade;
+
+  @override
+  void initState() { super.initState(); _onInit(); }
+
+  @override
+  void dispose() { _onDispose(); super.dispose(); }
+
+  void _onInit() {
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 550))
+      ..forward();
+    _scale = Tween<double>(begin: 0.65, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+  }
+
+  void _onDispose() => _ctrl.dispose();
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => FadeTransition(
+        opacity: _fade,
+        child: Container(
+          color: Colors.black.withOpacity(0.60),
+          child: Center(
+            child: ScaleTransition(
+              scale: _scale,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 36),
+                padding: const EdgeInsets.fromLTRB(28, 32, 28, 24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: const [
+                    BoxShadow(color: Colors.black26, blurRadius: 40, offset: Offset(0, 12)),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Animated bouncing hearts
+                    const Text('💔', style: TextStyle(fontSize: 64)),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Hearts Over!',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFFF4D6D),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Show all empty hearts
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(8, (_) => const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 2),
+                        child: Icon(Icons.favorite_border, color: Color(0xFFFF4D6D), size: 20),
+                      )),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'All 8 chances used up!',
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 8),
+                    // Current score chip
+                    Obx(() => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF3CD),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.60)),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.stars_rounded, color: Color(0xFFFF9800), size: 18),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Score: ${widget.controller.score.value}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF7A4F00)),
+                        ),
+                      ]),
+                    )),
+                    const SizedBox(height: 28),
+                    // ── Reset Hearts button
+                    GestureDetector(
+                      onTap: widget.controller.resetHearts,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF6B9D), Color(0xFFFF4D6D)],
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF4D6D).withOpacity(0.45),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.favorite, color: Colors.white, size: 22),
+                            SizedBox(width: 10),
+                            Text(
+                              'Reset Hearts',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // ── Home button
+                    GestureDetector(
+                      onTap: widget.controller.navigateHome,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0288D1).withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF0288D1).withOpacity(0.50), width: 1.8),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.home_rounded, color: Color(0xFF0288D1), size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              '🏠  Go Home',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0288D1),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void _closeApp() {
+  // Gracefully pop to the OS home screen.
+  // On Android this minimises; on iOS it does nothing (expected platform behaviour).
+  SystemNavigator.pop();
 }
 
 // ─── Game Over overlay ───────────────────────────────────────────────────────
@@ -385,8 +810,12 @@ class _GameOverOverlayState extends State<_GameOverOverlay>
   late Animation<double> _fade;
 
   @override
-  void initState() {
-    super.initState();
+  void initState() { super.initState(); _onInit(); }
+
+  @override
+  void dispose() { _onDispose(); super.dispose(); }
+
+  void _onInit() {
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -397,10 +826,8 @@ class _GameOverOverlayState extends State<_GameOverOverlay>
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
   }
 
-  @override
-  void dispose() {
+  void _onDispose() {
     _ctrl.dispose();
-    super.dispose();
   }
 
   @override
@@ -595,8 +1022,33 @@ class _OverlayButton extends StatelessWidget {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  PREMIUM SKY BACKGROUND  (level-based sky themes + animated birds)
+//  LOOPING IMAGE BACKGROUND
+//  Images cycle: bg_day → bg_sunset → bg_garden → bg_garden_real → bg_rain
+//  → bg_day → … (wraps back to image 1 after the last)
 // ════════════════════════════════════════════════════════════════════════════
+
+/// Gradient fallbacks — one per image in [BgAssets.all], shown while the
+/// asset is loading or if the file is missing.
+const _kFallbacks = [
+  // bg_sky
+  [Color(0xFF1565C0), Color(0xFF1E88E5), Color(0xFF64B5F6), Color(0xFFBBDEFB)],
+  // bg_dark_sky
+  [Color(0xFF0D1B4A), Color(0xFF1A237E), Color(0xFF283593), Color(0xFF3949AB)],
+  // bg_gallaxy
+  [Color(0xFF0A0020), Color(0xFF1A0050), Color(0xFF2D0080), Color(0xFF6A00FF)],
+  // bg_garden
+  [Color(0xFF1B5E20), Color(0xFF388E3C), Color(0xFF81C784), Color(0xFFC8E6C9)],
+  // bg_garden_gate
+  [Color(0xFF33691E), Color(0xFF689F38), Color(0xFFAED581), Color(0xFFDCEDC8)],
+  // bg_moonsoon
+  [Color(0xFF1A2332), Color(0xFF263545), Color(0xFF37474F), Color(0xFF546E7A)],
+  // bg_night
+  [Color(0xFF050D2A), Color(0xFF0A1F5E), Color(0xFF0D2B6E), Color(0xFF1A237E)],
+  // bg_night_star
+  [Color(0xFF020A1F), Color(0xFF0D1340), Color(0xFF1A1560), Color(0xFF2E2080)],
+  // beach_sky
+  [Color(0xFF0277BD), Color(0xFF0288D1), Color(0xFF4FC3F7), Color(0xFFB3E5FC)],
+];
 
 class _PremiumBackground extends StatefulWidget {
   final GameController controller;
@@ -608,442 +1060,53 @@ class _PremiumBackground extends StatefulWidget {
 
 class _PremiumBackgroundState extends State<_PremiumBackground>
     with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-
-  // 12 birds — each has [xPhase, yFrac, sizePx, speedFactor, flapPhase]
-  static const _birdDefs = [
-    [0.02, 0.10, 14.0, 1.00, 0.0],
-    [0.18, 0.08, 11.0, 1.25, 1.2],
-    [0.32, 0.13, 16.0, 0.85, 2.5],
-    [0.48, 0.07, 10.0, 1.40, 3.8],
-    [0.60, 0.16, 13.0, 1.10, 0.7],
-    [0.74, 0.11, 12.0, 1.30, 1.9],
-    [0.88, 0.09, 15.0, 0.78, 3.1],
-    [0.10, 0.21, 10.0, 1.20, 2.3],
-    [0.42, 0.19, 14.0, 1.05, 4.2],
-    [0.65, 0.22, 11.0, 1.35, 0.4],
-    [0.80, 0.15, 13.0, 0.95, 2.8],
-    [0.25, 0.25, 9.0,  1.55, 1.6],
-  ];
+  late AnimationController _parallaxCtrl;
 
   @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 12))
-      ..repeat();
-    _ctrl.addListener(() => setState(() {}));
+  void initState() { super.initState(); _onInit(); }
+
+  @override
+  void dispose() { _onDispose(); super.dispose(); }
+
+  void _onInit() {
+    _parallaxCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 16),
+    )..repeat();
+    _parallaxCtrl.addListener(() => setState(() {}));
   }
 
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
+  void _onDispose() {
+    _parallaxCtrl.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final level = widget.controller.level.value.clamp(1, 7);
-      final cfg = _skyConfig(level);
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 700),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: cfg.gradientColors,
+      // One random background per game, no repeats until all 9 have been seen.
+      final imgIndex = widget.controller.randomBgIndex.value;
+      final assetPath = BgAssets.all[imgIndex];
+      final fallbackColors = _kFallbacks[imgIndex];
+
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 800),
+        transitionBuilder: (child, anim) =>
+            FadeTransition(opacity: anim, child: child),
+        child: SafeAssetBackground(
+          key: ValueKey(assetPath),
+          assetPath: assetPath,
+          progress: _parallaxCtrl.value,
+          fallback: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: fallbackColors,
+              ),
+            ),
           ),
-        ),
-        child: CustomPaint(
-          painter: _SkyPainter(
-            level: level,
-            cfg: cfg,
-            progress: _ctrl.value,
-            birdDefs: _birdDefs,
-          ),
-          child: const SizedBox.expand(),
         ),
       );
     });
   }
-
-  static _SkyConfig _skyConfig(int level) {
-    const configs = [
-      // Lv1 — Clear blue day
-      _SkyConfig(
-        gradientColors: [Color(0xFF0D47A1), Color(0xFF1976D2), Color(0xFF42A5F5), Color(0xFFB3E5FC)],
-        birdColor: Color(0xFF0A3464),
-        cloudColor: Colors.white,
-        cloudOpacity: 0.88,
-        numBirds: 7,
-        theme: _SkyTheme.day,
-      ),
-      // Lv2 — Bright midday
-      _SkyConfig(
-        gradientColors: [Color(0xFF01579B), Color(0xFF0288D1), Color(0xFF29B6F6), Color(0xFFE1F5FE)],
-        birdColor: Color(0xFF01274D),
-        cloudColor: Colors.white,
-        cloudOpacity: 0.92,
-        numBirds: 10,
-        theme: _SkyTheme.day,
-      ),
-      // Lv3 — Golden hour
-      _SkyConfig(
-        gradientColors: [Color(0xFF0D47A1), Color(0xFF1565C0), Color(0xFFFF8F00), Color(0xFFFFE082)],
-        birdColor: Color(0xFF3E2000),
-        cloudColor: Color(0xFFFFCC80),
-        cloudOpacity: 0.75,
-        numBirds: 8,
-        theme: _SkyTheme.golden,
-      ),
-      // Lv4 — Sunset
-      _SkyConfig(
-        gradientColors: [Color(0xFF311B92), Color(0xFFBF360C), Color(0xFFE64A19), Color(0xFFFF6F00)],
-        birdColor: Color(0xFF1A0A00),
-        cloudColor: Color(0xFFFFAB91),
-        cloudOpacity: 0.65,
-        numBirds: 6,
-        theme: _SkyTheme.sunset,
-      ),
-      // Lv5 — Twilight
-      _SkyConfig(
-        gradientColors: [Color(0xFF050A20), Color(0xFF0D1B4A), Color(0xFF1A2980), Color(0xFF26348F)],
-        birdColor: Color(0xFFB0BEC5),
-        cloudColor: Color(0xFF7986CB),
-        cloudOpacity: 0.35,
-        numBirds: 4,
-        theme: _SkyTheme.twilight,
-      ),
-      // Lv6 — Storm
-      _SkyConfig(
-        gradientColors: [Color(0xFF0A0A0A), Color(0xFF1B2631), Color(0xFF212F3C), Color(0xFF2E4057)],
-        birdColor: Color(0xFFECEFF1),
-        cloudColor: Color(0xFF546E7A),
-        cloudOpacity: 0.90,
-        numBirds: 5,
-        theme: _SkyTheme.storm,
-      ),
-      // Lv7 — Magical rainbow sky
-      _SkyConfig(
-        gradientColors: [Color(0xFF0D47A1), Color(0xFF1E88E5), Color(0xFF64B5F6), Color(0xFFE3F2FD)],
-        birdColor: Color(0xFF0A3464),
-        cloudColor: Colors.white,
-        cloudOpacity: 0.90,
-        numBirds: 12,
-        theme: _SkyTheme.rainbow,
-      ),
-    ];
-    return configs[(level - 1).clamp(0, configs.length - 1)];
-  }
-}
-
-// ─── Sky config data class ────────────────────────────────────────────────────
-
-enum _SkyTheme { day, golden, sunset, twilight, storm, rainbow }
-
-class _SkyConfig {
-  final List<Color> gradientColors;
-  final Color birdColor;
-  final Color cloudColor;
-  final double cloudOpacity;
-  final int numBirds;
-  final _SkyTheme theme;
-
-  const _SkyConfig({
-    required this.gradientColors,
-    required this.birdColor,
-    required this.cloudColor,
-    required this.cloudOpacity,
-    required this.numBirds,
-    required this.theme,
-  });
-}
-
-// ─── Sky painter ──────────────────────────────────────────────────────────────
-
-class _SkyPainter extends CustomPainter {
-  final int level;
-  final _SkyConfig cfg;
-  final double progress;
-  final List<List<num>> birdDefs;
-
-  const _SkyPainter({
-    required this.level,
-    required this.cfg,
-    required this.progress,
-    required this.birdDefs,
-  });
-
-  @override
-  void paint(Canvas canvas, Size s) {
-    _drawSkyElements(canvas, s);
-    _drawBirds(canvas, s);
-  }
-
-  // ── Level-specific sky elements ───────────────────────────────────────────
-
-  void _drawSkyElements(Canvas canvas, Size s) {
-    switch (cfg.theme) {
-      case _SkyTheme.day:
-        _drawSunRays(canvas, s, Colors.white.withOpacity(0.08));
-        _drawClouds(canvas, s);
-        break;
-      case _SkyTheme.golden:
-        _drawSunRays(canvas, s, const Color(0xFFFFCC02).withOpacity(0.12));
-        _drawClouds(canvas, s);
-        _drawSunOrb(canvas, s, const Color(0xFFFFD600), 0.88, 0.95);
-        break;
-      case _SkyTheme.sunset:
-        _drawSunRays(canvas, s, const Color(0xFFFF6D00).withOpacity(0.14));
-        _drawClouds(canvas, s);
-        _drawSunOrb(canvas, s, const Color(0xFFFF6F00), 0.50, 0.96);
-        break;
-      case _SkyTheme.twilight:
-        _drawClouds(canvas, s);
-        _drawMoon(canvas, s);
-        _drawStars(canvas, s);
-        break;
-      case _SkyTheme.storm:
-        _drawStormClouds(canvas, s);
-        _drawLightning(canvas, s);
-        _drawRainStreaks(canvas, s);
-        break;
-      case _SkyTheme.rainbow:
-        _drawSunRays(canvas, s, Colors.white.withOpacity(0.10));
-        _drawRainbow(canvas, s);
-        _drawClouds(canvas, s);
-        break;
-    }
-  }
-
-  // ── Sun rays ──────────────────────────────────────────────────────────────
-
-  void _drawSunRays(Canvas canvas, Size s, Color color) {
-    final p = Paint()
-      ..color = color
-      ..strokeWidth = s.width * 0.05
-      ..strokeCap = StrokeCap.round;
-    final cx = s.width * 0.5, cy = -s.height * 0.05;
-    for (int i = 0; i < 14; i++) {
-      final a = (i / 14) * math.pi * 2;
-      canvas.drawLine(
-        Offset(cx, cy),
-        Offset(cx + math.cos(a) * s.width * 1.0, cy + math.sin(a) * s.width * 1.0),
-        p,
-      );
-    }
-  }
-
-  // ── Clouds ────────────────────────────────────────────────────────────────
-
-  void _drawClouds(Canvas canvas, Size s) {
-    final cloudDefs = [
-      [0.12, 0.14, 0.24], [0.55, 0.09, 0.28],
-      [0.80, 0.20, 0.18], [0.30, 0.22, 0.20],
-      [0.70, 0.30, 0.15],
-    ];
-    for (final d in cloudDefs) {
-      _cloud(canvas,
-        s.width * (d[0] as double),
-        s.height * (d[1] as double),
-        s.width * (d[2] as double));
-    }
-  }
-
-  void _cloud(Canvas canvas, double cx, double cy, double w) {
-    final h = w * 0.42;
-    final p = Paint()..color = cfg.cloudColor.withOpacity(cfg.cloudOpacity);
-    canvas.drawCircle(Offset(cx - w * 0.22, cy), h * 0.55, p);
-    canvas.drawCircle(Offset(cx, cy - h * 0.22), h * 0.68, p);
-    canvas.drawCircle(Offset(cx + w * 0.22, cy), h * 0.52, p);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(cx, cy + h * 0.2), width: w, height: h),
-        Radius.circular(h * 0.5),
-      ),
-      p,
-    );
-  }
-
-  // ── Sun orb ───────────────────────────────────────────────────────────────
-
-  void _drawSunOrb(Canvas canvas, Size s, Color color, double xFrac, double yFrac) {
-    final c = Offset(s.width * xFrac, s.height * yFrac);
-    final r = s.width * 0.08;
-    canvas.drawCircle(c, r * 2.5,
-      Paint()
-        ..color = color.withOpacity(0.15)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 2));
-    canvas.drawCircle(c, r, Paint()..color = color.withOpacity(0.85));
-  }
-
-  // ── Moon ──────────────────────────────────────────────────────────────────
-
-  void _drawMoon(Canvas canvas, Size s) {
-    final cx = s.width * 0.78, cy = s.height * 0.10;
-    final r = s.width * 0.06;
-    canvas.drawCircle(Offset(cx, cy), r,
-        Paint()..color = const Color(0xFFE8F0FE).withOpacity(0.90));
-    canvas.drawCircle(Offset(cx + r * 0.38, cy - r * 0.10), r * 0.82,
-        Paint()..color = const Color(0xFF1A2980));
-  }
-
-  // ── Stars ─────────────────────────────────────────────────────────────────
-
-  void _drawStars(Canvas canvas, Size s) {
-    final rng = math.Random(42);
-    for (int i = 0; i < 40; i++) {
-      final x = rng.nextDouble() * s.width;
-      final y = rng.nextDouble() * s.height * 0.55;
-      final tw = 0.4 + 0.6 * math.sin(progress * math.pi * 2 * 1.5 + i * 0.7);
-      // Clamp the opacity value between 0.0 and 1.0
-      final opacity = (tw * 0.80).clamp(0.0, 1.0);
-      canvas.drawCircle(Offset(x, y), 1.5 + rng.nextDouble() * 1.5,
-          Paint()..color = Colors.white.withOpacity(opacity));
-    }
-  }
-
-  // ── Rainbow ───────────────────────────────────────────────────────────────
-
-  void _drawRainbow(Canvas canvas, Size s) {
-    final cx = s.width * 0.5, cy = s.height * 0.85;
-    final base = s.width * 0.58;
-    final cols = [
-      const Color(0xFFFF1744), const Color(0xFFFF6D00),
-      const Color(0xFFFFEA00), const Color(0xFF00E676),
-      const Color(0xFF2979FF), const Color(0xFFD500F9),
-    ];
-    for (int i = 0; i < cols.length; i++) {
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: base - i * s.width * 0.022),
-        math.pi, math.pi, false,
-        Paint()
-          ..color = cols[i].withOpacity(0.55)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = s.width * 0.020,
-      );
-    }
-  }
-
-  // ── Storm clouds ──────────────────────────────────────────────────────────
-
-  void _drawStormClouds(Canvas canvas, Size s) {
-    final cloudDefs = [
-      [0.05, 0.08, 0.38, 0.80], [0.50, 0.04, 0.42, 0.88],
-      [0.82, 0.12, 0.32, 0.75], [0.28, 0.18, 0.30, 0.72],
-    ];
-    for (final d in cloudDefs) {
-      final opacity = cfg.cloudOpacity * (d[3] as double);
-      final p = Paint()..color = cfg.cloudColor.withOpacity(opacity);
-      final cx = s.width * (d[0] as double);
-      final cy = s.height * (d[1] as double);
-      final w  = s.width * (d[2] as double);
-      final h  = w * 0.50;
-      canvas.drawCircle(Offset(cx - w * 0.24, cy), h * 0.60, p);
-      canvas.drawCircle(Offset(cx, cy - h * 0.22), h * 0.72, p);
-      canvas.drawCircle(Offset(cx + w * 0.24, cy), h * 0.55, p);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset(cx, cy + h * 0.22), width: w, height: h),
-          Radius.circular(h * 0.5),
-        ),
-        p,
-      );
-    }
-  }
-
-  // ── Lightning ─────────────────────────────────────────────────────────────
-
-  void _drawLightning(Canvas canvas, Size s) {
-    // Subtle periodic flashes
-    final flash = math.sin(progress * math.pi * 4);
-    if (flash > 0.85) {
-      final lp = Paint()
-        ..color = const Color(0xFFFFF9C4).withOpacity((flash - 0.85) * 6)
-        ..strokeWidth = 2.5
-        ..strokeCap = StrokeCap.round;
-      final lx = s.width * 0.38;
-      canvas.drawLine(Offset(lx, s.height * 0.08), Offset(lx - 14, s.height * 0.22), lp);
-      canvas.drawLine(Offset(lx - 14, s.height * 0.22), Offset(lx + 6, s.height * 0.30), lp);
-      canvas.drawLine(Offset(lx + 6, s.height * 0.30), Offset(lx - 8, s.height * 0.42), lp);
-    }
-    final flash2 = math.sin(progress * math.pi * 3 + 2.0);
-    if (flash2 > 0.88) {
-      final lp = Paint()
-        ..color = const Color(0xFFFFF9C4).withOpacity((flash2 - 0.88) * 8)
-        ..strokeWidth = 2.0
-        ..strokeCap = StrokeCap.round;
-      final lx = s.width * 0.72;
-      canvas.drawLine(Offset(lx, s.height * 0.06), Offset(lx - 10, s.height * 0.18), lp);
-      canvas.drawLine(Offset(lx - 10, s.height * 0.18), Offset(lx + 5, s.height * 0.28), lp);
-    }
-  }
-
-  // ── Rain streaks ──────────────────────────────────────────────────────────
-
-  void _drawRainStreaks(Canvas canvas, Size s) {
-    final rng = math.Random(77);
-    final rp = Paint()
-      ..color = Colors.white.withOpacity(0.10)
-      ..strokeWidth = 0.7;
-    for (int i = 0; i < 55; i++) {
-      final x = rng.nextDouble() * s.width;
-      final baseY = (rng.nextDouble() + progress * 2.5) % 1.2 * s.height;
-      canvas.drawLine(Offset(x + 4, baseY), Offset(x, baseY + 22), rp);
-    }
-  }
-
-  // ── Birds ──────────────────────────────────────────────────────────────────
-
-  void _drawBirds(Canvas canvas, Size s) {
-    for (int i = 0; i < cfg.numBirds; i++) {
-      final def = birdDefs[i % birdDefs.length];
-      final xPhase = def[0] as double;
-      final yFrac  = def[1] as double;
-      final size   = def[2] as double;
-      final speed  = def[3] as double;
-      final fPhase = def[4] as double;
-
-      // x wraps from -10% to 110% of screen width
-      final rawX = (xPhase + progress * speed * 1.3) % 1.2;
-      final bx = (rawX - 0.1) * s.width;
-      final by = yFrac * s.height;
-
-      // Wing flap angle
-      final flap = math.sin(progress * math.pi * 2 * 5 + fPhase) * 0.36;
-
-      _drawBirdShape(canvas, Offset(bx, by), size, cfg.birdColor, flap);
-    }
-  }
-
-  void _drawBirdShape(Canvas canvas, Offset pos, double size, Color color, double flap) {
-    final p = Paint()
-      ..color = color.withOpacity(0.85)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size * 0.16
-      ..strokeCap = StrokeCap.round;
-
-    // Left wing
-    final path = Path()
-      ..moveTo(pos.dx - size, pos.dy - flap * size)
-      ..quadraticBezierTo(
-        pos.dx - size * 0.5, pos.dy + flap * size * 0.4,
-        pos.dx, pos.dy,
-      );
-    canvas.drawPath(path, p);
-
-    // Right wing
-    final path2 = Path()
-      ..moveTo(pos.dx, pos.dy)
-      ..quadraticBezierTo(
-        pos.dx + size * 0.5, pos.dy + flap * size * 0.4,
-        pos.dx + size, pos.dy - flap * size,
-      );
-    canvas.drawPath(path2, p);
-  }
-
-  @override
-  bool shouldRepaint(_SkyPainter old) =>
-      old.progress != progress || old.level != level;
 }

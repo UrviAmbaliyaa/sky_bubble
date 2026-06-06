@@ -3,25 +3,69 @@ import 'package:get/get.dart';
 import '../../data/models/score_model.dart';
 import '../../domain/usecases/score_usecases.dart';
 
-// ─── View-models ──────────────────────────────────────────────────────────────
+// ─── Data models ──────────────────────────────────────────────────────────────
 
-class DailyEntry {
-  final ScoreModel score;
-  final bool isLatestAward;
-  DailyEntry({required this.score, required this.isLatestAward});
+/// Aggregated summary for a single calendar date (used in Date-tab list).
+class DateSummary {
+  final DateTime date;
+  final int totalScore;
+  final int bestScore;
+  final int gamesPlayed;
+  final List<ScoreModel> games;
+
+  DateSummary({
+    required this.date,
+    required this.totalScore,
+    required this.bestScore,
+    required this.gamesPlayed,
+    required this.games,
+  });
 }
 
-/// A week range inside a month (e.g. May 1–7)
+/// One bar in the interactive chart.
+class BarItem {
+  final String label;
+  final int value;
+  final bool isCurrent;
+  BarItem({required this.label, required this.value, this.isCurrent = false});
+}
+
+/// A week row in the week-detail list.
+class WeekDayEntry {
+  final String dayLabel;
+  final DateTime date;
+  final int totalScore;
+  final int gamesPlayed;
+  final int bestScore;
+  final bool isToday;
+  WeekDayEntry({
+    required this.dayLabel,
+    required this.date,
+    required this.totalScore,
+    required this.gamesPlayed,
+    required this.bestScore,
+    required this.isToday,
+  });
+  bool get hasData => gamesPlayed > 0;
+}
+
+/// Light per-day data for the month calendar grid.
+class DayCal {
+  final int totalScore;
+  final int gamesCount;
+  const DayCal({required this.totalScore, required this.gamesCount});
+}
+
+/// Week segment inside a month view.
 class WeekSegment {
-  final int weekNum;       // 1-5
-  final String rangeLabel; // "May 1 – 7"
+  final int weekNum;
+  final String rangeLabel;
   final DateTime start;
   final DateTime end;
   final int totalScore;
   final int bestScore;
   final int gamesPlayed;
   final bool isCurrentWeek;
-
   WeekSegment({
     required this.weekNum,
     required this.rangeLabel,
@@ -32,13 +76,12 @@ class WeekSegment {
     required this.gamesPlayed,
     required this.isCurrentWeek,
   });
-
   bool get hasData => gamesPlayed > 0;
 }
 
-/// A calendar month that has at least one week to show
+/// Full month data block.
 class MonthBlock {
-  final String monthLabel;   // "May 2025"
+  final String monthLabel;
   final int year;
   final int month;
   final int totalScore;
@@ -47,7 +90,6 @@ class MonthBlock {
   final List<WeekSegment> weeks;
   final Color accentColor;
   final bool isCurrentMonth;
-
   MonthBlock({
     required this.monthLabel,
     required this.year,
@@ -67,180 +109,421 @@ class ScoreController extends GetxController {
   final GetScoresUseCase _getScores;
   ScoreController(this._getScores);
 
-  final RxList<DailyEntry> dailyEntries = <DailyEntry>[].obs;
-  final RxList<WeekSegment> currentWeekDays = <WeekSegment>[].obs;
+  // ── Global best
+  final RxInt globalBest = 0.obs;
+
+  // ── Tab (default: Week)
+  final RxInt selectedTab = 1.obs;
+
+  // ── Date tab – all-dates aggregated list
+  final RxList<DateSummary> allDateSummaries = <DateSummary>[].obs;
+  final Rx<DateTimeRange?> dateRangeFilter = Rx<DateTimeRange?>(null);
+  final RxInt expandedDateIndex = (-1).obs;
+
+  // ── Week tab
+  final Rx<DateTime> selectedWeekStart = DateTime.now().obs;
+  final RxList<BarItem> weekBars = <BarItem>[].obs;
+  final RxList<WeekDayEntry> weekEntries = <WeekDayEntry>[].obs;
+  final RxInt selectedWeekBar = (-1).obs;
+
+  // ── Month tab
+  final RxInt selectedMonth = DateTime.now().month.obs;
+  final RxInt selectedYear = DateTime.now().year.obs;
+  final RxList<BarItem> monthBars = <BarItem>[].obs;
   final RxList<MonthBlock> monthBlocks = <MonthBlock>[].obs;
-  final RxList<ScoreModel> latestAwards = <ScoreModel>[].obs;
-  final RxInt selectedTab = 0.obs;
+  final RxInt selectedMonthBar = (-1).obs;
+  // Per-day data for the calendar grid (key = day-of-month)
+  final RxMap<int, DayCal> monthDayMap = <int, DayCal>{}.obs;
+  final RxInt selectedCalDay = (-1).obs; // selected day in month calendar
+
+  List<ScoreModel> _all = [];
 
   static const _monthNames = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December',
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
   ];
   static const _monthShorts = [
-    'Jan','Feb','Mar','Apr','May','Jun',
-    'Jul','Aug','Sep','Oct','Nov','Dec',
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
+  static const _dayShorts = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   static const _accentColors = [
-    Color(0xFF4FC3F7), Color(0xFFBA68C8), Color(0xFF81C784), Color(0xFFFF8A65),
-    Color(0xFFFF6B9D), Color(0xFF4DB6AC), Color(0xFFFFD54F), Color(0xFFE57373),
-    Color(0xFF7986CB), Color(0xFF64B5F6), Color(0xFFA5D6A7), Color(0xFF90CAF9),
+    Color(0xFF4FC3F7), Color(0xFFBA68C8), Color(0xFF81C784),
+    Color(0xFFFF8A65), Color(0xFFFF6B9D), Color(0xFF4DB6AC),
+    Color(0xFFFFD54F), Color(0xFFE57373), Color(0xFF7986CB),
+    Color(0xFF64B5F6), Color(0xFFA5D6A7), Color(0xFF90CAF9),
   ];
 
   @override
-  void onReady() {
-    super.onReady();
+  void onInit() {
+    super.onInit();
+    final now = DateTime.now();
+    selectedWeekStart.value =
+        _dayStart(now.subtract(Duration(days: (now.weekday - 1) % 7)));
     loadScores();
   }
 
   void loadScores() {
-    final all = _getScores();
-    _buildLatestAwards(all);
-    _buildDaily(all);
-    _buildMonthBlocks(all);   // used for "Weekly" tab (calendar grouping)
+    _all = _getScores();
+    globalBest.value =
+        _all.isEmpty ? 0 : _all.map((s) => s.score).reduce(_max);
+    _rebuildAllDates();
+    _rebuildWeek();
+    _rebuildMonth();
   }
 
-  void onTabChanged(int index) => selectedTab.value = index;
+  void onTabChanged(int i) => selectedTab.value = i;
 
-  // ── Latest 3 most recent games ──────────────────────────────────────────
+  // ── Date tab ───────────────────────────────────────────────────────────────
 
-  void _buildLatestAwards(List<ScoreModel> all) {
-    final sorted = [...all]..sort((a, b) => b.playedAt.compareTo(a.playedAt));
-    latestAwards.value = sorted.take(3).toList();
+  void setDateRangeFilter(DateTimeRange? range) {
+    dateRangeFilter.value = range;
+    expandedDateIndex.value = -1;
+    _rebuildAllDates();
   }
 
-  // ── Today's individual scores ───────────────────────────────────────────
+  void clearDateFilter() {
+    dateRangeFilter.value = null;
+    expandedDateIndex.value = -1;
+    _rebuildAllDates();
+  }
 
-  void _buildDaily(List<ScoreModel> all) {
-    final todayStart = _dayStart(DateTime.now());
-    final latestTimes = latestAwards.map((s) => s.playedAt).toSet();
+  void toggleDateExpanded(int index) {
+    expandedDateIndex.value = expandedDateIndex.value == index ? -1 : index;
+  }
 
-    final today = all.where((s) => s.playedAt.isAfter(todayStart)).toList()
-      ..sort((a, b) => b.score.compareTo(a.score));
+  void _rebuildAllDates() {
+    // Group all scores by calendar date
+    final map = <String, List<ScoreModel>>{};
+    for (final s in _all) {
+      final key =
+          '${s.playedAt.year}-${s.playedAt.month.toString().padLeft(2, '0')}-${s.playedAt.day.toString().padLeft(2, '0')}';
+      map.putIfAbsent(key, () => []).add(s);
+    }
 
-    dailyEntries.value = today
-        .map((s) => DailyEntry(
-              score: s,
-              isLatestAward: latestTimes.contains(s.playedAt),
+    var summaries = map.entries.map((e) {
+      final games = e.value
+        ..sort((a, b) => b.playedAt.compareTo(a.playedAt)); // newest first
+      final date = DateTime(
+          games.first.playedAt.year,
+          games.first.playedAt.month,
+          games.first.playedAt.day);
+      return DateSummary(
+        date: date,
+        totalScore: games.fold(0, (s, g) => s + g.score),
+        bestScore: games.map((g) => g.score).reduce(_max),
+        gamesPlayed: games.length,
+        games: games,
+      );
+    }).toList();
+
+    // Apply date range filter
+    final filter = dateRangeFilter.value;
+    if (filter != null) {
+      final fStart = _dayStart(filter.start);
+      final fEnd = _dayStart(filter.end).add(const Duration(days: 1));
+      summaries = summaries
+          .where((s) =>
+              !s.date.isBefore(fStart) && s.date.isBefore(fEnd))
+          .toList();
+    }
+
+    // Newest first
+    summaries.sort((a, b) => b.date.compareTo(a.date));
+    allDateSummaries.value = summaries;
+  }
+
+  // ── Week navigation ────────────────────────────────────────────────────────
+
+  void prevWeek() {
+    selectedWeekStart.value =
+        selectedWeekStart.value.subtract(const Duration(days: 7));
+    selectedWeekBar.value = -1;
+    _rebuildWeek();
+  }
+
+  void nextWeek() {
+    final next = selectedWeekStart.value.add(const Duration(days: 7));
+    if (next.isAfter(DateTime.now())) return;
+    selectedWeekStart.value = next;
+    selectedWeekBar.value = -1;
+    _rebuildWeek();
+  }
+
+  // Jump to the week that contains [date]
+  void setWeekForDate(DateTime date) {
+    final d = _dayStart(date);
+    selectedWeekStart.value =
+        d.subtract(Duration(days: (d.weekday - 1) % 7));
+    selectedWeekBar.value = -1;
+    _rebuildWeek();
+  }
+
+  void _rebuildWeek() {
+    final now = DateTime.now();
+    final wStart = selectedWeekStart.value;
+    final entries = <WeekDayEntry>[];
+    final bars = <BarItem>[];
+
+    for (int i = 0; i < 7; i++) {
+      final day = wStart.add(Duration(days: i));
+      final dayStart = _dayStart(day);
+      final dayEnd = dayStart.add(const Duration(days: 1));
+      final isToday = _sameDay(day, now);
+
+      final dayScores = _all.where((s) {
+        final p = s.playedAt;
+        return !p.isBefore(dayStart) && p.isBefore(dayEnd);
+      }).toList();
+
+      final total = dayScores.fold(0, (s, e) => s + e.score);
+      final best =
+          dayScores.isEmpty ? 0 : dayScores.map((s) => s.score).reduce(_max);
+
+      entries.add(WeekDayEntry(
+        dayLabel: '${_dayShorts[i]} ${day.day}',
+        date: day,
+        totalScore: total,
+        gamesPlayed: dayScores.length,
+        bestScore: best,
+        isToday: isToday,
+      ));
+
+      bars.add(BarItem(
+        label: _dayShorts[i].substring(0, 1),
+        value: total,
+        isCurrent: isToday,
+      ));
+    }
+
+    weekEntries.value = entries;
+    weekBars.value = bars;
+  }
+
+  List<WeekDayEntry> get filteredWeekEntries {
+    if (selectedWeekBar.value < 0) return weekEntries;
+    final i = selectedWeekBar.value;
+    if (i < weekEntries.length) return [weekEntries[i]];
+    return weekEntries;
+  }
+
+  // ── Month navigation ───────────────────────────────────────────────────────
+
+  void prevMonth() {
+    int m = selectedMonth.value - 1;
+    int y = selectedYear.value;
+    if (m < 1) { m = 12; y--; }
+    selectedMonth.value = m;
+    selectedYear.value = y;
+    selectedMonthBar.value = -1;
+    selectedCalDay.value = -1;
+    _rebuildMonth();
+  }
+
+  void nextMonth() {
+    final now = DateTime.now();
+    int m = selectedMonth.value + 1;
+    int y = selectedYear.value;
+    if (m > 12) { m = 1; y++; }
+    if (y > now.year || (y == now.year && m > now.month)) return;
+    selectedMonth.value = m;
+    selectedYear.value = y;
+    selectedMonthBar.value = -1;
+    selectedCalDay.value = -1;
+    _rebuildMonth();
+  }
+
+  void setMonthYear(int month, int year) {
+    selectedMonth.value = month;
+    selectedYear.value = year;
+    selectedMonthBar.value = -1;
+    selectedCalDay.value = -1;
+    _rebuildMonth();
+  }
+
+  void tapCalDay(int day) {
+    selectedCalDay.value = selectedCalDay.value == day ? -1 : day;
+  }
+
+  /// Returns the DateSummary for the selected calendar day (or null).
+  DateSummary? get selectedCalDaySummary {
+    final day = selectedCalDay.value;
+    if (day < 1) return null;
+    final m = selectedMonth.value;
+    final y = selectedYear.value;
+    final date = DateTime(y, m, day);
+    final dayEnd = date.add(const Duration(days: 1));
+    final games = _all
+        .where((s) =>
+            !s.playedAt.isBefore(date) && s.playedAt.isBefore(dayEnd))
+        .toList()
+      ..sort((a, b) => b.playedAt.compareTo(a.playedAt)); // newest first
+    if (games.isEmpty) return null;
+    return DateSummary(
+      date: date,
+      totalScore: games.fold(0, (s, g) => s + g.score),
+      bestScore: games.map((g) => g.score).reduce(_max),
+      gamesPlayed: games.length,
+      games: games,
+    );
+  }
+
+  void _rebuildMonth() {
+    final now = DateTime.now();
+    final month = selectedMonth.value;
+    final year = selectedYear.value;
+    final scores = _all
+        .where((s) => s.playedAt.month == month && s.playedAt.year == year)
+        .toList();
+
+    // Per-day calendar grid data
+    final dayMap = <int, DayCal>{};
+    for (final s in scores) {
+      final d = s.playedAt.day;
+      final existing = dayMap[d];
+      dayMap[d] = DayCal(
+        totalScore: (existing?.totalScore ?? 0) + s.score,
+        gamesCount: (existing?.gamesCount ?? 0) + 1,
+      );
+    }
+    monthDayMap.value = dayMap;
+
+    final isCurrentMonth = year == now.year && month == now.month;
+    final accent = _accentColors[(month - 1) % _accentColors.length];
+    final weeks = _buildWeekSegments(year, month, scores, now);
+
+    if (weeks.isEmpty && !isCurrentMonth) {
+      monthBlocks.value = [];
+      monthBars.value = [];
+      return;
+    }
+
+    final block = MonthBlock(
+      monthLabel: '${_monthNames[month - 1]} $year',
+      year: year,
+      month: month,
+      totalScore: scores.fold(0, (s, e) => s + e.score),
+      bestScore: scores.isEmpty ? 0 : scores.map((s) => s.score).reduce(_max),
+      gamesPlayed: scores.length,
+      weeks: weeks,
+      accentColor: accent,
+      isCurrentMonth: isCurrentMonth,
+    );
+
+    monthBlocks.value = [block];
+    monthBars.value = weeks
+        .map((w) => BarItem(
+              label: 'W${w.weekNum}',
+              value: w.totalScore,
+              isCurrent: w.isCurrentWeek,
             ))
         .toList();
   }
 
-  // ── Calendar weeks grouped by month ────────────────────────────────────
-  // Logic:
-  //  • Group all scores by calendar month.
-  //  • For each month split into week ranges: 1-7, 8-14, 15-21, 22-28, 29-end.
-  //  • Show a week segment if:  has data  OR  it is the current week.
-  //  • Sort months newest-first.
-
-  void _buildMonthBlocks(List<ScoreModel> all) {
-    final now = DateTime.now();
-    final grouped = <String, List<ScoreModel>>{};
-
-    for (final s in all) {
-      final key =
-          '${s.playedAt.year}-${s.playedAt.month.toString().padLeft(2, '0')}';
-      grouped.putIfAbsent(key, () => []).add(s);
-    }
-
-    // Always include current month even if no scores yet
-    final currentKey =
-        '${now.year}-${now.month.toString().padLeft(2, '0')}';
-    grouped.putIfAbsent(currentKey, () => []);
-
-    final blocks = <MonthBlock>[];
-
-    for (final entry in grouped.entries) {
-      final parts = entry.key.split('-');
-      final year = int.parse(parts[0]);
-      final month = int.parse(parts[1]);
-      final scores = entry.value;
-
-      final weeks = _buildWeekSegments(year, month, scores, now);
-      if (weeks.isEmpty) continue;
-
-      final isCurrentMonth = year == now.year && month == now.month;
-      final accent = _accentColors[(month - 1) % _accentColors.length];
-
-      blocks.add(MonthBlock(
-        monthLabel: '${_monthNames[month - 1]} $year',
-        year: year,
-        month: month,
-        totalScore: scores.fold(0, (s, e) => s + e.score),
-        bestScore: scores.isEmpty ? 0 : scores.map((s) => s.score).reduce(_max),
-        gamesPlayed: scores.length,
-        weeks: weeks,
-        accentColor: accent,
-        isCurrentMonth: isCurrentMonth,
-      ));
-    }
-
-    blocks.sort((a, b) {
-      final y = b.year.compareTo(a.year);
-      return y != 0 ? y : b.month.compareTo(a.month);
-    });
-
-    monthBlocks.value = blocks;
-  }
-
   List<WeekSegment> _buildWeekSegments(
-    int year,
-    int month,
-    List<ScoreModel> scores,
-    DateTime now,
-  ) {
+      int year, int month, List<ScoreModel> scores, DateTime now) {
     final daysInMonth = DateTime(year, month + 1, 0).day;
     final short = _monthShorts[month - 1];
-
-    // Fixed week ranges within a month
-    final ranges = <List<int>>[
-      [1, 7],
-      [8, 14],
-      [15, 21],
-      [22, 28],
+    final ranges = [
+      [1, 7], [8, 14], [15, 21], [22, 28],
       if (daysInMonth > 28) [29, daysInMonth],
     ];
-
     final segments = <WeekSegment>[];
-
     for (int i = 0; i < ranges.length; i++) {
       final startDay = ranges[i][0];
       final endDay = ranges[i][1].clamp(1, daysInMonth);
       if (startDay > daysInMonth) continue;
-
-      final startDate = DateTime(year, month, startDay);
-      final endDate = DateTime(year, month, endDay, 23, 59, 59);
-
-      final isCurrentWeek =
-          now.isAfter(startDate.subtract(const Duration(seconds: 1))) &&
-              now.isBefore(endDate.add(const Duration(seconds: 1)));
-
-      final weekScores = scores
-          .where((s) =>
-              !s.playedAt.isBefore(startDate) &&
-              !s.playedAt.isAfter(endDate))
+      final start = DateTime(year, month, startDay);
+      final end = DateTime(year, month, endDay, 23, 59, 59);
+      final isCW =
+          now.isAfter(start.subtract(const Duration(seconds: 1))) &&
+          now.isBefore(end.add(const Duration(seconds: 1)));
+      final ws = scores
+          .where((s) => !s.playedAt.isBefore(start) && !s.playedAt.isAfter(end))
           .toList();
-
-      // Only include if has data OR it's the current week
-      if (weekScores.isEmpty && !isCurrentWeek) continue;
-
+      if (ws.isEmpty && !isCW) continue;
       segments.add(WeekSegment(
         weekNum: i + 1,
         rangeLabel: '$short $startDay – $endDay',
-        start: startDate,
-        end: endDate,
-        totalScore: weekScores.fold(0, (s, e) => s + e.score),
-        bestScore: weekScores.isEmpty
-            ? 0
-            : weekScores.map((s) => s.score).reduce(_max),
-        gamesPlayed: weekScores.length,
-        isCurrentWeek: isCurrentWeek,
+        start: start,
+        end: end,
+        totalScore: ws.fold(0, (s, e) => s + e.score),
+        bestScore: ws.isEmpty ? 0 : ws.map((s) => s.score).reduce(_max),
+        gamesPlayed: ws.length,
+        isCurrentWeek: isCW,
       ));
     }
-
     return segments;
   }
 
+  // ── Computed view-properties (used directly in build methods) ────────────
+
+  /// True when the displayed week is the current Mon–Sun week.
+  bool get isCurrentWeek {
+    final now = DateTime.now();
+    final current = _dayStart(now.subtract(Duration(days: (now.weekday - 1) % 7)));
+    return _sameDay(selectedWeekStart.value, current);
+  }
+
+  /// True when displayed year+month is the current calendar month.
+  bool get isCurrentMonthPeriod {
+    final now = DateTime.now();
+    return selectedYear.value == now.year && selectedMonth.value == now.month;
+  }
+
+  /// Max total score across all 7 week-day entries (for progress-bar scaling).
+  int get weekMaxScore =>
+      weekEntries.map((e) => e.totalScore).fold(0, _max);
+
+  /// True when every day in the selected week has zero games.
+  bool get weekAllEmpty => weekEntries.every((e) => !e.hasData);
+
+  /// Total score per month (1–12) for the selected year.
+  Map<int, int> get monthlyTotalsForSelectedYear {
+    final map = <int, int>{};
+    final year = selectedYear.value;
+    for (final s in allDateSummaries) {
+      if (s.date.year == year) {
+        map[s.date.month] = (map[s.date.month] ?? 0) + s.totalScore;
+      }
+    }
+    return map;
+  }
+
+  /// Max monthly score for the selected year (for progress-bar scaling).
+  int get monthlyMaxScore =>
+      monthlyTotalsForSelectedYear.values.fold(0, _max);
+
+  /// True when the selected year has any recorded games.
+  bool get selectedYearHasData => monthlyTotalsForSelectedYear.isNotEmpty;
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  String get selectedWeekLabel {
+    final s = selectedWeekStart.value;
+    final e = s.add(const Duration(days: 6));
+    return '${s.day} ${_monthShorts[s.month - 1]} – ${e.day} ${_monthShorts[e.month - 1]}';
+  }
+
+  String get selectedMonthLabel =>
+      '${_monthNames[selectedMonth.value - 1]} ${selectedYear.value}';
+
+  bool get canGoNextWeek {
+    final next = selectedWeekStart.value.add(const Duration(days: 7));
+    return next.isBefore(DateTime.now()) || _sameDay(next, DateTime.now());
+  }
+
+  bool get canGoNextMonth {
+    final now = DateTime.now();
+    return !(selectedYear.value == now.year &&
+        selectedMonth.value == now.month);
+  }
+
+  String monthName(int m) => _monthNames[m - 1];
+  String monthShort(int m) => _monthShorts[m - 1];
+
   DateTime _dayStart(DateTime d) => DateTime(d.year, d.month, d.day);
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
   int _max(int a, int b) => a > b ? a : b;
 }

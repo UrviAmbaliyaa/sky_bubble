@@ -13,6 +13,10 @@ class BubbleModel {
   bool isPopped;
   bool isBursting;
   double burstProgress;
+  /// Points awarded when this bubble is popped (1–5 for normal, 100 for special).
+  final int pointValue;
+  /// True for the rare golden home-style bubble worth 100 pts.
+  final bool isSpecial;
 
   BubbleModel({
     required this.id,
@@ -27,6 +31,8 @@ class BubbleModel {
     this.isPopped = false,
     this.isBursting = false,
     this.burstProgress = 0.0,
+    this.pointValue = 1,
+    this.isSpecial = false,
   });
 
   bool get isActive => !isPopped || isBursting;

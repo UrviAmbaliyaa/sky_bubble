@@ -3,6 +3,7 @@ import '../../presentation/screens/splash_screen.dart';
 import '../../presentation/screens/home_screen.dart';
 import '../../presentation/screens/game_screen.dart';
 import '../../presentation/screens/score_screen.dart';
+import '../../presentation/screens/bubble_style_screen.dart';
 import '../bindings/app_bindings.dart';
 import 'app_routes.dart';
 
@@ -31,6 +32,11 @@ class AppPages {
       page: () => const ScoreScreen(),
       binding: ScoreBinding(),
       transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.bubbleStyle,
+      page: () => const BubbleStyleScreen(),
+      transition: Transition.downToUp,
     ),
   ];
 }
