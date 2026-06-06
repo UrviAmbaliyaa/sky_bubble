@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/background_assets.dart';
@@ -78,7 +79,7 @@ class _GameBodyState extends State<_GameBody> {
         Obx(() => widget.controller.levelUpMessage.value.isEmpty
             ? const SizedBox.shrink()
             : Positioned(
-                top: MediaQuery.of(context).padding.top + 80,
+                top: MediaQuery.of(context).padding.top + 10.h,
                 left: 0,
                 right: 0,
                 child: _LevelUpBanner(
@@ -116,10 +117,7 @@ class _GameHUD extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppDimensions.paddingM,
-        vertical: AppDimensions.paddingS,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       child: Row(
         children: [
           // ── Score
@@ -127,54 +125,48 @@ class _GameHUD extends StatelessWidget {
             child: Obx(() => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 20),
-                const SizedBox(width: 6),
+                Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 5.5.w),
+                SizedBox(width: 1.5.w),
                 Text(
                   '${controller.score.value}',
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textDark),
+                  style: TextStyle(fontSize: 15.5.sp, fontWeight: FontWeight.w900, color: AppColors.textDark),
                 ),
               ],
             )),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 2.w),
           // ── Level
           _HudCard(
             child: Obx(() => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.trending_up_rounded, color: AppColors.levelGreen, size: 18),
-                const SizedBox(width: 4),
+                Icon(Icons.trending_up_rounded, color: AppColors.levelGreen, size: 5.w),
+                SizedBox(width: 1.w),
                 Text(
                   'LVL ${controller.level.value}',
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.levelGreen),
+                  style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: AppColors.levelGreen),
                 ),
               ],
             )),
           ),
-                    const Spacer(),
-
+          const Spacer(),
           // ── Hearts counter pill
           _HudCard(
             child: Obx(() => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.favorite, color: Color(0xFFFF4D6D), size: 20),
-                const SizedBox(width: 5),
+                Icon(Icons.favorite, color: const Color(0xFFFF4D6D), size: 5.5.w),
+                SizedBox(width: 1.5.w),
                 Text(
-                  '+${controller.lives.value}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFFFF4D6D),
-                  ),
+                  '${controller.lives.value}',
+                  style: TextStyle(fontSize: 14.5.sp, fontWeight: FontWeight.w900, color: const Color(0xFFFF4D6D)),
                 ),
               ],
             )),
           ),
-                    const SizedBox(width: 8),
-
+          SizedBox(width: 2.w),
           _SoundToggleButton(),
-          const SizedBox(width: 8),
+          SizedBox(width: 2.w),
           _PauseButton(onTap: controller.togglePause),
         ],
       ),
@@ -189,17 +181,13 @@ class _HudCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.75),
         borderRadius: BorderRadius.circular(AppDimensions.radiusM),
         border: Border.all(color: Colors.white.withOpacity(0.6), width: 1.2),
         boxShadow: [
-          BoxShadow(
-            color: Colors.white.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.white.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 2)),
         ],
       ),
       child: child,
@@ -219,19 +207,16 @@ class _SoundToggleButton extends StatelessWidget {
       return GestureDetector(
         onTap: _sound.toggleMute,
         child: Container(
-          width: 42,
-          height: 42,
+          width: 10.w, height: 10.w,
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.92),
             borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-            boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
-            ],
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
           ),
           child: Icon(
             muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
             color: muted ? Colors.red.shade400 : AppColors.textDark,
-            size: 22,
+            size: 5.5.w,
           ),
         ),
       );
@@ -248,16 +233,13 @@ class _PauseButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 42,
-        height: 42,
+        width: 10.w, height: 10.w,
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.92),
           borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-          boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3)),
-          ],
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
         ),
-        child: const Icon(Icons.pause_rounded, color: AppColors.textDark, size: 24),
+        child: Icon(Icons.pause_rounded, color: AppColors.textDark, size: 6.w),
       ),
     );
   }
@@ -321,7 +303,7 @@ class _LevelUpBannerState extends State<_LevelUpBanner>
                 ],
               ),
               child: Text(
-                '🎉  ${widget.message}',
+                widget.message,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -386,7 +368,7 @@ class _PauseOverlayState extends State<_PauseOverlay>
             child: ScaleTransition(
               scale: _scale,
               child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 28),
+                margin: EdgeInsets.symmetric(horizontal: 7.w),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(32),
@@ -398,10 +380,9 @@ class _PauseOverlayState extends State<_PauseOverlay>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ── Colourful top banner
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 22),
+                      padding: EdgeInsets.symmetric(vertical: 2.5.h),
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           colors: [Color(0xFF00D4FF), Color(0xFF007AFF)],
@@ -411,46 +392,42 @@ class _PauseOverlayState extends State<_PauseOverlay>
                         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                       ),
                       child: Column(children: [
-                        // Bubble emoji row
-                        const Row(
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text('🫧', style: TextStyle(fontSize: 16)),
-                            SizedBox(width: 4),
-                            Text('🫧', style: TextStyle(fontSize: 24)),
-                            SizedBox(width: 4),
-                            Text('🫧', style: TextStyle(fontSize: 16)),
+                            Icon(Icons.circle, color: Colors.white54, size: 5.w),
+                            SizedBox(width: 1.w),
+                            Icon(Icons.circle, color: Colors.white70, size: 7.w),
+                            SizedBox(width: 1.w),
+                            Icon(Icons.circle, color: Colors.white54, size: 5.w),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        // Pause icon circle
+                        SizedBox(height: 1.h),
                         Container(
-                          width: 68, height: 68,
+                          width: 17.w, height: 17.w,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.white.withOpacity(0.22),
                             border: Border.all(color: Colors.white.withOpacity(0.60), width: 2.5),
                           ),
-                          child: const Icon(Icons.pause_rounded, color: Colors.white, size: 36),
+                          child: Icon(Icons.pause_rounded, color: Colors.white, size: 9.w),
                         ),
-                        const SizedBox(height: 10),
-                        const Text(
+                        SizedBox(height: 1.h),
+                        Text(
                           'Game Paused!',
                           style: TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white,
+                            fontSize: 16.5.sp, fontWeight: FontWeight.w900, color: Colors.white,
                             letterSpacing: 0.5,
-                            shadows: [Shadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
+                            shadows: const [Shadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 2))],
                           ),
                         ),
                       ]),
                     ),
-                    // ── White body
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                      padding: EdgeInsets.fromLTRB(6.w, 2.5.h, 6.w, 3.h),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Score + Hearts chips
                           Obx(() => Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -461,26 +438,24 @@ class _PauseOverlayState extends State<_PauseOverlay>
                                 border: const Color(0xFFFFCA28),
                                 textColor: const Color(0xFF7A5300),
                               ),
-                              const SizedBox(width: 10),
+                              SizedBox(width: 2.5.w),
                               _PauseStatChip(
                                 emoji: '❤️',
-                                label: '+${widget.controller.lives.value}',
+                                label: '${widget.controller.lives.value}',
                                 bg: const Color(0xFFFFEBEE),
                                 border: const Color(0xFFFF8A80),
                                 textColor: const Color(0xFFD32F2F),
                               ),
                             ],
                           )),
-                          const SizedBox(height: 22),
-                          // Resume button
+                          SizedBox(height: 2.5.h),
                           _PauseActionBtn(
                             label: '▶  Resume',
                             gradient: const [Color(0xFF43E97B), Color(0xFF11998E)],
                             glowColor: const Color(0xFF43E97B),
                             onTap: widget.controller.togglePause,
                           ),
-                          const SizedBox(height: 12),
-                          // Home button — outlined style on white bg
+                          SizedBox(height: 1.5.h),
                           _PauseOutlineBtn(
                             label: '🏠  Go Home',
                             color: const Color(0xFF0288D1),
@@ -518,9 +493,9 @@ class _PauseStatChip extends StatelessWidget {
         border: Border.all(color: border, width: 1.5),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text(emoji, style: const TextStyle(fontSize: 16)),
-        const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: textColor)),
+        Text(emoji, style: TextStyle(fontSize: 12.5.sp)),
+        SizedBox(width: 1.5.w),
+        Text(label, style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w900, color: textColor)),
       ]),
     );
   }
@@ -551,7 +526,7 @@ class _PauseActionBtnState extends State<_PauseActionBtn> {
         duration: const Duration(milliseconds: 100),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: EdgeInsets.symmetric(vertical: 2.h),
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: widget.gradient),
             borderRadius: BorderRadius.circular(18),
@@ -560,7 +535,7 @@ class _PauseActionBtnState extends State<_PauseActionBtn> {
           child: Text(
             widget.label,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
+            style: TextStyle(fontSize: 14.5.sp, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5),
           ),
         ),
       ),
@@ -592,7 +567,7 @@ class _PauseOutlineBtnState extends State<_PauseOutlineBtn> {
         duration: const Duration(milliseconds: 100),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 15),
+          padding: EdgeInsets.symmetric(vertical: 1.8.h),
           decoration: BoxDecoration(
             color: widget.color.withOpacity(0.07),
             borderRadius: BorderRadius.circular(18),
@@ -601,7 +576,7 @@ class _PauseOutlineBtnState extends State<_PauseOutlineBtn> {
           child: Text(
             widget.label,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: widget.color, letterSpacing: 0.3),
+            style: TextStyle(fontSize: 13.5.sp, fontWeight: FontWeight.w800, color: widget.color, letterSpacing: 0.3),
           ),
         ),
       ),
@@ -653,125 +628,88 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
             child: ScaleTransition(
               scale: _scale,
               child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 36),
-                padding: const EdgeInsets.fromLTRB(28, 32, 28, 24),
+                margin: EdgeInsets.symmetric(horizontal: 9.w),
+                padding: EdgeInsets.fromLTRB(7.w, 4.h, 7.w, 3.h),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(28),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 40, offset: Offset(0, 12)),
-                  ],
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 40, offset: Offset(0, 12))],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Animated bouncing hearts
-                    const Text('💔', style: TextStyle(fontSize: 64)),
-                    const SizedBox(height: 12),
-                    const Text(
+                    Text('💔', style: TextStyle(fontSize: 35.5.sp)),
+                    SizedBox(height: 1.5.h),
+                    Text(
                       'Hearts Over!',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFFFF4D6D),
-                        letterSpacing: 0.5,
-                      ),
+                      style: TextStyle(fontSize: 18.5.sp, fontWeight: FontWeight.w900, color: const Color(0xFFFF4D6D), letterSpacing: 0.5),
                     ),
-                    const SizedBox(height: 8),
-                    // Show all empty hearts
+                    SizedBox(height: 1.h),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(8, (_) => const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 2),
-                        child: Icon(Icons.favorite_border, color: Color(0xFFFF4D6D), size: 20),
+                      children: List.generate(8, (_) => Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 0.5.w),
+                        child: Icon(Icons.favorite_border, color: const Color(0xFFFF4D6D), size: 5.w),
                       )),
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'All 8 chances used up!',
-                      style: TextStyle(fontSize: 14, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 8),
-                    // Current score chip
+                    SizedBox(height: 1.h),
+                    Text('All 8 chances used up!',
+                        style: TextStyle(fontSize: 11.5.sp, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
+                    SizedBox(height: 1.h),
                     Obx(() => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                      padding: EdgeInsets.symmetric(horizontal: 4.5.w, vertical: 1.h),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFF3CD),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.60)),
                       ),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.stars_rounded, color: Color(0xFFFF9800), size: 18),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Score: ${widget.controller.score.value}',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF7A4F00)),
-                        ),
+                        Icon(Icons.stars_rounded, color: const Color(0xFFFF9800), size: 5.w),
+                        SizedBox(width: 1.5.w),
+                        Text('${widget.controller.score.value} pts',
+                            style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: const Color(0xFF7A4F00))),
                       ]),
                     )),
-                    const SizedBox(height: 28),
-                    // ── Reset Hearts button
+                    SizedBox(height: 3.h),
                     GestureDetector(
                       onTap: widget.controller.resetHearts,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        padding: EdgeInsets.symmetric(vertical: 2.h),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFF6B9D), Color(0xFFFF4D6D)],
-                          ),
+                          gradient: const LinearGradient(colors: [Color(0xFFFF6B9D), Color(0xFFFF4D6D)]),
                           borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFF4D6D).withOpacity(0.45),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
+                          boxShadow: [BoxShadow(color: const Color(0xFFFF4D6D).withOpacity(0.45), blurRadius: 16, offset: const Offset(0, 6))],
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.favorite, color: Colors.white, size: 22),
-                            SizedBox(width: 10),
-                            Text(
-                              'Reset Hearts',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
+                            Icon(Icons.favorite, color: Colors.white, size: 5.5.w),
+                            SizedBox(width: 2.5.w),
+                            Text('Reset Hearts',
+                                style: TextStyle(fontSize: 13.5.sp, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5)),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    // ── Home button
+                    SizedBox(height: 1.5.h),
                     GestureDetector(
                       onTap: widget.controller.navigateHome,
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: EdgeInsets.symmetric(vertical: 1.8.h),
                         decoration: BoxDecoration(
                           color: const Color(0xFF0288D1).withOpacity(0.07),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: const Color(0xFF0288D1).withOpacity(0.50), width: 1.8),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.home_rounded, color: Color(0xFF0288D1), size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              '🏠  Go Home',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0288D1),
-                              ),
-                            ),
+                            Icon(Icons.home_rounded, color: const Color(0xFF0288D1), size: 5.w),
+                            SizedBox(width: 2.w),
+                            Text('Go Home',
+                                style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w700, color: const Color(0xFF0288D1))),
                           ],
                         ),
                       ),
@@ -858,43 +796,20 @@ class _GameOverOverlayState extends State<_GameOverOverlay>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text('💥', style: TextStyle(fontSize: 56)),
-                    const SizedBox(height: 8),
-                    const Text(
+                    Text('💥', style: TextStyle(fontSize: 31.5.sp)),
+                    SizedBox(height: 1.h),
+                    Text(
                       'GAME OVER',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.liveRed,
-                        letterSpacing: 2,
-                      ),
+                      style: TextStyle(fontSize: 18.5.sp, fontWeight: FontWeight.w900, color: AppColors.liveRed, letterSpacing: 2),
                     ),
-                    const SizedBox(height: 24),
-                    Obx(() => _ScoreRow(
-                          score: widget.controller.score.value,
-                          level: widget.controller.level.value,
-                        )),
-                    const SizedBox(height: 28),
-                    _OverlayButton(
-                      label: 'PLAY AGAIN',
-                      icon: Icons.replay_rounded,
-                      color: AppColors.startGradientEnd,
-                      onTap: widget.controller.startGame,
-                    ),
-                    const SizedBox(height: 12),
-                    _OverlayButton(
-                      label: 'LEADERBOARD',
-                      icon: Icons.leaderboard_rounded,
-                      color: AppColors.primary,
-                      onTap: () => Get.toNamed('/score'),
-                    ),
-                    const SizedBox(height: 12),
-                    _OverlayButton(
-                      label: 'HOME',
-                      icon: Icons.home_rounded,
-                      color: AppColors.textMedium,
-                      onTap: widget.controller.navigateHome,
-                    ),
+                    SizedBox(height: 3.h),
+                    Obx(() => _ScoreRow(score: widget.controller.score.value, level: widget.controller.level.value)),
+                    SizedBox(height: 3.h),
+                    _OverlayButton(label: 'PLAY AGAIN', icon: Icons.replay_rounded, color: AppColors.startGradientEnd, onTap: widget.controller.startGame),
+                    SizedBox(height: 1.5.h),
+                    _OverlayButton(label: 'LEADERBOARD', icon: Icons.leaderboard_rounded, color: AppColors.primary, onTap: () => Get.toNamed('/score')),
+                    SizedBox(height: 1.5.h),
+                    _OverlayButton(label: 'HOME', icon: Icons.home_rounded, color: AppColors.textMedium, onTap: widget.controller.navigateHome),
                   ],
                 ),
               ),
@@ -922,7 +837,7 @@ class _ScoreRow extends StatelessWidget {
           color: AppColors.scoreGold,
           icon: Icons.stars_rounded,
         ),
-        Container(width: 1, height: 48, color: Colors.grey.shade200),
+        Container(width: 1, height: 6.h, color: Colors.grey.shade200),
         _ResultTile(
           label: 'LEVEL',
           value: '$level',
@@ -951,25 +866,10 @@ class _ResultTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w900,
-            color: color,
-          ),
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            color: AppColors.textMedium,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.5,
-          ),
-        ),
+        Icon(icon, color: color, size: 7.w),
+        SizedBox(height: 0.5.h),
+        Text(value, style: TextStyle(fontSize: 20.5.sp, fontWeight: FontWeight.w900, color: color)),
+        Text(label, style: TextStyle(fontSize: 10.5.sp, color: AppColors.textMedium, fontWeight: FontWeight.w600, letterSpacing: 1.5)),
       ],
     );
   }
@@ -994,7 +894,7 @@ class _OverlayButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: EdgeInsets.symmetric(vertical: 1.8.h),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           border: Border.all(color: color.withOpacity(0.35), width: 2),
@@ -1003,17 +903,9 @@ class _OverlayButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: color,
-                letterSpacing: 1.5,
-              ),
-            ),
+            Icon(icon, color: color, size: 5.w),
+            SizedBox(width: 2.5.w),
+            Text(label, style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: color, letterSpacing: 1.5)),
           ],
         ),
       ),
@@ -1048,6 +940,16 @@ const _kFallbacks = [
   [Color(0xFF020A1F), Color(0xFF0D1340), Color(0xFF1A1560), Color(0xFF2E2080)],
   // beach_sky
   [Color(0xFF0277BD), Color(0xFF0288D1), Color(0xFF4FC3F7), Color(0xFFB3E5FC)],
+  // bg_morning
+  [Color(0xFFFF6F00), Color(0xFFFFA000), Color(0xFFFFCA28), Color(0xFFFFECB3)],
+  // bg_morning_view
+  [Color(0xFFE65100), Color(0xFFF57C00), Color(0xFFFFB74D), Color(0xFFFFE0B2)],
+  // bg_morning_view_water
+  [Color(0xFF006064), Color(0xFF00838F), Color(0xFF4DD0E1), Color(0xFFB2EBF2)],
+  // bg_peacoc
+  [Color(0xFF004D40), Color(0xFF00695C), Color(0xFF26A69A), Color(0xFFB2DFDB)],
+  // bs_morning
+  [Color(0xFFBF360C), Color(0xFFE64A19), Color(0xFFFF7043), Color(0xFFFFCCBC)],
 ];
 
 class _PremiumBackground extends StatefulWidget {

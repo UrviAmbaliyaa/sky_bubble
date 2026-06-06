@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../core/theme/app_theme.dart';
 import 'routes/app_pages.dart';
@@ -9,13 +10,16 @@ class BubblePopApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      title: 'Sky Bubble Burst',
-      theme: AppTheme.lightTheme,
-      initialRoute: AppRoutes.splash,
-      getPages: AppPages.pages,
-      debugShowCheckedModeBanner: false,
-      defaultTransition: Transition.fadeIn,
+    return FlutterSizer(
+      builder: (context, orientation, deviceType) => GetMaterialApp(
+        title: 'Sky Bubble Burst',
+        theme: AppTheme.lightTheme,
+        initialRoute: AppRoutes.splash,
+        getPages: AppPages.pages,
+        debugShowCheckedModeBanner: false,
+        defaultTransition: Transition.fadeIn,
+      ),
     );
   }
 }
+

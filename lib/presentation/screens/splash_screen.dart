@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../controllers/splash_controller.dart';
-
-// All animation logic lives in SplashController.
-// No StatefulWidget, no lifecycle code, no declarations before return.
 
 class SplashScreen extends GetView<SplashController> {
   const SplashScreen({super.key});
@@ -26,23 +24,19 @@ class _SplashBody extends StatelessWidget {
         Image.asset(
           'assets/images/splash_screen.png',
           fit: BoxFit.cover,
-          width:  MediaQuery.sizeOf(context).width,
-          height: MediaQuery.sizeOf(context).height,
+          width: 100.w,
+          height: 100.h,
         ),
         Positioned(
-          bottom: MediaQuery.sizeOf(context).height * 0.10,
-          left:   MediaQuery.sizeOf(context).width  * 0.08,
-          right:  MediaQuery.sizeOf(context).width  * 0.08,
+          bottom: 10.h,
+          left: 8.w,
+          right: 8.w,
           child: _LoadingBar(animation: controller.loadAnim),
         ),
       ],
     );
   }
 }
-
-// ════════════════════════════════════════════════════════════
-//  LOADING BAR  (animated fill + "LOADING…" label)
-// ════════════════════════════════════════════════════════════
 
 class _LoadingBar extends StatelessWidget {
   final Animation<double> animation;
@@ -56,10 +50,10 @@ class _LoadingBar extends StatelessWidget {
         AnimatedBuilder(
           animation: animation,
           builder: (_, __) => Container(
-            height: 32,
+            height: 4.h,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(2.h),
               border: Border.all(color: const Color(0xFF0D47A1), width: 2.0),
               boxShadow: const [
                 BoxShadow(
@@ -71,13 +65,13 @@ class _LoadingBar extends StatelessWidget {
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(3),
+              padding: EdgeInsets.all(0.5.h),
               child: Stack(
                 children: [
                   Container(
                     decoration: BoxDecoration(
                       color: const Color(0xFFE3F2FD),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(1.5.h),
                     ),
                   ),
                   FractionallySizedBox(
@@ -87,7 +81,7 @@ class _LoadingBar extends StatelessWidget {
                         gradient: const LinearGradient(
                           colors: [Color(0xFFFFEE58), Color(0xFFFFB300)],
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(1.5.h),
                         boxShadow: const [
                           BoxShadow(color: Color(0x88FFB300), blurRadius: 6),
                         ],
@@ -95,7 +89,7 @@ class _LoadingBar extends StatelessWidget {
                     ),
                   ),
                   Positioned(
-                    top: 2, left: 6, right: 30, height: 5,
+                    top: 0.3.h, left: 1.5.w, right: 7.w, height: 0.6.h,
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.40),
@@ -104,10 +98,10 @@ class _LoadingBar extends StatelessWidget {
                     ),
                   ),
                   Positioned(
-                    right: 1, top: 0, bottom: 0,
+                    right: 0.5.w, top: 0, bottom: 0,
                     child: Center(
                       child: Container(
-                        width: 22, height: 22,
+                        width: 5.5.w, height: 5.5.w,
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             colors: [Color(0xFF1E88E5), Color(0xFF0D47A1)],
@@ -117,8 +111,8 @@ class _LoadingBar extends StatelessWidget {
                             BoxShadow(color: Color(0x660D47A1), blurRadius: 4),
                           ],
                         ),
-                        child: const Center(
-                          child: Text('⭐', style: TextStyle(fontSize: 11)),
+                        child: Center(
+                          child: Text('⭐', style: TextStyle(fontSize: 12.sp)),
                         ),
                       ),
                     ),
@@ -128,15 +122,16 @@ class _LoadingBar extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 14),
-        const Text(
+        SizedBox(height: 1.5.h),
+        Text(
           '⭐   LOADING...   ⭐',
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w900,
-            color: Color(0xFF0D47A1),
+            color: const Color(0xFF0D47A1),
             letterSpacing: 2.5,
-            shadows: [
+            shadows: const [
               Shadow(color: Colors.white, blurRadius: 10),
               Shadow(color: Colors.white, blurRadius: 6),
             ],

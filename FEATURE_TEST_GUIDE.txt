@@ -1,0 +1,172 @@
+=====================================================
+  SKY BUBBLE BURST — FEATURE TEST GUIDE
+  For testers who want to check every feature
+=====================================================
+
+
+─────────────────────────────────────────────
+ 1. APP LAUNCH
+─────────────────────────────────────────────
+• Open the app.
+• You should see the splash screen directly — no white screen or logo flash before it.
+• A loading bar fills up at the bottom of the splash screen.
+• After it completes, the Home screen opens automatically.
+
+
+─────────────────────────────────────────────
+ 2. HOME SCREEN
+─────────────────────────────────────────────
+• Home screen shows a scenic background image.
+• At the top you see a trophy pill — it shows your best score (or "No record yet" if new).
+• There is a glowing PLAY button in the center.
+• Below it are two buttons: PROGRESS and STYLE.
+• When you come back to Home from the game, the screen should appear instantly at full
+  brightness — no fade-in or low-opacity flash.
+
+
+─────────────────────────────────────────────
+ 3. BUBBLE STYLE PICKER
+─────────────────────────────────────────────
+• On the Home screen, tap the STYLE button.
+• A sheet slides up showing all available bubble styles.
+• Each style shows a live bubble preview that bobs up and down.
+• Tap any style — it gets a checkmark and the sheet closes.
+• The STYLE button emoji updates to match what you selected.
+• Your choice is saved — even if you close and reopen the app.
+
+
+─────────────────────────────────────────────
+ 4. PLAY BUTTON (pip decoration)
+─────────────────────────────────────────────
+• Look at the PLAY button on the Home screen.
+• There is a small white pill (pip) visible at the bottom edge of the button.
+• The button pulses gently — it slightly grows and shrinks on its own.
+
+
+─────────────────────────────────────────────
+ 5. GAME SCREEN — BASICS
+─────────────────────────────────────────────
+• Tap PLAY to start a game.
+• Bubbles of different colors float up from the bottom.
+• Tap any bubble to pop it and earn points.
+• Your score and current level are shown at the top left.
+• Your remaining hearts (lives) are shown next to the level.
+• The background image changes each new game (14 different scenes).
+
+
+─────────────────────────────────────────────
+ 6. SOUND TOGGLE (Silent Mode)
+─────────────────────────────────────────────
+• During a game, look at the top-right corner of the screen.
+• There is a sound icon (speaker) next to the pause button.
+• Tap it once — the icon turns red and all bubble sounds stop immediately.
+• Tap it again — sound comes back and bubbles pop with audio again.
+• Default is ON (sound playing) every time you start the game.
+
+
+─────────────────────────────────────────────
+ 7. PAUSE MENU
+─────────────────────────────────────────────
+• During a game, tap the pause button (top-right corner).
+• A pause overlay appears showing your current score and hearts.
+• Tap "Resume" to continue the game from where you left off.
+• Tap "Go Home" to exit to the Home screen.
+
+
+─────────────────────────────────────────────
+ 8. LEVEL UP
+─────────────────────────────────────────────
+• Keep popping bubbles — as your score grows, the level increases.
+• A green "Level Up!" banner slides in from the top when you level up.
+• Bubbles get faster and harder as the level goes up.
+
+
+─────────────────────────────────────────────
+ 9. HEARTS (LIVES) SYSTEM
+─────────────────────────────────────────────
+• You start with 8 hearts. Missing a bubble costs a heart.
+• When all 8 hearts are used up, a "Hearts Over!" popup appears.
+• Tap "Reset Hearts" to refill all hearts and keep playing.
+• Tap "Go Home" to return to the Home screen (not Close App).
+
+
+─────────────────────────────────────────────
+ 10. GAME OVER
+─────────────────────────────────────────────
+• When the timer or game condition ends, the Game Over screen appears.
+• It shows your final Score and Level reached.
+• Tap "Play Again" to start a new game immediately.
+• Tap "Leaderboard" to view your progress history.
+• Tap "Home" to go back to the Home screen.
+
+
+─────────────────────────────────────────────
+ 11. PROGRESS SCREEN — DATES TAB
+─────────────────────────────────────────────
+• On the Home screen, tap PROGRESS.
+• The Dates tab opens by default showing all days you played.
+• Each card shows the date, total score, games played, and best score for that day.
+• Tap any card to expand it and see individual game results.
+• Today's card has a "TODAY" badge and a quick Play button.
+• Use the calendar icon to filter by a date range.
+
+
+─────────────────────────────────────────────
+ 12. PROGRESS SCREEN — WEEK TAB
+─────────────────────────────────────────────
+• Tap the "Week" tab at the top.
+• You see a bar chart or progress rows for each day of the current week.
+• Use the left/right arrows to navigate to previous weeks.
+• If you are not on the current week, a "Reset to This Week" button appears
+  with some space above it (top padding). Tap it to jump back to today's week.
+
+
+─────────────────────────────────────────────
+ 13. PROGRESS SCREEN — MONTH TAB
+─────────────────────────────────────────────
+• Tap the "Month" tab at the top.
+• You see all 12 months of the selected year with progress bars.
+• Use the arrows to navigate between years.
+• If you are not on the current month, a "Reset to This Month" button appears
+  with space above it. Tap it to return to today's month.
+
+
+─────────────────────────────────────────────
+ 14. BEST SCORE SYNC
+─────────────────────────────────────────────
+• Play a game and get a score.
+• Come back to the Home screen.
+• The trophy pill at the top should update instantly to show your new best score
+  (if it is higher than before).
+
+
+─────────────────────────────────────────────
+ 15. BACKGROUND IMAGES IN GAME
+─────────────────────────────────────────────
+• Play several games in a row.
+• Each game should show a different background scene.
+• There are 14 unique backgrounds total — they rotate without repeating
+  until all 14 have been shown.
+
+
+=====================================================
+  QUICK CHECKLIST
+=====================================================
+
+[ ] Splash screen appears directly — no logo flash
+[ ] Home screen loads with best score pill
+[ ] STYLE button opens bubble style picker — selection saves
+[ ] PLAY button has pip decoration at bottom
+[ ] Game starts — bubbles float and can be popped
+[ ] Sound button mutes and unmutes bubble sounds
+[ ] Pause works — Resume and Go Home both function
+[ ] Level Up banner appears when leveling up
+[ ] Hearts Over popup shows Reset Hearts + Go Home
+[ ] Game Over shows score and all three action buttons
+[ ] Progress > Dates shows game history per day
+[ ] Progress > Week shows weekly data — Reset button has top gap
+[ ] Progress > Month shows monthly data — Reset button has top gap
+[ ] Best score on Home screen updates after a game
+[ ] Background image changes each new game
+
+=====================================================

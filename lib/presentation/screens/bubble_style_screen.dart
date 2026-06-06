@@ -116,7 +116,7 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           const Expanded(
-            child: Text('🫧  Bubble Style',
+            child: Text('💧  Bubble Style',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900,
                     color: Colors.white, letterSpacing: 0.3)),
           ),

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../app/routes/app_routes.dart';
@@ -70,7 +71,7 @@ class _HeaderBannerState extends State<_HeaderBanner>
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 10, 16, 16),
+      padding: EdgeInsets.fromLTRB(4.w, MediaQuery.of(context).padding.top + 1.5.h, 4.w, 2.h),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -102,15 +103,15 @@ class _HeaderBannerState extends State<_HeaderBanner>
                         color: Colors.white, size: 18),
                   ),
                 ),
-                const SizedBox(width: 12),
-                const Text(
+                SizedBox(width: 3.w),
+                Text(
                   '🏆  My Progress',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white),
+                  style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w900, color: Colors.white),
                 ),
                 const Spacer(),
-                const Text('🫧', style: TextStyle(fontSize: 26)),
+                const Icon(Icons.bubble_chart_rounded, color: Colors.white, size: 28),
               ]),
-              const SizedBox(height: 16),
+              SizedBox(height: 2.h),
               // Stats row
               Obx(() => Row(children: [
                 _HeaderStat(emoji: '⭐', label: 'Best Score',
@@ -170,13 +171,13 @@ class _HeaderStat extends StatelessWidget {
           border: Border.all(color: Colors.white.withOpacity(0.30)),
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
+          Text(emoji, style: const TextStyle(fontSize: 24)),
           const SizedBox(height: 3),
           Text(value,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0),
+              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0),
               textAlign: TextAlign.center),
           Text(label,
-              style: TextStyle(fontSize: 9, color: Colors.white.withOpacity(0.80), fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 10.sp, color: Colors.white.withOpacity(0.80), fontWeight: FontWeight.w600),
               textAlign: TextAlign.center),
         ]),
       ),
@@ -1391,6 +1392,78 @@ class _GameTile extends StatelessWidget {
 //  EMPTY STATE
 // ════════════════════════════════════════════════════════════════════════════
 
+// Draws a simple soap bubble — works on all Android versions (no emoji needed).
+class _EmptyBubblePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r  = size.width * 0.42;
+    final c  = Offset(cx, cy);
+    final rect = Rect.fromCircle(center: c, radius: r);
+
+    // Soft shadow
+    canvas.drawCircle(
+      Offset(cx + r * 0.06, cy + r * 0.10), r,
+      Paint()
+        ..color = const Color(0xFF4FC3F7).withOpacity(0.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+
+    // Translucent body
+    canvas.drawCircle(c, r,
+        Paint()..color = const Color(0xFFB3E5FC).withOpacity(0.28));
+
+    // Iridescent fill
+    canvas.drawCircle(c, r, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.20, -0.40), radius: 0.80,
+        colors: [
+          Colors.cyanAccent.withOpacity(0.22),
+          Colors.blue.withOpacity(0.14),
+          Colors.purple.withOpacity(0.10),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.35, 0.65, 1.0],
+      ).createShader(rect));
+
+    // Coloured rim
+    canvas.drawCircle(c, r - r * 0.06,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.12
+        ..shader = SweepGradient(
+          colors: [
+            Colors.white.withOpacity(0.90),
+            const Color(0xFF4FC3F7).withOpacity(0.85),
+            Colors.cyanAccent.withOpacity(0.80),
+            Colors.purpleAccent.withOpacity(0.75),
+            Colors.pinkAccent.withOpacity(0.70),
+            Colors.white.withOpacity(0.90),
+          ],
+        ).createShader(rect));
+
+    // Top-left highlight
+    final hlRect = Rect.fromCenter(
+      center: Offset(cx - r * 0.22, cy - r * 0.28),
+      width: r * 0.70, height: r * 0.44,
+    );
+    canvas.drawOval(hlRect, Paint()
+      ..shader = RadialGradient(
+        colors: [Colors.white.withOpacity(0.90), Colors.transparent],
+      ).createShader(hlRect));
+
+    // Small sparkle
+    canvas.drawCircle(
+      Offset(cx + r * 0.14, cy - r * 0.52), r * 0.09,
+      Paint()..color = Colors.white.withOpacity(0.88),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_EmptyBubblePainter _) => false;
+}
+
 class _EmptyState extends StatefulWidget {
   final bool showPlayButton;
   const _EmptyState({this.showPlayButton = false});
@@ -1430,7 +1503,7 @@ class _EmptyStateState extends State<_EmptyState> with SingleTickerProviderState
               ),
             ),
             const SizedBox(height: 20),
-            const Text('No scores yet!',
+            const Text('No scores yet',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textDark)),
             const SizedBox(height: 8),
             const Text('Play a game to see your progress 🎉',

@@ -31,7 +31,7 @@ class GameController extends GetxController {
   Timer? _gameTimer;
   Timer? _spawnTimer;
   int _idCounter = 0;
-  Size _screenSize = const Size(390, 844);
+  Size _screenSize = Size.zero;
 
   // ─── background shuffle queue ────────────────────────────────────────────
   // Guarantees every background plays before any repeats (no-repeat shuffle).
@@ -74,9 +74,9 @@ class GameController extends GetxController {
   void onReady() => super.onReady();
 
   void setScreenSize(Size size) {
-    if (size == _screenSize) return;
+    if (size == _screenSize || size == Size.zero) return;
     _screenSize = size;
-    if (!isGameRunning.value && !isGameOver.value) startGame();
+    if (!isGameRunning.value && !isGameOver.value && !isPaused.value) startGame();
   }
 
   @override
@@ -132,6 +132,14 @@ class GameController extends GetxController {
 
   void navigateHome() {
     _cancelTimers();
+    // Save score whenever the user leaves mid-game with points earned.
+    if (score.value > 0) {
+      _saveScore(ScoreModel(
+        score: score.value,
+        level: level.value,
+        playedAt: DateTime.now(),
+      ));
+    }
     Get.offAllNamed(AppRoutes.home);
   }
 
@@ -150,11 +158,12 @@ class GameController extends GetxController {
   }
 
   void _scheduleNextSpawn() {
-    // Kids-friendly spawn rate: starts slow, gently ramps down to 700 ms min.
-    final interval = (1400 - (score.value * 2)).clamp(700, 1400);
+    // Starts at 2000 ms (medium pace), ramps down to 800 ms min as score grows.
+    final interval = (2000 - (score.value * 3)).clamp(800, 2000);
     _spawnTimer?.cancel();
     _spawnTimer = Timer(Duration(milliseconds: interval), () {
       if (isGameRunning.value) {
+        _spawnBubble();
         _spawnBubble();
         _scheduleNextSpawn();
       }
@@ -182,7 +191,7 @@ class GameController extends GetxController {
       if (b.isSpecial) {
         tickSpeed = b.speed;
       } else {
-        final maxPixelsPerTick = _screenSize.height / 360.0;
+        final maxPixelsPerTick = _screenSize.height / 180.0;
         tickSpeed = (b.speed * speedMult).clamp(0.0, maxPixelsPerTick);
       }
       b.y -= tickSpeed;
@@ -293,7 +302,7 @@ class GameController extends GetxController {
     // Kids-friendly base speed: slow and gentle, no score-based creep.
     // maxPixelsPerTick cap (height/360) is the real speed ceiling.
     final baseSpd = _screenSize.height *
-        (0.0010 + _random.nextDouble() * 0.0008);
+        (0.0022 + _random.nextDouble() * 0.0016);
 
     _sound.playBubbleSpawn();
     bubbles.add(BubbleModel(
@@ -339,9 +348,16 @@ class GameController extends GetxController {
     lives.value -= 1;
     if (lives.value <= 0) {
       lives.value = 0;
-      // Pause the game and show the hearts-over popup (don't end game yet).
       isGameRunning.value = false;
       _cancelTimers();
+      // Save the current score so it is always persisted when hearts run out.
+      if (score.value > 0) {
+        _saveScore(ScoreModel(
+          score: score.value,
+          level: level.value,
+          playedAt: DateTime.now(),
+        ));
+      }
       isHeartsOver.value = true;
     }
   }
@@ -358,11 +374,13 @@ class GameController extends GetxController {
   void _endGame() {
     isGameRunning.value = false;
     _cancelTimers();
-    _saveScore(ScoreModel(
-      score: score.value,
-      level: level.value,
-      playedAt: DateTime.now(),
-    ));
+    if (score.value > 0) {
+      _saveScore(ScoreModel(
+        score: score.value,
+        level: level.value,
+        playedAt: DateTime.now(),
+      ));
+    }
     Future.delayed(const Duration(milliseconds: 400), () {
       isGameOver.value = true;
     });

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- On Android 12+ the system generates its own splash (app icon on white).
+         Override it to use the launch_background drawable so the transition
+         from native splash → Flutter splash is seamless. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@drawable/splash_screen</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_screen</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+</resources>

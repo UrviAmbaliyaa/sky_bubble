@@ -24,7 +24,7 @@ extension BubbleStyleInfo on BubbleStyle {
     switch (this) {
       case BubbleStyle.classic: return '🫧';
       case BubbleStyle.blur:    return '☁️';
-      case BubbleStyle.heart:   return '🩷';
+      case BubbleStyle.heart:   return '💗';
       case BubbleStyle.star:    return '⭐';
       case BubbleStyle.diamond: return '💎';
     }
