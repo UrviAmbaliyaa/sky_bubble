@@ -8,6 +8,8 @@ import '../../data/services/sound_service.dart';
 import '../../data/services/style_service.dart';
 import '../controllers/game_controller.dart';
 import '../widgets/bubble_painter.dart';
+import '../widgets/gift_screen_overlay.dart';
+import '../widgets/level_complete_overlay.dart';
 import '../widgets/safe_asset_background.dart';
 
 class GameScreen extends GetView<GameController> {
@@ -131,6 +133,18 @@ class _GameBodyState extends State<_GameBody> {
                 child: _HeartsOverOverlay(controller: widget.controller),
               )
             : const SizedBox.shrink()),
+        // Level-complete overlay — shown when the player advances to a new level
+        Obx(() => widget.controller.showLevelComplete.value
+            ? const Positioned.fill(
+                child: LevelCompleteOverlay(),
+              )
+            : const SizedBox.shrink()),
+        // Gift screen — shown when player breaks all-time high score
+        Obx(() => widget.controller.showGiftScreen.value
+            ? const Positioned.fill(
+                child: GiftScreenOverlay(),
+              )
+            : const SizedBox.shrink()),
       ],
     );
   }
@@ -222,6 +236,7 @@ class _HudCard extends StatelessWidget {
     );
   }
 }
+
 
 class _SoundToggleButton extends StatelessWidget {
   _SoundToggleButton();
@@ -1093,38 +1108,28 @@ class _OverlayButton extends StatelessWidget {
 //  → bg_day → … (wraps back to image 1 after the last)
 // ════════════════════════════════════════════════════════════════════════════
 
-/// Gradient fallbacks — one per image in [BgAssets.all], shown while the
-/// asset is loading or if the file is missing.
-const _kFallbacks = [
-  // bg_sky
-  [Color(0xFF1565C0), Color(0xFF1E88E5), Color(0xFF64B5F6), Color(0xFFBBDEFB)],
-  // bg_dark_sky
-  [Color(0xFF0D1B4A), Color(0xFF1A237E), Color(0xFF283593), Color(0xFF3949AB)],
-  // bg_gallaxy
-  [Color(0xFF0A0020), Color(0xFF1A0050), Color(0xFF2D0080), Color(0xFF6A00FF)],
-  // bg_garden
-  [Color(0xFF1B5E20), Color(0xFF388E3C), Color(0xFF81C784), Color(0xFFC8E6C9)],
-  // bg_garden_gate
-  [Color(0xFF33691E), Color(0xFF689F38), Color(0xFFAED581), Color(0xFFDCEDC8)],
-  // bg_moonsoon
-  [Color(0xFF1A2332), Color(0xFF263545), Color(0xFF37474F), Color(0xFF546E7A)],
-  // bg_night
-  [Color(0xFF050D2A), Color(0xFF0A1F5E), Color(0xFF0D2B6E), Color(0xFF1A237E)],
-  // bg_night_star
-  [Color(0xFF020A1F), Color(0xFF0D1340), Color(0xFF1A1560), Color(0xFF2E2080)],
-  // beach_sky
-  [Color(0xFF0277BD), Color(0xFF0288D1), Color(0xFF4FC3F7), Color(0xFFB3E5FC)],
-  // bg_morning
-  [Color(0xFFFF6F00), Color(0xFFFFA000), Color(0xFFFFCA28), Color(0xFFFFECB3)],
-  // bg_morning_view
-  [Color(0xFFE65100), Color(0xFFF57C00), Color(0xFFFFB74D), Color(0xFFFFE0B2)],
-  // bg_morning_view_water
-  [Color(0xFF006064), Color(0xFF00838F), Color(0xFF4DD0E1), Color(0xFFB2EBF2)],
-  // bg_peacoc
-  [Color(0xFF004D40), Color(0xFF00695C), Color(0xFF26A69A), Color(0xFFB2DFDB)],
-  // bs_morning
-  [Color(0xFFBF360C), Color(0xFFE64A19), Color(0xFFFF7043), Color(0xFFFFCCBC)],
+/// Generic fallback gradient used when a background asset hasn't loaded.
+const _kDefaultFallback = [
+  Color(0xFF0D1B4A), Color(0xFF1A237E), Color(0xFF283593), Color(0xFF3949AB),
 ];
+
+/// Gradient fallbacks keyed by asset path.
+const _kFallbackMap = <String, List<Color>>{
+  'assets/backgrounds/bg_sky.png':              [Color(0xFF1565C0), Color(0xFF1E88E5), Color(0xFF64B5F6), Color(0xFFBBDEFB)],
+  'assets/backgrounds/bg_dark_sky.png':         [Color(0xFF0D1B4A), Color(0xFF1A237E), Color(0xFF283593), Color(0xFF3949AB)],
+  'assets/backgrounds/bg_gallaxy.png':          [Color(0xFF0A0020), Color(0xFF1A0050), Color(0xFF2D0080), Color(0xFF6A00FF)],
+  'assets/backgrounds/bg_garden.png':           [Color(0xFF1B5E20), Color(0xFF388E3C), Color(0xFF81C784), Color(0xFFC8E6C9)],
+  'assets/backgrounds/bg_garden_gate.png':      [Color(0xFF33691E), Color(0xFF689F38), Color(0xFFAED581), Color(0xFFDCEDC8)],
+  'assets/backgrounds/bg_moonsoon.png':         [Color(0xFF1A2332), Color(0xFF263545), Color(0xFF37474F), Color(0xFF546E7A)],
+  'assets/backgrounds/bg_night.png':            [Color(0xFF050D2A), Color(0xFF0A1F5E), Color(0xFF0D2B6E), Color(0xFF1A237E)],
+  'assets/backgrounds/bg_night_star.png':       [Color(0xFF020A1F), Color(0xFF0D1340), Color(0xFF1A1560), Color(0xFF2E2080)],
+  'assets/backgrounds/beach_sky.png':           [Color(0xFF0277BD), Color(0xFF0288D1), Color(0xFF4FC3F7), Color(0xFFB3E5FC)],
+  'assets/backgrounds/bg_morning.png':          [Color(0xFFFF6F00), Color(0xFFFFA000), Color(0xFFFFCA28), Color(0xFFFFECB3)],
+  'assets/backgrounds/bg_morning_view.png':     [Color(0xFFE65100), Color(0xFFF57C00), Color(0xFFFFB74D), Color(0xFFFFE0B2)],
+  'assets/backgrounds/bg_morning_view_water.png':[Color(0xFF006064), Color(0xFF00838F), Color(0xFF4DD0E1), Color(0xFFB2EBF2)],
+  'assets/backgrounds/bg_peacoc.png':           [Color(0xFF004D40), Color(0xFF00695C), Color(0xFF26A69A), Color(0xFFB2DFDB)],
+  'assets/backgrounds/bs_morning.png':          [Color(0xFFBF360C), Color(0xFFE64A19), Color(0xFFFF7043), Color(0xFFFFCCBC)],
+};
 
 class _PremiumBackground extends StatefulWidget {
   final GameController controller;
@@ -1159,10 +1164,13 @@ class _PremiumBackgroundState extends State<_PremiumBackground>
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      // One random background per game, no repeats until all 9 have been seen.
-      final imgIndex = widget.controller.randomBgIndex.value;
-      final assetPath = BgAssets.all[imgIndex];
-      final fallbackColors = _kFallbacks[imgIndex];
+      // Background changes every 200 score points (random pick, never repeats).
+      // Falls back to the first asset until the game starts and sets gameBgAsset.
+      final assetPath = widget.controller.gameBgAsset.value.isNotEmpty
+          ? widget.controller.gameBgAsset.value
+          : Get.find<StyleService>().currentBgAsset.value;
+      final fallbackColors =
+          _kFallbackMap[assetPath] ?? _kDefaultFallback;
 
       return AnimatedSwitcher(
         duration: const Duration(milliseconds: 800),

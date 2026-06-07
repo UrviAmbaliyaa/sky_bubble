@@ -54,10 +54,21 @@ extension BubbleStyleInfo on BubbleStyle {
   int get coinCost {
     switch (this) {
       case BubbleStyle.classic: return 0;
-      case BubbleStyle.blur:    return 10;
-      case BubbleStyle.heart:   return 20;
-      case BubbleStyle.star:    return 30;
-      case BubbleStyle.diamond: return 40;
+      case BubbleStyle.blur:    return 100;
+      case BubbleStyle.heart:   return 200;
+      case BubbleStyle.star:    return 300;
+      case BubbleStyle.diamond: return 400;
+    }
+  }
+
+  /// Award cost to unlock (required alongside coins). 0 means free (Classic).
+  int get awardCost {
+    switch (this) {
+      case BubbleStyle.classic: return 0;
+      case BubbleStyle.blur:    return 1;
+      case BubbleStyle.heart:   return 2;
+      case BubbleStyle.star:    return 3;
+      case BubbleStyle.diamond: return 4;
     }
   }
 

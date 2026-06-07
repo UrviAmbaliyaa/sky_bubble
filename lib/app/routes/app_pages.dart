@@ -2,8 +2,10 @@ import 'package:get/get.dart';
 import '../../presentation/screens/splash_screen.dart';
 import '../../presentation/screens/home_screen.dart';
 import '../../presentation/screens/game_screen.dart';
+import '../../presentation/screens/levels_screen.dart';
 import '../../presentation/screens/score_screen.dart';
 import '../../presentation/screens/bubble_style_screen.dart';
+import '../../presentation/screens/background_style_screen.dart';
 import '../bindings/app_bindings.dart';
 import 'app_routes.dart';
 
@@ -36,7 +38,18 @@ class AppPages {
     GetPage(
       name: AppRoutes.bubbleStyle,
       page: () => const BubbleStyleScreen(),
-      transition: Transition.downToUp,
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.levels,
+      page: () => const LevelsScreen(),
+      binding: LevelsBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.backgroundStyle,
+      page: () => const BackgroundStyleScreen(),
+      transition: Transition.rightToLeft,
     ),
   ];
 }

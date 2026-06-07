@@ -53,3 +53,11 @@ class ScoreBinding extends Bindings {
     Get.put<ScoreController>(ScoreController(Get.find<GetScoresUseCase>()));
   }
 }
+
+class LevelsBinding extends Bindings {
+  @override
+  void dependencies() {
+    // LevelsScreen reads directly from StyleService (already permanent).
+    // No extra controller needed.
+  }
+}

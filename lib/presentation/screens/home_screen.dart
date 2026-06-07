@@ -3,13 +3,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
+import '../../app/routes/app_routes.dart';
+import '../../core/constants/background_assets.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/bubble_styles.dart';
-import '../../data/models/bubble_model.dart';
 import '../../data/services/style_service.dart';
 import '../controllers/home_controller.dart';
-import '../widgets/bubble_painter.dart';
-import 'bubble_style_screen.dart' show showUnlockDialog;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  HOME SCREEN
@@ -69,6 +68,8 @@ class _HomeUI extends GetView<HomeController> {
             Obx(() => controller.bestScore.value == 0
                 ? const SizedBox.shrink()
                 : _BestScorePill(controller: controller)),
+            SizedBox(height: 1.5.h),
+            const _GiftsRow(),
             const Spacer(),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 6.w),
@@ -89,6 +90,14 @@ class _HomeUI extends GetView<HomeController> {
                       ),
                       SizedBox(width: 3.5.w),
                       const Expanded(child: _StyleButton()),
+                    ],
+                  ),
+                  SizedBox(height: 2.h),
+                  Row(
+                    children: [
+                      const Expanded(child: _LevelsButton()),
+                      SizedBox(width: 3.5.w),
+                      const Expanded(child: _BackgroundButton()),
                     ],
                   ),
                   SizedBox(height: 12.h),
@@ -320,7 +329,7 @@ class _StyleButtonState extends State<_StyleButton> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
         setState(() => _pressed = false);
-        _showBubbleStyleSheet(context);
+        Get.toNamed(AppRoutes.bubbleStyle);
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(
@@ -374,446 +383,68 @@ class _StyleButtonState extends State<_StyleButton> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  BUBBLE STYLE BOTTOM SHEET
+//  LEVELS BUTTON
 // ═══════════════════════════════════════════════════════════════════════════════
 
-void _showBubbleStyleSheet(BuildContext context) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    barrierColor: Colors.black.withOpacity(0.55),
-    builder: (_) => const _BubbleStyleSheet(),
-  );
-}
-
-class _BubbleStyleSheet extends StatelessWidget {
-  const _BubbleStyleSheet();
+class _LevelsButton extends StatefulWidget {
+  const _LevelsButton();
 
   @override
-  Widget build(BuildContext context) {
-    final svc       = Get.find<StyleService>();
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFF),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(height: 1.5.h),
-          Center(
-            child: Container(
-              width: 10.w,
-              height: 0.5.h,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          SizedBox(height: 2.h),
-          _StyleSheetHeader(onClose: () => Navigator.of(context).pop()),
-          SizedBox(height: 1.5.h),
-          Flexible(
-            child: Obx(() {
-              final current  = svc.selectedStyle.value;
-              final coins    = svc.totalCoins.value;
-              return ListView.builder(
-                shrinkWrap: true,
-                padding: EdgeInsets.symmetric(horizontal: 5.w),
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: BubbleStyle.values.length,
-                itemBuilder: (_, i) {
-                  final style    = BubbleStyle.values[i];
-                  final unlocked = svc.isUnlocked(style);
-                  return _StyleCard(
-                    style: style,
-                    isSelected: current == style,
-                    isUnlocked: unlocked,
-                    userCoins: coins,
-                    onTap: () {
-                      if (unlocked) {
-                        svc.setStyle(style);
-                        Navigator.of(context).pop();
-                      } else {
-                        showUnlockDialog(context, style, svc);
-                      }
-                    },
-                  );
-                },
-              );
-            }),
-          ),
-          SizedBox(height: bottomPad + 2.h),
-        ],
-      ),
-    );
-  }
+  State<_LevelsButton> createState() => _LevelsButtonState();
 }
 
-// ─── Style Sheet Header ───────────────────────────────────────────────────────
-
-class _StyleSheetHeader extends StatelessWidget {
-  final VoidCallback onClose;
-  const _StyleSheetHeader({required this.onClose});
+class _LevelsButtonState extends State<_LevelsButton> {
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
     final svc = Get.find<StyleService>();
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 5.w),
-      padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.8.h),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1565C0), Color(0xFF4FC3F7), Color(0xFF9C27B0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.bubble_chart_rounded, color: Colors.white, size: 22.sp),
-          SizedBox(width: 3.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bubble Style',
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 0.4.h),
-                Text(
-                  'Unlock premium styles with coins',
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Coin balance chip
-          Obx(() => Container(
-            padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.6.h),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFD740).withOpacity(0.25),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFFFD740).withOpacity(0.7)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('🥇', style: TextStyle(fontSize: 11.sp)),
-                SizedBox(width: 1.w),
-                Text(
-                  '${svc.totalCoins.value}',
-                  style: TextStyle(
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          )),
-          SizedBox(width: 2.w),
-          GestureDetector(
-            onTap: onClose,
-            child: Container(
-              width: 9.w,
-              height: 9.w,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.20),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.35)),
-              ),
-              child: Icon(Icons.close_rounded, color: Colors.white, size: 4.5.w),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Style Card ───────────────────────────────────────────────────────────────
-
-class _StyleCard extends StatefulWidget {
-  final BubbleStyle style;
-  final bool isSelected;
-  final bool isUnlocked;
-  final int userCoins;
-  final VoidCallback onTap;
-  const _StyleCard({
-    required this.style,
-    required this.isSelected,
-    required this.isUnlocked,
-    required this.userCoins,
-    required this.onTap,
-  });
-
-  @override
-  State<_StyleCard> createState() => _StyleCardState();
-}
-
-class _StyleCardState extends State<_StyleCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _bob;
-  late final Animation<double>   _bobAnim;
-  bool _pressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _bob = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-    _bobAnim = Tween<double>(begin: -3.0, end: 3.0)
-        .animate(CurvedAnimation(parent: _bob, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _bob.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final accent    = widget.style.gradientColors.first;
-    final locked    = !widget.isUnlocked;
-    final isPremium = widget.style.isPremium;
-    final canAfford = widget.userCoins >= widget.style.coinCost;
-
-    final borderColor = locked
-        ? const Color(0xFFFFD740)
-        : widget.isSelected ? accent : const Color(0xFFE8EDF5);
-
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
         setState(() => _pressed = false);
-        widget.onTap();
+        Get.toNamed(AppRoutes.levels);
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          margin: EdgeInsets.only(bottom: 1.2.h),
-          padding: EdgeInsets.all(3.w),
-          decoration: BoxDecoration(
-            color: widget.isSelected ? accent.withOpacity(0.06) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: borderColor,
-                width: locked ? 1.6 : widget.isSelected ? 2.0 : 1.0),
-            boxShadow: locked
-                ? [BoxShadow(
-                    color: const Color(0xFFFFD740).withOpacity(0.18),
-                    blurRadius: 10, offset: const Offset(0, 3))]
-                : widget.isSelected
-                    ? [BoxShadow(color: accent.withOpacity(0.20), blurRadius: 14, offset: const Offset(0, 4))]
-                    : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // ── Bubble preview circle with crown floating on top ──────────
-              SizedBox(
-                width: 20.w,
-                height: 20.w,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // Full-size bubble preview
-                    _BubblePreviewCircle(
-                      style: widget.style,
-                      bobAnim: _bobAnim,
+        scale: _pressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(50),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 1.8.h),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFF6C63FF).withOpacity(0.45),
+                    const Color(0xFF48CAE4).withOpacity(0.45),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(50),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.40),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.map_rounded, color: Colors.white, size: 5.5.w),
+                  SizedBox(width: 2.5.w),
+                  Text(
+                    'LEVELS',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
                     ),
-                    // Crown overlapping the top of the bubble
-                    if (isPremium)
-                      Positioned(
-                        top: -10,
-                        right: 10,
-                        child: Transform.rotate(
-                          angle: 0.3,
-                          child: _HomeCrownBadge(canAfford: canAfford)),
-                      ),
-                  ],
-                ),
+                  ),
+                 
+                ],
               ),
-              SizedBox(width: 3.5.w),
-
-              // ── Label + cost / description ─────────────────────────────
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [
-                      if (widget.style == BubbleStyle.classic)
-                        Icon(Icons.bubble_chart_rounded, color: accent, size: 15.sp)
-                      else
-                        Text(widget.style.emoji, style: TextStyle(fontSize: 15.sp)),
-                      SizedBox(width: 1.5.w),
-                      Text(
-                        widget.style.label,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w900,
-                          color: widget.isSelected ? accent : const Color(0xFF1A1A2E),
-                        ),
-                      ),
-                    ]),
-                    SizedBox(height: 0.5.h),
-                    if (locked)
-                      Row(children: [
-                        Text('🥇', style: TextStyle(fontSize: 15.sp)),
-                        SizedBox(width: 1.w),
-                        Text(
-                          '${widget.style.coinCost} coins to unlock',
-                          style: TextStyle(
-                            fontSize: 11.sp,
-                            color: canAfford
-                                ? const Color(0xFF2E7D32)
-                                : const Color(0xFF9099B0),
-                            fontWeight: FontWeight.w600,
-                            height: 1.4,
-                          ),
-                        ),
-                      ])
-                    else
-                      Text(
-                        widget.style.description,
-                        style: TextStyle(
-                          fontSize: 11.sp,
-                          color: const Color(0xFF9099B0),
-                          height: 1.4,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-
-              // ── Trailing: checkmark (selected) or lock circle (locked) ───
-              SizedBox(
-                width: 8.w,
-                height: 8.w,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 200),
-                  child: widget.isSelected
-                      ? Container(
-                          key: const ValueKey('check'),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: widget.style.gradientColors),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(color: accent.withOpacity(0.35), blurRadius: 8),
-                            ],
-                          ),
-                          child: Icon(Icons.check_rounded, color: Colors.white, size: 4.5.w),
-                        )
-                      : locked
-                          ? Container(
-                              key: const ValueKey('lock'),
-                              padding: EdgeInsets.all(1.5.w),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                // color: Color(0xFFFFD740).withAlpha(10),
-                                border: Border.all(
-                                  color: const Color(0xFFFFD740),
-                                  width: 1.8,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFFFD740).withOpacity(0.10),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                Icons.lock_rounded,
-                                size: 4.w,
-                                color: const Color(0xFFFFB300),
-                              ),
-                            )
-                          : const SizedBox.shrink(key: ValueKey('empty')),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Crown badge — sits on top of the bubble preview circle ──────────────────
-
-class _HomeCrownBadge extends StatelessWidget {
-  final bool canAfford;
-  const _HomeCrownBadge({required this.canAfford});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      '👑',
-      style: TextStyle(
-        fontSize: 20.sp,
-        shadows: [
-          Shadow(
-            color: const Color(0xFFFFAA00).withOpacity(0.70),
-            blurRadius: 8,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Bubble Preview Circle ─────────────────────────────────────────────────────
-
-class _BubblePreviewCircle extends StatelessWidget {
-  final BubbleStyle style;
-  final Animation<double> bobAnim;
-  const _BubblePreviewCircle({required this.style, required this.bobAnim});
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = style.gradientColors.first;
-    return Container(
-      width: 18.w,
-      height: 18.w,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: accent.withOpacity(0.12),
-        border: Border.all(color: accent.withOpacity(0.22), width: 1.2),
-      ),
-      child: AnimatedBuilder(
-        animation: bobAnim,
-        builder: (_, __) => Transform.translate(
-          offset: Offset(0, bobAnim.value),
-          child: ClipOval(
-            child: CustomPaint(
-              painter: _BubblePreviewPainter(
-                style: style,
-                color: AppColors.bubbleColors[style.index % AppColors.bubbleColors.length],
-              ),
-              // SizedBox.expand ensures CustomPaint always fills its parent
-              // on older Android versions (API 29/30) where size can be zero.
-              child: const SizedBox.expand(),
             ),
           ),
         ),
@@ -822,34 +453,85 @@ class _BubblePreviewCircle extends StatelessWidget {
   }
 }
 
-// ─── Bubble Preview Painter ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+//  BACKGROUND BUTTON
+// ═══════════════════════════════════════════════════════════════════════════════
 
-class _BubblePreviewPainter extends CustomPainter {
-  final BubbleStyle style;
-  final Color color;
-  const _BubblePreviewPainter({required this.style, required this.color});
+class _BackgroundButton extends StatefulWidget {
+  const _BackgroundButton();
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r  = size.width * 0.35;
-    final b  = BubbleModel(
-      id: 'preview',
-      color: color,
-      x: cx, y: cy,
-      radius: r,
-      speed: 0,
-      driftAmplitude: 0,
-      driftFrequency: 0,
-      pointValue: 2,
+  State<_BackgroundButton> createState() => _BackgroundButtonState();
+}
+
+class _BackgroundButtonState extends State<_BackgroundButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = Get.find<StyleService>();
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        Get.toNamed(AppRoutes.backgroundStyle);
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(50),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              padding: EdgeInsets.symmetric(vertical: 1.8.h),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFFF6B9D).withOpacity(0.45),
+                    const Color(0xFF4FC3F7).withOpacity(0.45),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(50),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.40),
+                  width: 1.5,
+                ),
+              ),
+              child: Obx(() {
+                // Show the emoji of the currently-playing background.
+                final asset = svc.currentBgAsset.value;
+                final currentBg = BackgroundStyle.values.firstWhere(
+                  (b) => b.assetPath == asset,
+                  orElse: () => BackgroundStyle.sky,
+                );
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      currentBg.emoji,
+                      style: TextStyle(fontSize: 12.sp),
+                    ),
+                    SizedBox(width: 1.5.w),
+                    Text(
+                      'BG',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ),
+          ),
+        ),
+      ),
     );
-    BubblePainter(bubbles: [b], level: 5, style: style).paint(canvas, size);
   }
-
-  @override
-  bool shouldRepaint(_BubblePreviewPainter old) =>
-      old.style != style || old.color != color;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1167,6 +849,99 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
           ),
         ),
       ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  GIFTS ROW  — shows lifetime gifted hearts / coins / awards on home screen
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _GiftsRow extends StatelessWidget {
+  const _GiftsRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = Get.find<StyleService>();
+
+    return Obx(() {
+      final hearts = svc.giftedHearts.value;
+      final coins  = svc.giftedCoins.value;
+      final awards = svc.giftedAwards.value;
+
+      // Hide the row entirely if no gifts have been received yet
+      if (hearts == 0 && coins == 0 && awards == 0) {
+        return const SizedBox.shrink();
+      }
+
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.2.h),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                  color: Colors.white.withOpacity(0.25), width: 1.2),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (hearts > 0) ...[
+                  _GiftChip(emoji: '❤️', label: 'x$hearts'),
+                  if (coins > 0 || awards > 0) _GiftDivider(),
+                ],
+                if (coins > 0) ...[
+                  _GiftChip(emoji: '🪙', label: 'x${coins * 5}'),
+                  if (awards > 0) _GiftDivider(),
+                ],
+                if (awards > 0)
+                  _GiftChip(emoji: '🏅', label: 'x$awards'),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class _GiftChip extends StatelessWidget {
+  final String emoji;
+  final String label;
+  const _GiftChip({required this.emoji, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(emoji, style: TextStyle(fontSize: 14.sp)),
+        SizedBox(width: 1.w),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.sp,
+            fontWeight: FontWeight.w800,
+            color: Colors.white,
+            height: 1.0,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GiftDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1.2,
+      height: 2.h,
+      margin: EdgeInsets.symmetric(horizontal: 3.w),
+      color: Colors.white.withOpacity(0.35),
     );
   }
 }

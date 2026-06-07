@@ -4,4 +4,6 @@ abstract class AppRoutes {
   static const game = '/game';
   static const score = '/score';
   static const bubbleStyle = '/bubble-style';
+  static const levels = '/levels';
+  static const backgroundStyle = '/background-style';
 }

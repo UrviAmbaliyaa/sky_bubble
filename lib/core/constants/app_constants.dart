@@ -26,6 +26,44 @@ class AppColors {
     Color(0xFF7986CB),
     Color(0xFF64B5F6),
   ];
+
+  // One color palette per background (14 total), matched to the scene mood.
+  // Cycles with the same modulo as BgAssets.forLevel so bubbles always feel
+  // at home in the current background.
+  static const List<List<Color>> _levelPalettes = [
+    // 0 – bg_sky: sky blues & whites
+    [Color(0xFF4FC3F7), Color(0xFF81D4FA), Color(0xFFB3E5FC), Color(0xFFE1F5FE), Color(0xFF29B6F6)],
+    // 1 – bg_dark_sky: deep blues & lavender
+    [Color(0xFF5C6BC0), Color(0xFF7986CB), Color(0xFF9575CD), Color(0xFF4FC3F7), Color(0xFF3949AB)],
+    // 2 – bg_galaxy: purples & cosmic
+    [Color(0xFFCE93D8), Color(0xFFBA68C8), Color(0xFF9C27B0), Color(0xFFE040FB), Color(0xFF7C4DFF)],
+    // 3 – bg_garden: fresh greens
+    [Color(0xFF81C784), Color(0xFFA5D6A7), Color(0xFF66BB6A), Color(0xFF4CAF50), Color(0xFFAED581)],
+    // 4 – bg_garden_gate: warm greens & lime
+    [Color(0xFFDCE775), Color(0xFFD4E157), Color(0xFFAED581), Color(0xFF9CCC65), Color(0xFF8BC34A)],
+    // 5 – bg_moonsoon: stormy grays & teals
+    [Color(0xFF80CBC4), Color(0xFF4DB6AC), Color(0xFF80DEEA), Color(0xFF4DD0E1), Color(0xFF00ACC1)],
+    // 6 – bg_night: midnight blues & silvers
+    [Color(0xFF5C6BC0), Color(0xFF3F51B5), Color(0xFF90A4AE), Color(0xFF78909C), Color(0xFF4FC3F7)],
+    // 7 – bg_night_star: gold & silver star tones
+    [Color(0xFFFFD54F), Color(0xFFFFCA28), Color(0xFFFFF176), Color(0xFFFFEE58), Color(0xFFFFB300)],
+    // 8 – beach_sky: ocean & coral
+    [Color(0xFF4FC3F7), Color(0xFF00BCD4), Color(0xFF80DEEA), Color(0xFFFF8A65), Color(0xFFFFAB91)],
+    // 9 – bg_morning: sunrise oranges
+    [Color(0xFFFF8A65), Color(0xFFFFAB91), Color(0xFFFFCC80), Color(0xFFFF7043), Color(0xFFFFD54F)],
+    // 10 – bg_morning_view: warm reds & gold
+    [Color(0xFFEF9A9A), Color(0xFFE57373), Color(0xFFFF8A65), Color(0xFFFFCC80), Color(0xFFFF7043)],
+    // 11 – bg_morning_view_water: teals & aqua
+    [Color(0xFF80CBC4), Color(0xFF4DB6AC), Color(0xFF26C6DA), Color(0xFF4FC3F7), Color(0xFF00E5FF)],
+    // 12 – bg_peacoc: teal & emerald
+    [Color(0xFF4DB6AC), Color(0xFF26A69A), Color(0xFF66BB6A), Color(0xFF80CBC4), Color(0xFF00BFA5)],
+    // 13 – bs_morning: warm morning rose & amber
+    [Color(0xFFEF9A9A), Color(0xFFFFCC80), Color(0xFFFF8A65), Color(0xFFFFAB91), Color(0xFFFF7043)],
+  ];
+
+  /// Returns the color palette that matches the current background for [level].
+  static List<Color> bubbleColorsForLevel(int level) =>
+      _levelPalettes[(level - 1) % _levelPalettes.length];
 }
 
 class AppDimensions {

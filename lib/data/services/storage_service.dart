@@ -7,6 +7,15 @@ class StorageService extends GetxService {
   static const _coinsKey          = 'coins';
   static const _unlockedStylesKey = 'unlocked_styles';
   static const _styleKey          = 'bubble_style';
+  static const _awardsKey         = 'awards';
+  static const _currentLevelKey    = 'current_level';
+  static const _selectedBgKey      = 'selected_bg';
+  static const _unlockedBgsKey     = 'unlocked_bgs';
+
+  // ── Gifted totals (lifetime cumulative from gift screen) ──────────────────
+  static const _giftedHeartsKey = 'gifted_hearts';
+  static const _giftedCoinsKey  = 'gifted_coins';
+  static const _giftedAwardsKey = 'gifted_awards';
 
   late final GetStorage _box;
 
@@ -16,11 +25,15 @@ class StorageService extends GetxService {
   }
 
   List<ScoreModel> readScores() {
-    final raw = _box.read<List>(_scoresKey);
-    if (raw == null) return [];
-    return raw
-        .map((e) => ScoreModel.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
+    try {
+      final raw = _box.read<List>(_scoresKey);
+      if (raw == null) return [];
+      return raw
+          .map((e) => ScoreModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   void writeScore(ScoreModel score) {
@@ -33,24 +46,80 @@ class StorageService extends GetxService {
 
   // ── Coins ─────────────────────────────────────────────────────────────────
 
-  int readCoins() => _box.read<int>(_coinsKey) ?? 0;
+  int readCoins() {
+    try { return (_box.read(_coinsKey) as num?)?.toInt() ?? 0; } catch (_) { return 0; }
+  }
 
   void writeCoins(int coins) => _box.write(_coinsKey, coins);
+
+  // ── Current level ─────────────────────────────────────────────────────────
+
+  int readCurrentLevel() {
+    try { return (_box.read(_currentLevelKey) as num?)?.toInt() ?? 1; } catch (_) { return 1; }
+  }
+
+  void writeCurrentLevel(int level) => _box.write(_currentLevelKey, level);
+
+  // ── Selected background ───────────────────────────────────────────────────
+
+  String? readSelectedBg() {
+    try { return _box.read<String>(_selectedBgKey); } catch (_) { return null; }
+  }
+
+  void writeSelectedBg(String? key) {
+    if (key == null) { _box.remove(_selectedBgKey); } else { _box.write(_selectedBgKey, key); }
+  }
+
+  List<String> readUnlockedBgs() {
+    try {
+      final raw = _box.read<List>(_unlockedBgsKey);
+      if (raw == null) return [];
+      return raw.map((e) => e.toString()).toList();
+    } catch (_) { return []; }
+  }
+
+  void writeUnlockedBgs(List<String> keys) => _box.write(_unlockedBgsKey, keys);
+
+  // ── Awards ────────────────────────────────────────────────────────────────
+
+  int readAwards() {
+    try { return (_box.read(_awardsKey) as num?)?.toInt() ?? 0; } catch (_) { return 0; }
+  }
+
+  void writeAwards(int awards) => _box.write(_awardsKey, awards);
 
   // ── Unlocked styles ───────────────────────────────────────────────────────
 
   List<String> readUnlockedStyles() {
-    final raw = _box.read<List>(_unlockedStylesKey);
-    if (raw == null) return [];
-    return raw.cast<String>();
+    try {
+      final raw = _box.read<List>(_unlockedStylesKey);
+      if (raw == null) return [];
+      return raw.map((e) => e.toString()).toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   void writeUnlockedStyles(List<String> keys) =>
       _box.write(_unlockedStylesKey, keys);
 
-  // ── Style key ─────────────────────────────────────────────────────────────
+  // ── Selected style key ────────────────────────────────────────────────────
 
-  String? readStyleKey() => _box.read<String>(_styleKey);
+  String? readStyleKey() {
+    try { return _box.read<String>(_styleKey); } catch (_) { return null; }
+  }
 
   void writeStyleKey(String key) => _box.write(_styleKey, key);
+
+  // ── Gifted hearts ─────────────────────────────────────────────────────────
+  int  readGiftedHearts()      { try { return (_box.read(_giftedHeartsKey) as num?)?.toInt() ?? 0; } catch (_) { return 0; } }
+  void writeGiftedHearts(int v) => _box.write(_giftedHeartsKey, v);
+
+  // ── Gifted coins ──────────────────────────────────────────────────────────
+  int  readGiftedCoins()       { try { return (_box.read(_giftedCoinsKey) as num?)?.toInt() ?? 0; } catch (_) { return 0; } }
+  void writeGiftedCoins(int v)  => _box.write(_giftedCoinsKey, v);
+
+  // ── Gifted awards ─────────────────────────────────────────────────────────
+  int  readGiftedAwards()      { try { return (_box.read(_giftedAwardsKey) as num?)?.toInt() ?? 0; } catch (_) { return 0; } }
+  void writeGiftedAwards(int v) => _box.write(_giftedAwardsKey, v);
 }

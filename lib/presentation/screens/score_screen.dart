@@ -25,13 +25,16 @@ class ScoreScreen extends GetView<ScoreController> {
           _HeaderBanner(controller: controller),
           _TabStrip(controller: controller),
           Expanded(
-            child: Obx(() {
-              switch (controller.selectedTab.value) {
-                case 0:  return _DateTab(ctrl: controller);
-                case 1:  return _WeekTab(ctrl: controller);
-                default: return _MonthTab(ctrl: controller);
-              }
-            }),
+            child: SafeArea(
+              top: false,
+              child: Obx(() {
+                switch (controller.selectedTab.value) {
+                  case 0:  return _DateTab(ctrl: controller);
+                  case 1:  return _WeekTab(ctrl: controller);
+                  default: return _MonthTab(ctrl: controller);
+                }
+              }),
+            ),
           ),
         ],
       ),

@@ -10,9 +10,9 @@ import 'data/services/style_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await GetStorage.init();
-  await Get.putAsync(() => StorageService().init());
-  await Get.putAsync(() => SoundService().init());
-  await Get.putAsync(() => StyleService().init());
+  await Get.putAsync(() => StorageService().init(), permanent: true);
+  await Get.putAsync(() => SoundService().init(),   permanent: true);
+  await Get.putAsync(() => StyleService().init(),   permanent: true);
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/constants/app_constants.dart';
@@ -12,7 +13,7 @@ import '../../data/services/sound_service.dart';
 import '../../data/services/style_service.dart';
 import '../../domain/usecases/score_usecases.dart';
 
-class GameController extends GetxController {
+class GameController extends GetxController with WidgetsBindingObserver {
   final SaveScoreUseCase _saveScore;
   GameController(this._saveScore);
 
@@ -33,6 +34,21 @@ class GameController extends GetxController {
   final RxBool showNewBestBanner = false.obs;
   final RxInt  newBestScore      = 0.obs;
 
+  // ── Level-complete snack (slides in first, then overlay appears) ─────────
+  final RxBool showLevelSnack      = false.obs;
+  final RxInt  snackCompletedLevel = 0.obs;
+
+  // ── Level-complete overlay ────────────────────────────────────────────────
+  // Shown full-screen when the player advances to a new level.
+  final RxBool showLevelComplete = false.obs;
+  final RxInt  completedLevel    = 0.obs;   // level the player just finished
+  final RxInt  coinsThisLevel    = 0.obs;   // score earned this level (displayed as score)
+
+  // ── Gift screen (shown when player breaks all-time high score) ────────────
+  // 0 = +1 heart, 1 = +5 coins, 2 = +1 award
+  final RxBool showGiftScreen  = false.obs;
+  final RxInt  giftRewardType  = 0.obs;
+
   final _random = math.Random();
   Timer? _gameTimer;
   Timer? _spawnTimer;
@@ -49,32 +65,17 @@ class GameController extends GetxController {
   // Ensures the new-best banner is only shown once per game session.
   bool _newBestShown = false;
 
-  // ─── background shuffle queue ────────────────────────────────────────────
-  // Guarantees every background plays before any repeats (no-repeat shuffle).
-  final RxInt randomBgIndex = 0.obs;
-  final List<int> _bgQueue = [];
+  // ─── Background index ─────────────────────────────────────────────────────
+  // Derived from level in a fixed queue: level 1 → bg 0, level 2 → bg 1 …
+  // wraps after all 14 backgrounds. Read-only from outside; updates whenever
+  // level changes.
+  int get bgIndex => ((level.value - 1) % BgAssets.all.length).toInt();
 
-  void _nextBackground() {
-    if (_bgQueue.isEmpty) {
-      // Refill with all indices and shuffle (Fisher-Yates).
-      _bgQueue.addAll(List.generate(BgAssets.all.length, (i) => i));
-      for (int i = _bgQueue.length - 1; i > 0; i--) {
-        final j = _random.nextInt(i + 1);
-        final tmp = _bgQueue[i];
-        _bgQueue[i] = _bgQueue[j];
-        _bgQueue[j] = tmp;
-      }
-      // If the first item after reshuffle is the same as the last one shown,
-      // swap it with any other position to avoid an accidental repeat.
-      if (_bgQueue.length > 1 && _bgQueue.first == randomBgIndex.value) {
-        final swap = 1 + _random.nextInt(_bgQueue.length - 1);
-        final tmp = _bgQueue[0];
-        _bgQueue[0] = _bgQueue[swap];
-        _bgQueue[swap] = tmp;
-      }
-    }
-    randomBgIndex.value = _bgQueue.removeAt(0);
-  }
+  // ─── In-game background (score-driven, changes every 200 pts) ────────────
+  // A random background is picked from the full pool each time the score
+  // crosses a new 200-point milestone. Reactive so _PremiumBackground rebuilds.
+  final RxString gameBgAsset = RxString('');
+  int _lastBgMilestone = 0;   // last 200-pt boundary we changed bg at
 
   // ─── speed ramp ──────────────────────────────────────────────────────────
   int _lastSpeedRampScore = 0;
@@ -89,11 +90,42 @@ class GameController extends GetxController {
   @override
   void onReady() {
     super.onReady();
+    // Register for app lifecycle events so the game pauses when the app is
+    // minimised/sent to background and auto-resumes on return.
+    WidgetsBinding.instance.addObserver(this);
     // HomeController passes the current best score so we can detect a new high
     // during gameplay without an extra storage read.
     final args = Get.arguments;
     if (args is Map) {
       _storedBestScore = (args['bestScore'] as int?) ?? 0;
+    }
+  }
+
+  // Called by Flutter whenever the app lifecycle state changes.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        // App going to background / screen locked — pause if actively running.
+        if (isGameRunning.value && !isPaused.value) {
+          isPaused.value      = true;
+          isGameRunning.value = false;
+          _cancelTimers();
+        }
+        break;
+      case AppLifecycleState.resumed:
+        // App is back in the foreground — resume only if we auto-paused it
+        // (don't resume if the player manually paused or the game is over).
+        if (isPaused.value && !isGameOver.value && !isHeartsOver.value) {
+          isPaused.value      = false;
+          isGameRunning.value = true;
+          _startGameLoop();
+        }
+        break;
+      case AppLifecycleState.detached:
+        break;
     }
   }
 
@@ -105,6 +137,7 @@ class GameController extends GetxController {
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
     _cancelTimers();
     // Catches the device back-button path: the controller is disposed without
     // any explicit "navigateHome" call, so we save here as a safety net.
@@ -128,28 +161,33 @@ class GameController extends GetxController {
       level: level.value,
       playedAt: DateTime.now(),
     ));
-    // Award coins: 1 coin per 5 score points earned this session.
-    final coinsEarned = score.value ~/ 5;
-    if (coinsEarned > 0) {
-      Get.find<StyleService>().addCoins(coinsEarned);
-    }
   }
 
   // ─── Public API ──────────────────────────────────────────────────────────
 
   void startGame() {
+    final style = Get.find<StyleService>();
     score.value = 0;
-    level.value = 1;
-    lives.value = 8;
+    level.value = style.currentLevel.value.clamp(1, 9999);
+    lives.value = 3;
     isGameOver.value   = false;
     isHeartsOver.value = false;
     isGameRunning.value = true;
     isPaused.value = false;
     _lastSpeedRampScore = 0;
+    _lastBgMilestone    = 0;
     _scoreSaved   = false; // reset so the new game's score can be saved
     _newBestShown = false;
     showNewBestBanner.value = false;
-    _nextBackground();
+    // Initial background — free + user's unlocked premium only
+    final styleSvc = Get.find<StyleService>();
+    final initPool = [
+      ...BgAssets.free,
+      ...styleSvc.unlockedBackgrounds
+          .map((bg) => bg.assetPath)
+          .where((p) => p.isNotEmpty),
+    ];
+    gameBgAsset.value = initPool[_random.nextInt(initPool.length)];
     bubbles.clear();
     _cancelTimers();
     _spawnWave();   // initial wave so the screen is never empty at start
@@ -205,24 +243,59 @@ class GameController extends GetxController {
   }
 
   void _startSpawnTimer() {
+    _spawnTimer?.cancel();
     _scheduleNextSpawn();
   }
 
   void _scheduleNextSpawn() {
-    // Interval shrinks from 1 600 ms (start) down to 650 ms (high score).
-    // Wave size (2–5 bubbles) drives density; interval drives rhythm/pressure.
-    final interval = (1600 - (score.value * 2)).clamp(650, 1600);
+    // Interval is driven purely by level (2000 ms at Lv1 → 800 ms at Lv100).
+    final interval = LevelConfig.spawnIntervalForLevel(level.value);
     _spawnTimer?.cancel();
     _spawnTimer = Timer(Duration(milliseconds: interval), () {
+      // ── CRITICAL: ALWAYS reschedule first, before anything else. ──────────
+      // Previously we only rescheduled inside the `if (isGameRunning)` block,
+      // so if the game was briefly paused/overlaid at the exact moment this
+      // timer fired, the entire spawn chain terminated permanently and bubbles
+      // stopped generating for the rest of the session.
       if (isGameRunning.value) {
         _spawnWave();
-        _scheduleNextSpawn();
       }
+      // Reschedule unconditionally — the chain must never die.
+      // _cancelTimers() sets _spawnTimer = null and cancels the pending timer,
+      // so this call after cancel is harmless (the callback already fired).
+      _scheduleNextSpawn();
     });
   }
 
   void _tick() {
     if (!isGameRunning.value) return;
+
+    // ── Spawn-timer watchdog ──────────────────────────────────────────────────
+    // If the spawn timer somehow died (null while game is running), restart it
+    // immediately so bubbles never stop generating.
+    if (_spawnTimer == null) {
+      _scheduleNextSpawn();
+    }
+
+    // ── Score-driven background change (every 200 pts) ────────────────────────
+    final milestone = (score.value ~/ 200) * 200;
+    if (milestone > _lastBgMilestone) {
+      _lastBgMilestone = milestone;
+      // Build pool = all free backgrounds + any premium the user has unlocked
+      final svc  = Get.find<StyleService>();
+      final pool = [
+        ...BgAssets.free,
+        ...svc.unlockedBackgrounds
+            .map((bg) => bg.assetPath)
+            .where((p) => p.isNotEmpty),
+      ];
+      if (pool.isEmpty) return;
+      // Pick a random entry different from the current one
+      String next;
+      do { next = pool[_random.nextInt(pool.length)]; }
+      while (next == gameBgAsset.value && pool.length > 1);
+      gameBgAsset.value = next;
+    }
 
     // Continuous speed multiplier: +0.15× every 5 score points
     final speedMult = LevelConfig.speedMultiplierForScore(score.value);
@@ -237,12 +310,13 @@ class GameController extends GetxController {
       if (b.isPopped) continue;
 
       // Special bubbles use their fixed speed — never scaled by level.
-      // Normal bubbles: cap at height/160 → medium pace, ~2.7 s crossing at 60 fps.
+      // Normal bubbles: capped at height/300 so even at the fastest level the
+      // crossing time stays ≥ 2 s (60 fps × 300 ticks ÷ screenHeight).
       final double tickSpeed;
       if (b.isSpecial) {
         tickSpeed = b.speed;
       } else {
-        final maxPixelsPerTick = _screenSize.height / 160.0;
+        final maxPixelsPerTick = _screenSize.height / 300.0;
         tickSpeed = (b.speed * speedMult).clamp(0.0, maxPixelsPerTick);
       }
       b.y -= tickSpeed;
@@ -267,18 +341,46 @@ class GameController extends GetxController {
   }
 
   void _checkLevelUp() {
-    final newLevel = LevelConfig.levelForScore(score.value);
-    if (newLevel > level.value) {
-      level.value = newLevel;
-      lives.value += 1;   // reward +1 heart on every level-up
-      _nextBackground();
-      levelUpMessage.value = '🚀 Level $newLevel — ${_skinName(newLevel)}';
-      Future.delayed(const Duration(seconds: 2), () {
-        if (levelUpMessage.value.contains('Level $newLevel')) {
-          levelUpMessage.value = '';
-        }
-      });
+    final target = LevelConfig.scoreTargetForLevel(level.value);
+    if (score.value >= target) {
+      final doneLv = level.value;
+      completedLevel.value = doneLv;
+      coinsThisLevel.value = score.value;   // score earned this level (for display)
+
+      // Persist the level's score before resetting it.
+      _persistScore();
+
+      // Reset per-level state.
+      level.value++;
+      score.value  = 0;
+      _scoreSaved  = false;
+      lives.value  = 3;
+      // Persist the new current level so the user resumes from here.
+      Get.find<StyleService>().updateCurrentLevel(level.value);
+
+      // Pause game and immediately show the level-complete overlay.
+      _cancelTimers();
+      isGameRunning.value     = false;
+      showLevelComplete.value = true;
     }
+  }
+
+  /// Called by the "Next Level" button on the level-complete overlay.
+  void continueAfterLevelComplete() {
+    showLevelComplete.value = false;
+    // Clear any leftover bubbles so the new level starts with a clean screen.
+    bubbles.clear();
+    _lastSpeedRampScore = 0;
+    levelUpMessage.value = '🚀 Level ${level.value} — ${_skinName(level.value)}';
+    Future.delayed(const Duration(seconds: 2), () {
+      if (levelUpMessage.value.contains('Level ${level.value}')) {
+        levelUpMessage.value = '';
+      }
+    });
+    isGameRunning.value = true;
+    _spawnWave();          // seed the first wave immediately
+    _startGameLoop();
+    _startSpawnTimer();
   }
 
   String _skinName(int lv) {
@@ -287,29 +389,60 @@ class GameController extends GetxController {
     return lv < names.length ? names[lv] : 'Rainbow 🌈';
   }
 
-  // Fires the in-game "New High Score!" celebration banner the first time the
-  // player's score surpasses their stored all-time best during this session.
+  // Fires the Gift screen the first time the player's score surpasses their
+  // stored all-time best during this session.
   void _checkNewBest() {
     if (_newBestShown) return;
-    if (score.value <= _storedBestScore || score.value <= 0) return;
+    // First-timers: gift at 200+. Returning players: gift when beating previous best (min 200).
+    final threshold = _storedBestScore > 200 ? _storedBestScore : 199;
+    if (score.value <= threshold) return;
     _newBestShown = true;
     newBestScore.value = score.value;
-    showNewBestBanner.value = true;
-    // Auto-dismiss after 3 s — the banner widget also lets the user tap to close.
+    showNewBestBanner.value = true; // kept for banner — hidden by gift overlay
+    // Pause and show the gift screen
+    _cancelTimers();
+    isGameRunning.value = false;
+    giftRewardType.value = _random.nextInt(3); // 0=heart, 1=coins, 2=award
+    showGiftScreen.value = true;
+    // Auto-dismiss banner (gift overlay shown separately)
     Future.delayed(const Duration(seconds: 3), () {
       showNewBestBanner.value = false;
     });
   }
 
-  // Every 100 score pts show a speed-bump micro-feedback (between level-ups).
-  // Always advance the ramp threshold even when a level-up banner is active.
+  /// Called when the player claims the gift reward.
+  void claimGift() {
+    showGiftScreen.value = false;
+    final style = Get.find<StyleService>();
+    switch (giftRewardType.value) {
+      case 0:
+        lives.value += 1;      // +1 heart
+        style.recordGiftHeart();
+        break;
+      case 1:
+        style.addCoins(5);     // +5 coins
+        style.recordGiftCoins();
+        break;
+      case 2:
+        style.addAward(1);     // +1 award
+        style.recordGiftAward();
+        break;
+    }
+    // Resume the game
+    isGameRunning.value = true;
+    _startGameLoop();
+    _startSpawnTimer();
+  }
+
+  // Speed is now purely level-driven (LevelConfig.speedMultiplierForLevel).
+  // This method is kept as a no-op so call-sites don't need to change.
   void _checkSpeedRamp() {
     final rampThreshold = _lastSpeedRampScore + 100;
     if (score.value >= rampThreshold && score.value > 0) {
       _lastSpeedRampScore = (score.value ~/ 100) * 100;
-      // Skip showing the banner when a level-up or bonus message is on screen;
-      // the threshold still advances so it triggers correctly next time.
-      if (levelUpMessage.value.isEmpty) {
+      // Banner suppressed — speed changes are invisible and gradual.
+      // Uncomment the lines below if you want to restore the "⚡" toast.
+      if (false && levelUpMessage.value.isEmpty) {
         levelUpMessage.value = '⚡ Speed up!';
         Future.delayed(const Duration(milliseconds: 1200), () {
           if (levelUpMessage.value == '⚡ Speed up!') {
@@ -338,6 +471,8 @@ class GameController extends GetxController {
       });
     }
     _sound.playPop();
+    // Soft, kid-friendly haptic — light impact so it feels like a gentle "pop"
+    HapticFeedback.lightImpact();
     bubbles.refresh();
   }
 
@@ -402,15 +537,18 @@ class GameController extends GetxController {
   void _spawnNormalBubble() {
     final r = _screenSize.shortestSide * (0.055 + _random.nextDouble() * 0.04);
     final x = r + _random.nextDouble() * (_screenSize.width - 2 * r);
-    // Medium speed range: 0.0024–0.0036 × screen height per tick (≈ 60 fps).
-    // At 800 px tall: 1.9–2.9 px/tick → combined with speedMult (0.65–1.6×)
-    // gives a crossing time of ~3–5 s at level 1, ~2–3 s at top levels.
-    final baseSpd = _screenSize.height * (0.0024 + _random.nextDouble() * 0.0012);
+    // Base speed: 0.0018–0.0026 × screen height per tick at 60 fps.
+    // Combined with speedMultiplierForLevel (0.30 → 1.00 over 100 levels):
+    //   Level  1: ~0.00054–0.00078 × h  →  crossing ≈ 6–7 s  (very relaxed)
+    //   Level 50: ~0.00104–0.00151 × h  →  crossing ≈ 3.5 s
+    //   Level100: ~0.0018–0.0026  × h   →  crossing ≈ 2 s    (challenging)
+    final baseSpd = _screenSize.height * (0.0018 + _random.nextDouble() * 0.0008);
 
+    final palette = AppColors.bubbleColorsForLevel(level.value);
     _sound.playBubbleSpawn();
     bubbles.add(BubbleModel(
       id: 'b${_idCounter++}',
-      color: AppColors.bubbleColors[_random.nextInt(AppColors.bubbleColors.length)],
+      color: palette[_random.nextInt(palette.length)],
       x: x,
       y: _screenSize.height + r * 2,
       radius: r,
@@ -427,7 +565,7 @@ class GameController extends GetxController {
     // Radius: 1.8× the normal max; speed locked to a 6-second screen crossing.
     final r = _screenSize.shortestSide * 0.17;
     final x = r + _random.nextDouble() * (_screenSize.width - 2 * r);
-    final fixedSpeed = _screenSize.height / (6 * 60.0);
+    final fixedSpeed = _screenSize.height / (8 * 60.0); // always ~8 s crossing
 
     _lastSpecialBubbleTime = DateTime.now();
     _sound.playBubbleSpawn();
@@ -459,7 +597,7 @@ class GameController extends GetxController {
 
   /// Restore 8 hearts and resume the game from where it was.
   void resetHearts() {
-    lives.value = 8;
+    lives.value = 3;
     isHeartsOver.value = false;
     isGameRunning.value = true;
     _startGameLoop();
@@ -477,8 +615,10 @@ class GameController extends GetxController {
 
   void _cancelTimers() {
     _gameTimer?.cancel();
-    _spawnTimer?.cancel();
     _gameTimer = null;
+    // Cancel and null the spawn timer so the watchdog in _tick() can detect
+    // a dead chain and restart it when the game resumes.
+    _spawnTimer?.cancel();
     _spawnTimer = null;
   }
 }
