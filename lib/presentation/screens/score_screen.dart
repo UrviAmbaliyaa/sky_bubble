@@ -116,7 +116,7 @@ class _HeaderBannerState extends State<_HeaderBanner>
               Obx(() => Row(children: [
                 _HeaderStat(emoji: '⭐', label: 'Best Score',
                     value: widget.controller.globalBest.value == 0
-                        ? '—' : '${widget.controller.globalBest.value}'),
+                        ? '0' : '${widget.controller.globalBest.value}'),
                 const SizedBox(width: 10),
                 _HeaderStat(emoji: '🎮', label: 'Total Games',
                     value: '${widget.controller.allDateSummaries.fold(0, (s, d) => s + d.gamesPlayed)}'),
@@ -171,13 +171,13 @@ class _HeaderStat extends StatelessWidget {
           border: Border.all(color: Colors.white.withOpacity(0.30)),
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
+          Text(emoji, style: const TextStyle(fontSize: 26)),
           const SizedBox(height: 3),
           Text(value,
-              style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0),
+              style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0),
               textAlign: TextAlign.center),
           Text(label,
-              style: TextStyle(fontSize: 10.sp, color: Colors.white.withOpacity(0.80), fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 12.sp, color: Colors.white.withOpacity(0.85), fontWeight: FontWeight.w700),
               textAlign: TextAlign.center),
         ]),
       ),
@@ -1475,6 +1475,19 @@ class _EmptyStateState extends State<_EmptyState> with SingleTickerProviderState
   late AnimationController _ctrl;
   late Animation<double> _float;
 
+  static const _bubbleColors = [
+    Color(0xFF4FC3F7), Color(0xFF7C4DFF), Color(0xFFFF6B9D),
+    Color(0xFF43E97B), Color(0xFFFFD54F), Color(0xFF4FC3F7),
+  ];
+
+  Color get _iconColor {
+    final t = _ctrl.value;
+    final total = _bubbleColors.length - 1;
+    final idx = (t * total).floor().clamp(0, total - 1);
+    final frac = (t * total) - idx;
+    return Color.lerp(_bubbleColors[idx], _bubbleColors[idx + 1], frac)!;
+  }
+
   @override
   void initState() { super.initState(); _onInit(); }
 
@@ -1482,8 +1495,10 @@ class _EmptyStateState extends State<_EmptyState> with SingleTickerProviderState
   void dispose() { _onDispose(); super.dispose(); }
 
   void _onInit() {
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat(reverse: true);
-    _float = Tween<double>(begin: -10, end: 10).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat();
+    _float = Tween<double>(begin: -10, end: 10).animate(
+      CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.5, curve: Curves.easeInOut)),
+    );
   }
 
   void _onDispose() => _ctrl.dispose();
@@ -1496,15 +1511,19 @@ class _EmptyStateState extends State<_EmptyState> with SingleTickerProviderState
           padding: const EdgeInsets.symmetric(vertical: 32),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             AnimatedBuilder(
-              animation: _float,
+              animation: _ctrl,
               builder: (_, __) => Transform.translate(
                 offset: Offset(0, _float.value),
-                child: const Text('🫧', style: TextStyle(fontSize: 72)),
+                child: Icon(
+                  Icons.bubble_chart_rounded,
+                  size: 84,
+                  color: _iconColor,
+                ),
               ),
             ),
             const SizedBox(height: 20),
-            const Text('No scores yet',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textDark)),
+            const Text('No Scores Yet!',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.textDark)),
             const SizedBox(height: 8),
             const Text('Play a game to see your progress 🎉',
                 style: TextStyle(fontSize: 15, color: AppColors.textMedium)),

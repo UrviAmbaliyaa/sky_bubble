@@ -116,9 +116,15 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           const Expanded(
-            child: Text('💧  Bubble Style',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900,
-                    color: Colors.white, letterSpacing: 0.3)),
+            child: Row(
+              children: [
+                Icon(Icons.bubble_chart_rounded, color: Colors.white, size: 28),
+                SizedBox(width: 10),
+                Text('Bubble Style',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900,
+                        color: Colors.white, letterSpacing: 0.3)),
+              ],
+            ),
           ),
         ],
       ),
@@ -143,13 +149,29 @@ class _StyleCardState extends State<_StyleCard>
   late AnimationController _ctrl;
   late Animation<double> _bob;
 
+  static const _classicColors = [
+    Color(0xFF4FC3F7), Color(0xFF7C4DFF), Color(0xFFFF6B9D),
+    Color(0xFF43E97B), Color(0xFFFFD54F), Color(0xFF4FC3F7),
+  ];
+
+  Color get _classicIconColor {
+    final t = (_ctrl.value).clamp(0.0, 1.0);
+    final total = _classicColors.length - 1;
+    final idx = (t * total).floor().clamp(0, total - 1);
+    final frac = (t * total) - idx;
+    return Color.lerp(_classicColors[idx], _classicColors[idx + 1], frac)!;
+  }
+
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this,
-        duration: const Duration(milliseconds: 1800))..repeat(reverse: true);
-    _bob = Tween<double>(begin: -4.0, end: 4.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat();
+    _bob = Tween<double>(begin: -4.0, end: 4.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.5, curve: Curves.easeInOut)),
+    );
   }
 
   @override
@@ -158,6 +180,7 @@ class _StyleCardState extends State<_StyleCard>
   @override
   Widget build(BuildContext context) {
     final sel = widget.isSelected;
+    final isClassic = widget.style == BubbleStyle.classic;
     return GestureDetector(
       onTap: widget.onTap,
       child: AnimatedContainer(
@@ -182,32 +205,63 @@ class _StyleCardState extends State<_StyleCard>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Preview canvas with animated bob
+            // Classic style uses animated color-cycling icon; others use preview canvas
             AnimatedBuilder(
-              animation: _bob,
+              animation: _ctrl,
               builder: (_, __) => Transform.translate(
                 offset: Offset(0, _bob.value),
-                child: SizedBox(
-                  width: 40, height: 40,
-                  child: CustomPaint(
-                    painter: _BubblePreviewPainter(
-                      style: widget.style,
-                      color: AppColors.bubbleColors[
-                          widget.style.index % AppColors.bubbleColors.length],
-                    ),
-                  ),
-                ),
+                child: isClassic
+                    ? Icon(
+                        Icons.bubble_chart_rounded,
+                        size: 44,
+                        color: _classicIconColor,
+                      )
+                    : SizedBox(
+                        width: 40, height: 40,
+                        child: CustomPaint(
+                          painter: _BubblePreviewPainter(
+                            style: widget.style,
+                            color: AppColors.bubbleColors[
+                                widget.style.index % AppColors.bubbleColors.length],
+                          ),
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 10),
-            Text(
-              '${widget.style.emoji}  ${widget.style.label}',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: sel ? FontWeight.w900 : FontWeight.w700,
-                color: sel ? const Color(0xFF0288D1) : AppColors.textDark,
-              ),
-            ),
+            // Classic label: icon + text; others: emoji + label
+            isClassic
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedBuilder(
+                        animation: _ctrl,
+                        builder: (_, __) => Icon(
+                          Icons.bubble_chart_rounded,
+                          size: 16,
+                          color: _classicIconColor,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.style.label,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: sel ? FontWeight.w900 : FontWeight.w700,
+                          color: sel ? const Color(0xFF0288D1) : AppColors.textDark,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    '${widget.style.emoji}  ${widget.style.label}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: sel ? FontWeight.w900 : FontWeight.w700,
+                      color: sel ? const Color(0xFF0288D1) : AppColors.textDark,
+                    ),
+                  ),
             const SizedBox(height: 4),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),

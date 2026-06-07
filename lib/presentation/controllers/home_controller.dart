@@ -17,6 +17,11 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
   final RxInt weekTotalScore   = 0.obs;
   final RxList<int> weekDayScores = <int>[0, 0, 0, 0, 0, 0, 0].obs;
 
+  // ── Celebration popup ─────────────────────────────────────────────────────
+  // Shown when the player achieves a new personal best.
+  final RxBool showCelebration  = false.obs;
+  final RxInt  celebrationScore = 0.obs;
+
   // ── Entry animation (fade + slide) ────────────────────────────────────────
   late final AnimationController entryAnimCtrl;
   late final Animation<double>   fadeAnim;
@@ -25,6 +30,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
   // ── Play-button pulse ──────────────────────────────────────────────────────
   late final AnimationController pulseCtrl;
   late final Animation<double>   pulseAnim;
+
 
   @override
   void onInit() {
@@ -36,6 +42,9 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
   void onReady() {
     super.onReady();
     _loadStats();
+    // When the screen is recreated after Get.offAllNamed (navigateHome path),
+    // check the route arguments for the last game's score.
+    _checkCelebrationFromArgs();
   }
 
   @override
@@ -50,12 +59,22 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     entryAnimCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..forward();
+    );
     fadeAnim  = CurvedAnimation(parent: entryAnimCtrl, curve: Curves.easeOut);
     slideAnim = Tween<Offset>(
       begin: const Offset(0, 0.08),
       end:   Offset.zero,
     ).animate(CurvedAnimation(parent: entryAnimCtrl, curve: Curves.easeOutCubic));
+
+    // When returning from the game screen the UI should appear instantly at
+    // full opacity. Only run the fade-in for the very first launch.
+    final args = Get.arguments;
+    final returningFromGame = args is Map && args['fromGame'] == true;
+    if (returningFromGame) {
+      entryAnimCtrl.value = 1.0; // jump to full opacity — no animation
+    } else {
+      entryAnimCtrl.forward(); // normal 900 ms fade-in on first open
+    }
 
     pulseCtrl = AnimationController(
       vsync: this,
@@ -76,7 +95,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     bestScore.value =
         scores.isEmpty ? 0 : scores.map((s) => s.score).reduce(math.max);
 
-    final now      = DateTime.now();
+    final now        = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
     final todayEnd   = todayStart.add(const Duration(days: 1));
 
@@ -102,11 +121,52 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     weekDayScores.value = daySums;
   }
 
+  // Called when the controller is freshly created via Get.offAllNamed (the
+  // "navigateHome" path from GameController).  The route argument 'lastScore'
+  // tells us what score the player just achieved so we can celebrate a new best.
+  void _checkCelebrationFromArgs() {
+    final args = Get.arguments;
+    if (args is! Map) return;
+    if (args['fromGame'] != true) return;
+
+    final lastScore = (args['lastScore'] as int?) ?? 0;
+    if (lastScore <= 0) return;
+
+    // Celebrate when the player's last score equals the all-time best,
+    // meaning this game set (or tied) a new personal record.
+    if (bestScore.value > 0 && lastScore >= bestScore.value) {
+      _triggerCelebration(lastScore);
+    }
+  }
+
+  void _triggerCelebration(int score) {
+    celebrationScore.value = score;
+    showCelebration.value  = true;
+    // Auto-close after 4 seconds; the UI widget also allows tap-to-dismiss.
+    Future.delayed(const Duration(milliseconds: 4000), dismissCelebration);
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
 
+  void dismissCelebration() {
+    showCelebration.value = false;
+  }
+
   Future<void> navigateToGame() async {
-    await Get.toNamed(AppRoutes.game);
+    // Pass the current best score as a route argument so GameController can
+    // detect — and celebrate — a new high score IN THE GAME SCREEN itself.
+    await Get.toNamed(AppRoutes.game, arguments: {'bestScore': bestScore.value});
+
+    // ⚠️ Timing: GetX defers GameController.onClose() to the next frame via
+    // addPostFrameCallback.  PopScope in GameScreen also calls persistScoreOnExit()
+    // synchronously, but we still give a 150 ms buffer to cover swipe-back,
+    // predictive-back and any device-specific gesture-navigation variants.
+    await Future.delayed(const Duration(milliseconds: 150));
+
+    // Refresh the home screen stats — score is guaranteed in storage by now.
     _loadStats();
+    // No in-app celebration here: the player already saw the 🏆 banner while
+    // playing.  We just make sure the best-score pill updates on screen.
   }
 
   Future<void> navigateToScores() async {

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
@@ -25,6 +26,9 @@ class HomeScreen extends GetView<HomeController> {
         children: [
           const RepaintBoundary(child: _Background()),
           const SafeArea(child: _HomeUI()),
+          // Celebration overlay removed — the 🏆 New High Score banner now
+          // appears directly on the game screen while the player is still
+          // playing, making it more immediate and correctly positioned.
         ],
       ),
     );
@@ -340,7 +344,13 @@ class _StyleButtonState extends State<_StyleButton> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(style.emoji, style: TextStyle(fontSize: 14.sp)),
+                    // Classic uses the bubble icon (🫧 renders as water-drop on
+                    // older Android); all other styles keep their safe emojis.
+                    if (style == BubbleStyle.classic)
+                      Icon(Icons.bubble_chart_rounded,
+                          color: Colors.white, size: 14.sp)
+                    else
+                      Text(style.emoji, style: TextStyle(fontSize: 14.sp)),
                     SizedBox(width: 2.w),
                     Text(
                       'STYLE',
@@ -459,7 +469,7 @@ class _StyleSheetHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text('💧', style: TextStyle(fontSize: 19.sp)),
+          Icon(Icons.bubble_chart_rounded, color: Colors.white, size: 22.sp),
           SizedBox(width: 3.w),
           Expanded(
             child: Column(
@@ -584,7 +594,14 @@ class _StyleCardState extends State<_StyleCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      Text(widget.style.emoji, style: TextStyle(fontSize: 15.sp)),
+                      // Classic: use the vector bubble icon so it renders on
+                      // all Android versions (🫧 is Unicode 14, fails below A12).
+                      if (widget.style == BubbleStyle.classic)
+                        Icon(Icons.bubble_chart_rounded,
+                            color: accent, size: 15.sp)
+                      else
+                        Text(widget.style.emoji,
+                            style: TextStyle(fontSize: 15.sp)),
                       SizedBox(width: 1.5.w),
                       Text(
                         widget.style.label,
@@ -708,4 +725,323 @@ class _BubblePreviewPainter extends CustomPainter {
   @override
   bool shouldRepaint(_BubblePreviewPainter old) =>
       old.style != style || old.color != color;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  CELEBRATION OVERLAY  — shown when player achieves a new personal best
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Confetti particle data ────────────────────────────────────────────────────
+
+class _Particle {
+  final double startX;   // 0–1 fraction of screen width
+  final double startY;   // slightly above screen top (negative fraction)
+  final double speed;    // fall speed multiplier
+  final double radius;   // confetti piece size
+  final double driftX;   // horizontal sway magnitude
+  final double rotSpeed; // rotation speed
+  final Color  color;
+
+  _Particle(math.Random r)
+      : startX   = r.nextDouble(),
+        startY   = -0.05 - r.nextDouble() * 0.25,
+        speed     = 0.25 + r.nextDouble() * 0.75,
+        radius    = 4.0 + r.nextDouble() * 7.0,
+        driftX    = (r.nextDouble() - 0.5) * 0.25,
+        rotSpeed  = (r.nextDouble() - 0.5) * 8.0,
+        color     = _kConfettiColors[r.nextInt(_kConfettiColors.length)];
+
+  static const _kConfettiColors = [
+    Color(0xFFFFD700), Color(0xFFFF6B9D), Color(0xFF43E97B),
+    Color(0xFF4FC3F7), Color(0xFFCE93D8), Color(0xFFFF8A65),
+    Color(0xFFFFFFFF), Color(0xFF00D4FF), Color(0xFFFF4081),
+  ];
+}
+
+// ── Confetti painter ──────────────────────────────────────────────────────────
+
+class _ConfettiPainter extends CustomPainter {
+  final List<_Particle> particles;
+  final double progress; // 0.0 → 1.0 over the overlay lifetime
+
+  const _ConfettiPainter({required this.particles, required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (final p in particles) {
+      // Each particle has its own phase so they don't all move in sync.
+      final t = ((progress * (1.0 / p.speed)) % 1.0);
+      final x = (p.startX + p.driftX * t) * size.width;
+      final y = (p.startY + t * 1.3) * size.height;
+
+      // Fade in at top, fade out near bottom
+      final opacity = (t < 0.1
+          ? t / 0.1
+          : t > 0.75
+              ? (1.0 - t) / 0.25
+              : 1.0).clamp(0.0, 1.0);
+
+      if (opacity <= 0) continue;
+
+      paint.color = p.color.withOpacity(opacity);
+
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(p.rotSpeed * progress * math.pi * 2);
+      // Draw a small rounded rectangle (confetti ticket shape)
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: p.radius * 1.6,
+            height: p.radius * 0.7,
+          ),
+          const Radius.circular(2),
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => old.progress != progress;
+}
+
+// ── Celebration card ──────────────────────────────────────────────────────────
+
+class _CelebrationCard extends StatelessWidget {
+  final int score;
+  final Animation<double> countdown; // 0→1 over the auto-close duration
+  final VoidCallback onDismiss;
+
+  const _CelebrationCard({
+    required this.score,
+    required this.countdown,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 8.w),
+      padding: EdgeInsets.fromLTRB(6.w, 4.h, 6.w, 3.h),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1A1A6E), Color(0xFF2D0082), Color(0xFF0D1B4A)],
+        ),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(
+          color: const Color(0xFFFFD700).withOpacity(0.65),
+          width: 2.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFD700).withOpacity(0.30),
+            blurRadius: 32,
+            spreadRadius: 4,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Trophy
+          Text('🏆', style: TextStyle(fontSize: 48.sp)),
+          SizedBox(height: 1.h),
+          // Title
+          ShaderMask(
+            shaderCallback: (b) => const LinearGradient(
+              colors: [Color(0xFFFFD700), Color(0xFFFFA000)],
+            ).createShader(b),
+            child: Text(
+              'NEW BEST SCORE!',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 1.8,
+              ),
+            ),
+          ),
+          SizedBox(height: 2.5.h),
+          // Score badge
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 1.8.h),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFD700), Color(0xFFFF8C00)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFFD700).withOpacity(0.50),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Text(
+              '$score',
+              style: TextStyle(
+                fontSize: 36.sp,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 1.0,
+                shadows: const [Shadow(color: Colors.black38, blurRadius: 6, offset: Offset(0, 3))],
+              ),
+            ),
+          ),
+          SizedBox(height: 0.6.h),
+          Text(
+            'pts',
+            style: TextStyle(
+              fontSize: 13.sp,
+              color: Colors.white60,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 2.5.h),
+          // Countdown progress bar
+          AnimatedBuilder(
+            animation: countdown,
+            builder: (_, __) => Column(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: 1.0 - countdown.value, // shrinks left as time passes
+                    backgroundColor: Colors.white.withOpacity(0.12),
+                    valueColor: const AlwaysStoppedAnimation(Color(0xFFFFD700)),
+                    minHeight: 5,
+                  ),
+                ),
+                SizedBox(height: 0.8.h),
+                Text(
+                  'Tap anywhere to close',
+                  style: TextStyle(fontSize: 9.5.sp, color: Colors.white30),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Celebration overlay (full-screen) ─────────────────────────────────────────
+
+class _CelebrationOverlay extends StatefulWidget {
+  final int score;
+  final VoidCallback onDismiss;
+
+  const _CelebrationOverlay({required this.score, required this.onDismiss});
+
+  @override
+  State<_CelebrationOverlay> createState() => _CelebrationOverlayState();
+}
+
+class _CelebrationOverlayState extends State<_CelebrationOverlay>
+    with TickerProviderStateMixin {
+  // Controls confetti falling + particle lifecycle
+  late final AnimationController _confettiCtrl;
+  // Controls the card pop-in (scale + fade)
+  late final AnimationController _popCtrl;
+  // Controls the auto-close countdown bar
+  late final AnimationController _countdownCtrl;
+
+  late final Animation<double> _cardScale;
+  late final Animation<double> _cardFade;
+
+  late final List<_Particle> _particles;
+
+  static const _autoClose = Duration(milliseconds: 4000);
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Generate confetti particles once
+    final rng = math.Random();
+    _particles = List.generate(70, (_) => _Particle(rng));
+
+    // Confetti loops: particles cycle through the screen continuously
+    _confettiCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+    _confettiCtrl.addListener(() => setState(() {}));
+
+    // Card pops in with a spring effect
+    _popCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    )..forward();
+    _cardScale = Tween<double>(begin: 0.55, end: 1.0).animate(
+      CurvedAnimation(parent: _popCtrl, curve: Curves.elasticOut),
+    );
+    _cardFade = CurvedAnimation(parent: _popCtrl, curve: Curves.easeIn);
+
+    // Countdown runs for the full auto-close duration
+    _countdownCtrl = AnimationController(vsync: this, duration: _autoClose)
+      ..forward();
+    _countdownCtrl.addStatusListener((status) {
+      if (status == AnimationStatus.completed) widget.onDismiss();
+    });
+  }
+
+  @override
+  void dispose() {
+    _confettiCtrl.dispose();
+    _popCtrl.dispose();
+    _countdownCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onDismiss,
+      child: AnimatedBuilder(
+        animation: _popCtrl,
+        builder: (_, __) => FadeTransition(
+          opacity: _cardFade,
+          child: Container(
+            color: Colors.black.withOpacity(0.68),
+            child: Stack(
+              children: [
+                // Falling confetti layer (repaints on every frame)
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _ConfettiPainter(
+                      particles: _particles,
+                      progress: _confettiCtrl.value,
+                    ),
+                  ),
+                ),
+                // Centred card with spring pop-in
+                Center(
+                  child: ScaleTransition(
+                    scale: _cardScale,
+                    child: _CelebrationCard(
+                      score: widget.score,
+                      countdown: _countdownCtrl,
+                      onDismiss: widget.onDismiss,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

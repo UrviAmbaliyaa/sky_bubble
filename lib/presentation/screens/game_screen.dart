@@ -15,12 +15,25 @@ class GameScreen extends GetView<GameController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF87CEEB),
-      body: LayoutBuilder(
-        builder: (context, constraints) => _GameBody(
-          controller: controller,
-          size: constraints.biggest,
+    return PopScope(
+      // Allow all back gestures / button presses to complete normally.
+      canPop: true,
+      // This fires synchronously when the pop is confirmed — BEFORE the route
+      // is fully removed and before Get.toNamed()'s future resolves in
+      // HomeController.  Calling persistScoreOnExit() here guarantees the score
+      // is written to storage before HomeController._loadStats() reads it, which
+      // fixes both swipe-back and predictive-back gesture scenarios on all
+      // Android/iOS variants.
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) controller.persistScoreOnExit();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF87CEEB),
+        body: LayoutBuilder(
+          builder: (context, constraints) => _GameBody(
+            controller: controller,
+            size: constraints.biggest,
+          ),
         ),
       ),
     );
@@ -75,7 +88,7 @@ class _GameBodyState extends State<_GameBody> {
           right: 0,
           child: SafeArea(child: _GameHUD(controller: widget.controller)),
         ),
-        // Level-up banner
+        // Level-up / speed-ramp banner
         Obx(() => widget.controller.levelUpMessage.value.isEmpty
             ? const SizedBox.shrink()
             : Positioned(
@@ -85,6 +98,21 @@ class _GameBodyState extends State<_GameBody> {
                 child: _LevelUpBanner(
                     message: widget.controller.levelUpMessage.value),
               )),
+        // ── New High Score celebration banner ──────────────────────────────
+        // Appears just below the level-up banner so both can coexist without
+        // overlapping the HUD.  Tapping it dismisses it immediately.
+        Obx(() => widget.controller.showNewBestBanner.value
+            ? Positioned(
+                top: MediaQuery.of(context).padding.top + 16.h,
+                left: 6.w,
+                right: 6.w,
+                child: GestureDetector(
+                  onTap: () => widget.controller.showNewBestBanner.value = false,
+                  child: _NewBestBanner(
+                      score: widget.controller.newBestScore.value),
+                ),
+              )
+            : const SizedBox.shrink()),
         // Pause overlay
         Obx(() => widget.controller.isPaused.value
             ? Positioned.fill(
@@ -274,8 +302,10 @@ class _LevelUpBannerState extends State<_LevelUpBanner>
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
   }
 
-  void _onDispose() {
+  @override
+  void dispose() {
     _ctrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -316,6 +346,150 @@ class _LevelUpBannerState extends State<_LevelUpBanner>
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── New High Score Banner ────────────────────────────────────────────────────
+// Slides in from above with a golden gradient, confetti shimmer glow, and a
+// spring-scale pop — visually distinct from the green level-up banner.
+// Auto-dismissed by GameController after 3 s; also tap-to-dismiss.
+
+class _NewBestBanner extends StatefulWidget {
+  final int score;
+  const _NewBestBanner({required this.score});
+
+  @override
+  State<_NewBestBanner> createState() => _NewBestBannerState();
+}
+
+class _NewBestBannerState extends State<_NewBestBanner>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _slide;
+  late Animation<double> _fade;
+  late Animation<double> _scale;
+  late Animation<double> _shimmer;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    )..forward();
+    _slide = Tween<double>(begin: -70, end: 0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+    _scale = Tween<double>(begin: 0.80, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack),
+    );
+    _shimmer = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(
+        parent: _ctrl,
+        curve: const Interval(0.5, 1.0, curve: Curves.easeInOut),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => FadeTransition(
+        opacity: _fade,
+        child: Transform.translate(
+          offset: Offset(0, _slide.value),
+          child: Transform.scale(
+            scale: _scale.value,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.6.h),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFFB300), Color(0xFFFF6F00)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(AppDimensions.radiusXL),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.55),
+                  width: 1.8,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFFD700).withOpacity(0.55 + _shimmer.value * 0.2),
+                    blurRadius: 18 + _shimmer.value * 12,
+                    spreadRadius: 1 + _shimmer.value * 3,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.18),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Left trophy
+                  Text('🏆', style: TextStyle(fontSize: 18.sp)),
+                  SizedBox(width: 3.w),
+                  // Text block
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'NEW HIGH SCORE!',
+                        style: TextStyle(
+                          fontSize: 13.5.sp,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: 1.2,
+                          shadows: const [
+                            Shadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 2)),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 0.3.h),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.stars_rounded, color: Colors.white, size: 4.w),
+                          SizedBox(width: 1.w),
+                          Text(
+                            '${widget.score} pts',
+                            style: TextStyle(
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white.withOpacity(0.95),
+                              shadows: const [
+                                Shadow(color: Colors.black26, blurRadius: 3),
+                              ],
+                            ),
+                          ),
+                          SizedBox(width: 1.5.w),
+                          Text('🎉', style: TextStyle(fontSize: 12.sp)),
+                        ],
+                      ),
+                    ],
+                  ),
+                  SizedBox(width: 3.w),
+                  // Right trophy
+                  Text('🏆', style: TextStyle(fontSize: 18.sp)),
+                ],
               ),
             ),
           ),
