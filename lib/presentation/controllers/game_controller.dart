@@ -9,6 +9,7 @@ import '../../data/models/bubble_model.dart';
 import '../../data/models/level_config.dart';
 import '../../data/models/score_model.dart';
 import '../../data/services/sound_service.dart';
+import '../../data/services/style_service.dart';
 import '../../domain/usecases/score_usecases.dart';
 
 class GameController extends GetxController {
@@ -127,6 +128,11 @@ class GameController extends GetxController {
       level: level.value,
       playedAt: DateTime.now(),
     ));
+    // Award coins: 1 coin per 5 score points earned this session.
+    final coinsEarned = score.value ~/ 5;
+    if (coinsEarned > 0) {
+      Get.find<StyleService>().addCoins(coinsEarned);
+    }
   }
 
   // ─── Public API ──────────────────────────────────────────────────────────

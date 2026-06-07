@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 /// Selectable bubble styles.
 enum BubbleStyle {
-  classic, // Iridescent glass bubble (level-based skins)
-  blur,    // Frosted / soft blur effect
-  heart,   // Rainbow iridescent heart-shaped bubble
-  star,    // Golden glowing 5-point star bubble
-  diamond, // Icy crystal diamond bubble
+  classic, // Iridescent glass bubble (level-based skins) — FREE
+  blur,    // Frosted / soft blur effect                  — 200 coins
+  heart,   // Rainbow iridescent heart-shaped bubble      — 400 coins
+  star,    // Golden glowing 5-point star bubble          — 700 coins
+  diamond, // Icy crystal diamond bubble                  — 1000 coins
 }
 
 extension BubbleStyleInfo on BubbleStyle {
@@ -49,6 +49,19 @@ extension BubbleStyleInfo on BubbleStyle {
       case BubbleStyle.diamond: return [const Color(0xFF80DEEA), const Color(0xFF00838F)];
     }
   }
+
+  /// Coin cost to unlock. 0 means free (Classic).
+  int get coinCost {
+    switch (this) {
+      case BubbleStyle.classic: return 0;
+      case BubbleStyle.blur:    return 10;
+      case BubbleStyle.heart:   return 20;
+      case BubbleStyle.star:    return 30;
+      case BubbleStyle.diamond: return 40;
+    }
+  }
+
+  bool get isPremium => coinCost > 0;
 
   String get key => name;
 

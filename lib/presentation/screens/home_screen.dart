@@ -9,6 +9,7 @@ import '../../data/models/bubble_model.dart';
 import '../../data/services/style_service.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/bubble_painter.dart';
+import 'bubble_style_screen.dart' show showUnlockDialog;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  HOME SCREEN
@@ -391,8 +392,8 @@ class _BubbleStyleSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final svc        = Get.find<StyleService>();
-    final bottomPad  = MediaQuery.of(context).padding.bottom;
+    final svc       = Get.find<StyleService>();
+    final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return Container(
       decoration: const BoxDecoration(
@@ -403,7 +404,6 @@ class _BubbleStyleSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(height: 1.5.h),
-          // drag handle
           Center(
             child: Container(
               width: 10.w,
@@ -415,26 +415,32 @@ class _BubbleStyleSheet extends StatelessWidget {
             ),
           ),
           SizedBox(height: 2.h),
-          // header banner
           _StyleSheetHeader(onClose: () => Navigator.of(context).pop()),
           SizedBox(height: 1.5.h),
-          // style list
           Flexible(
             child: Obx(() {
-              final current = svc.selectedStyle.value;
+              final current  = svc.selectedStyle.value;
+              final coins    = svc.totalCoins.value;
               return ListView.builder(
                 shrinkWrap: true,
                 padding: EdgeInsets.symmetric(horizontal: 5.w),
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: BubbleStyle.values.length,
                 itemBuilder: (_, i) {
-                  final style = BubbleStyle.values[i];
+                  final style    = BubbleStyle.values[i];
+                  final unlocked = svc.isUnlocked(style);
                   return _StyleCard(
                     style: style,
                     isSelected: current == style,
+                    isUnlocked: unlocked,
+                    userCoins: coins,
                     onTap: () {
-                      svc.setStyle(style);
-                      Navigator.of(context).pop();
+                      if (unlocked) {
+                        svc.setStyle(style);
+                        Navigator.of(context).pop();
+                      } else {
+                        showUnlockDialog(context, style, svc);
+                      }
                     },
                   );
                 },
@@ -456,6 +462,7 @@ class _StyleSheetHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final svc = Get.find<StyleService>();
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 5.w),
       padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.8.h),
@@ -485,7 +492,7 @@ class _StyleSheetHeader extends StatelessWidget {
                 ),
                 SizedBox(height: 0.4.h),
                 Text(
-                  'Tap a style to play with it',
+                  'Unlock premium styles with coins',
                   style: TextStyle(
                     fontSize: 11.sp,
                     color: Colors.white70,
@@ -495,6 +502,31 @@ class _StyleSheetHeader extends StatelessWidget {
               ],
             ),
           ),
+          // Coin balance chip
+          Obx(() => Container(
+            padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.6.h),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD740).withOpacity(0.25),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFFD740).withOpacity(0.7)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('🥇', style: TextStyle(fontSize: 11.sp)),
+                SizedBox(width: 1.w),
+                Text(
+                  '${svc.totalCoins.value}',
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          )),
+          SizedBox(width: 2.w),
           GestureDetector(
             onTap: onClose,
             child: Container(
@@ -519,10 +551,14 @@ class _StyleSheetHeader extends StatelessWidget {
 class _StyleCard extends StatefulWidget {
   final BubbleStyle style;
   final bool isSelected;
+  final bool isUnlocked;
+  final int userCoins;
   final VoidCallback onTap;
   const _StyleCard({
     required this.style,
     required this.isSelected,
+    required this.isUnlocked,
+    required this.userCoins,
     required this.onTap,
   });
 
@@ -555,7 +591,14 @@ class _StyleCardState extends State<_StyleCard>
 
   @override
   Widget build(BuildContext context) {
-    final accent = widget.style.gradientColors.first;
+    final accent    = widget.style.gradientColors.first;
+    final locked    = !widget.isUnlocked;
+    final isPremium = widget.style.isPremium;
+    final canAfford = widget.userCoins >= widget.style.coinCost;
+
+    final borderColor = locked
+        ? const Color(0xFFFFD740)
+        : widget.isSelected ? accent : const Color(0xFFE8EDF5);
 
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
@@ -574,34 +617,55 @@ class _StyleCardState extends State<_StyleCard>
           decoration: BoxDecoration(
             color: widget.isSelected ? accent.withOpacity(0.06) : Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: widget.isSelected ? accent : const Color(0xFFE8EDF5),
-              width: widget.isSelected ? 2.0 : 1.0,
-            ),
-            boxShadow: widget.isSelected
-                ? [BoxShadow(color: accent.withOpacity(0.20), blurRadius: 14, offset: const Offset(0, 4))]
-                : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
+            border: Border.all(color: borderColor,
+                width: locked ? 1.6 : widget.isSelected ? 2.0 : 1.0),
+            boxShadow: locked
+                ? [BoxShadow(
+                    color: const Color(0xFFFFD740).withOpacity(0.18),
+                    blurRadius: 10, offset: const Offset(0, 3))]
+                : widget.isSelected
+                    ? [BoxShadow(color: accent.withOpacity(0.20), blurRadius: 14, offset: const Offset(0, 4))]
+                    : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2))],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // bubble preview
-              _BubblePreviewCircle(style: widget.style, bobAnim: _bobAnim),
+              // ── Bubble preview circle with crown floating on top ──────────
+              SizedBox(
+                width: 20.w,
+                height: 20.w,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Full-size bubble preview
+                    _BubblePreviewCircle(
+                      style: widget.style,
+                      bobAnim: _bobAnim,
+                    ),
+                    // Crown overlapping the top of the bubble
+                    if (isPremium)
+                      Positioned(
+                        top: -10,
+                        right: 10,
+                        child: Transform.rotate(
+                          angle: 0.3,
+                          child: _HomeCrownBadge(canAfford: canAfford)),
+                      ),
+                  ],
+                ),
+              ),
               SizedBox(width: 3.5.w),
-              // label + description
+
+              // ── Label + cost / description ─────────────────────────────
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      // Classic: use the vector bubble icon so it renders on
-                      // all Android versions (🫧 is Unicode 14, fails below A12).
                       if (widget.style == BubbleStyle.classic)
-                        Icon(Icons.bubble_chart_rounded,
-                            color: accent, size: 15.sp)
+                        Icon(Icons.bubble_chart_rounded, color: accent, size: 15.sp)
                       else
-                        Text(widget.style.emoji,
-                            style: TextStyle(fontSize: 15.sp)),
+                        Text(widget.style.emoji, style: TextStyle(fontSize: 15.sp)),
                       SizedBox(width: 1.5.w),
                       Text(
                         widget.style.label,
@@ -613,46 +677,107 @@ class _StyleCardState extends State<_StyleCard>
                       ),
                     ]),
                     SizedBox(height: 0.5.h),
-                    Text(
-                      widget.style.description,
-                      style: TextStyle(
-                        fontSize: 11.sp,
-                        color: const Color(0xFF9099B0),
-                        height: 1.4,
+                    if (locked)
+                      Row(children: [
+                        Text('🥇', style: TextStyle(fontSize: 15.sp)),
+                        SizedBox(width: 1.w),
+                        Text(
+                          '${widget.style.coinCost} coins to unlock',
+                          style: TextStyle(
+                            fontSize: 11.sp,
+                            color: canAfford
+                                ? const Color(0xFF2E7D32)
+                                : const Color(0xFF9099B0),
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ])
+                    else
+                      Text(
+                        widget.style.description,
+                        style: TextStyle(
+                          fontSize: 11.sp,
+                          color: const Color(0xFF9099B0),
+                          height: 1.4,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
-              // checkmark
+
+              // ── Trailing: checkmark (selected) or lock circle (locked) ───
               SizedBox(
-                width: 7.w,
-                height: 7.w,
+                width: 8.w,
+                height: 8.w,
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: widget.isSelected
                       ? Container(
                           key: const ValueKey('check'),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: widget.style.gradientColors,
-                            ),
+                            gradient: LinearGradient(colors: widget.style.gradientColors),
                             shape: BoxShape.circle,
                             boxShadow: [
-                              BoxShadow(
-                                color: accent.withOpacity(0.35),
-                                blurRadius: 8,
-                              ),
+                              BoxShadow(color: accent.withOpacity(0.35), blurRadius: 8),
                             ],
                           ),
                           child: Icon(Icons.check_rounded, color: Colors.white, size: 4.5.w),
                         )
-                      : const SizedBox.shrink(key: ValueKey('empty')),
+                      : locked
+                          ? Container(
+                              key: const ValueKey('lock'),
+                              padding: EdgeInsets.all(1.5.w),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                // color: Color(0xFFFFD740).withAlpha(10),
+                                border: Border.all(
+                                  color: const Color(0xFFFFD740),
+                                  width: 1.8,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFFD740).withOpacity(0.10),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.lock_rounded,
+                                size: 4.w,
+                                color: const Color(0xFFFFB300),
+                              ),
+                            )
+                          : const SizedBox.shrink(key: ValueKey('empty')),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Crown badge — sits on top of the bubble preview circle ──────────────────
+
+class _HomeCrownBadge extends StatelessWidget {
+  final bool canAfford;
+  const _HomeCrownBadge({required this.canAfford});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '👑',
+      style: TextStyle(
+        fontSize: 20.sp,
+        shadows: [
+          Shadow(
+            color: const Color(0xFFFFAA00).withOpacity(0.70),
+            blurRadius: 8,
+          ),
+        ],
       ),
     );
   }
@@ -669,8 +794,8 @@ class _BubblePreviewCircle extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = style.gradientColors.first;
     return Container(
-      width: 20.w,
-      height: 20.w,
+      width: 18.w,
+      height: 18.w,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: accent.withOpacity(0.12),
@@ -708,7 +833,7 @@ class _BubblePreviewPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
-    final r  = size.width * 0.44;
+    final r  = size.width * 0.35;
     final b  = BubbleModel(
       id: 'preview',
       color: color,
@@ -717,7 +842,7 @@ class _BubblePreviewPainter extends CustomPainter {
       speed: 0,
       driftAmplitude: 0,
       driftFrequency: 0,
-      pointValue: 3,
+      pointValue: 2,
     );
     BubblePainter(bubbles: [b], level: 5, style: style).paint(canvas, size);
   }
