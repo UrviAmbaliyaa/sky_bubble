@@ -584,21 +584,44 @@ class _CelebParticle {
 }
 
 // ─── Banner ad shown at the bottom of the level-complete overlay ─────────────
+//
+// Uses StatefulWidget so the AdWidget is created ONCE and never rebuilt with the
+// same ad object — rebuilding a StatelessWidget/Obx around AdWidget causes the
+// "AdWidget already in tree" assertion.
 
-class _LevelCompleteBanner extends StatelessWidget {
+class _LevelCompleteBanner extends StatefulWidget {
   const _LevelCompleteBanner();
+
+  @override
+  State<_LevelCompleteBanner> createState() => _LevelCompleteBannerState();
+}
+
+class _LevelCompleteBannerState extends State<_LevelCompleteBanner> {
+  BannerAd? _mountedAd;
 
   @override
   Widget build(BuildContext context) {
     final adSvc = Get.find<AdService>();
+    // Read reactive values outside Obx to avoid creating a new AdWidget
+    // every time the observable fires.
     return Obx(() {
       final loaded = adSvc.isBannerLoaded.value;
       final ad     = adSvc.bannerAd;
-      if (!loaded || ad == null) return const SizedBox.shrink();
+
+      if (!loaded || ad == null) {
+        _mountedAd = null;
+        return const SizedBox.shrink();
+      }
+
+      // Only build AdWidget if this is the first time or the ad object changed.
+      if (_mountedAd != ad) {
+        _mountedAd = ad;
+      }
+
       return Container(
-        height: ad.size.height.toDouble(),
+        height: _mountedAd!.size.height.toDouble(),
         color: Colors.white,
-        child: AdWidget(ad: ad),
+        child: AdWidget(ad: _mountedAd!),
       );
     });
   }

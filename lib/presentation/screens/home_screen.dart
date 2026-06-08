@@ -69,37 +69,60 @@ class _HomeUI extends GetView<HomeController> {
             const _HomeStatsRow(),
             const Spacer(),
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6.w),
+              padding: EdgeInsets.symmetric(horizontal: 5.w),
+              child: _PlayButton(onPressed: controller.navigateToGame),
+            ),
+            SizedBox(height: 3.h),
+            // 2-column option grid
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 5.w),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _PlayButton(onPressed: controller.navigateToGame),
+                  _OptionsRow(
+                    left: _GridPill(
+                      icon: '📊', label: 'PROGRESS',
+                      tintColor: const Color(0xFF8A9060),
+                      onTap: controller.navigateToScores,
+                    ),
+                    right: _GridPill(
+                      icon: '🫧', label: 'STYLE',
+                      tintColor: const Color(0xFF808090),
+                      onTap: controller.navigateToBubbleStyle,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  _OptionsRow(
+                    left: _GridPill(
+                      icon: '🗺', label: 'LEVELS',
+                      tintColor: const Color(0xFF505060),
+                      onTap: controller.navigateToLevels,
+                    ),
+                    right: _GridPill(
+                      icon: '☀️', label: 'BG',
+                      tintColor: const Color(0xFF905060),
+                      onTap: controller.navigateToBackground,
+                    ),
+                  ),
+                  SizedBox(height: 2.h),
+                  _OptionsRow(
+                    left: _GridPill(
+                      icon: '💰', label: 'EARN COINS',
+                      tintColor: const Color(0xFF206850),
+                      onTap: controller.navigateToEarnCoins,
+                    ),
+                    right: Obx(() {
+                      final svc       = Get.find<StyleService>();
+                      final canAfford = svc.totalCoins.value >= StyleService.awardPurchaseCost;
+                      final busy      = controller.isBuyingAward.value;
+                      return _EarnAwardGridPill(
+                        canAfford: canAfford,
+                        busy:      busy,
+                        onTap:     controller.buyAwardWithCoins,
+                      );
+                    }),
+                  ),
                   SizedBox(height: 3.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _SecondaryButton(
-                          icon: Icons.leaderboard_rounded,
-                          iconColor: AppColors.scoreGold,
-                          label: 'PROGRESS',
-                          onPressed: controller.navigateToScores,
-                        ),
-                      ),
-                      SizedBox(width: 3.5.w),
-                      const Expanded(child: _StyleButton()),
-                    ],
-                  ),
-                  SizedBox(height: 2.h),
-                  Row(
-                    children: [
-                      const Expanded(child: _LevelsButton()),
-                      SizedBox(width: 3.5.w),
-                      const Expanded(child: _BackgroundButton()),
-                    ],
-                  ),
-                  SizedBox(height: 2.h),
-                  const _EarnRow(),
-                  SizedBox(height: 4.h),
                 ],
               ),
             ),
@@ -275,122 +298,6 @@ class _CoinStatChip extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  EARN ROW  — Watch Ads → Coins  |  Buy Award with Coins
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _EarnRow extends StatelessWidget {
-  const _EarnRow();
-
-  @override
-  Widget build(BuildContext context) {
-    final ctrl = Get.find<HomeController>();
-    return Obx(() {
-      final coins     = Get.find<StyleService>().totalCoins.value;
-      final canAfford = coins >= StyleService.awardPurchaseCost;
-      final busy      = ctrl.isBuyingAward.value;
-
-      return Row(
-        children: [
-          Expanded(child: _EarnCard(
-            isCoin:      true,
-            label:       'EARN COINS',
-            accentColor: AppColors.earnCoin,
-            busy:        false,
-            busyChild:   const SizedBox.shrink(),
-            onTap:       ctrl.navigateToEarnCoins,
-          )),
-          SizedBox(width: 3.5.w),
-          Expanded(child: _EarnCard(
-            isCoin:      false,
-            label:       'EARN AWARD',
-            accentColor: canAfford ? AppColors.earnAward : AppColors.earnAwardInsufficient,
-            busy:        busy,
-            busyChild:   Text(
-              'Showing ad…',
-              style: TextStyle(
-                fontSize: 9.5.sp,
-                color: Colors.white70,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            onTap: ctrl.buyAwardWithCoins,
-          )),
-        ],
-      );
-    });
-  }
-}
-
-class _EarnCard extends StatelessWidget {
-  final bool   isCoin;
-  final String label;
-  final Color  accentColor;
-  final bool   busy;
-  final Widget busyChild;
-  final VoidCallback onTap;
-
-  const _EarnCard({
-    required this.isCoin,
-    required this.label,
-    required this.accentColor,
-    required this.busy,
-    required this.busyChild,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassGradientButton(
-      onTap: busy ? null : onTap,
-      busy: busy,
-      gradientColors: [
-        accentColor.withOpacity(busy ? 0.50 : 0.38),
-        accentColor.withOpacity(busy ? 0.35 : 0.22),
-      ],
-      child: busy
-          ? Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: 4.5.w, height: 4.5.w,
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(width: 2.w),
-                busyChild,
-              ],
-            )
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (isCoin)
-                  Image.asset(
-                    'assets/images/coin.png',
-                    width: 5.5.w,
-                    height: 5.5.w,
-                    fit: BoxFit.contain,
-                  )
-                else
-                  Text('🏅', style: TextStyle(fontSize: 14.sp)),
-                SizedBox(width: 2.w),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ],
-            ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 //  PLAY BUTTON  — circular, layered, 3-D glow design
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -426,7 +333,7 @@ class _PlayButtonState extends State<_PlayButton> {
         ),
         child: Container(
           width: 55.w,
-          height: 7.5.h,
+          height: 6.8.h,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(31),
             gradient: const LinearGradient(
@@ -462,177 +369,151 @@ class _PlayButtonState extends State<_PlayButton> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  SECONDARY BUTTON  (Leaderboard / Progress)
+//  2-COLUMN GRID HELPERS
+//  _OptionsRow       — lays two equal-width pills side by side
+//  _GridPill         — frosted glass pill for standard options
+//  _EarnAwardGridPill— same shape, gold gradient, live afford/busy state
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _SecondaryButton extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String label;
-  final VoidCallback onPressed;
+class _OptionsRow extends StatelessWidget {
+  final Widget left;
+  final Widget right;
+  const _OptionsRow({required this.left, required this.right});
 
-  const _SecondaryButton({
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: left),
+        SizedBox(width: 3.5.w),
+        Expanded(child: right),
+      ],
+    );
+  }
+}
+
+class _GridPill extends StatelessWidget {
+  final String icon;
+  final String label;
+  // tintColor: very subtle overlay on the frosted glass — matches screenshot
+  final Color tintColor;
+  final VoidCallback onTap;
+
+  const _GridPill({
     required this.icon,
-    required this.iconColor,
     required this.label,
-    required this.onPressed,
+    required this.tintColor,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GlassButton(
-      onTap: onPressed,
-      accentColor: Colors.white,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: iconColor, size: 5.5.w),
-          SizedBox(width: 2.w),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              letterSpacing: 1.2,
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(50),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: Container(
+            height: 6.5.h,
+            decoration: BoxDecoration(
+              color: tintColor.withOpacity(0.28),
+              borderRadius: BorderRadius.circular(50),
+              border: Border.all(
+                  color: Colors.white.withOpacity(0.35), width: 1.2),
+            ),
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: Row(
+              children: [
+                Text(icon, style: TextStyle(fontSize: 15.sp)),
+                SizedBox(width: 3.w),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 11.5.sp,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 1.0,
+                      shadows: const [
+                        Shadow(color: Colors.black45, blurRadius: 6)
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  STYLE BUTTON
-// ═══════════════════════════════════════════════════════════════════════════════
+class _EarnAwardGridPill extends StatelessWidget {
+  final bool canAfford;
+  final bool busy;
+  final VoidCallback onTap;
 
-class _StyleButton extends StatelessWidget {
-  const _StyleButton();
-
-  @override
-  Widget build(BuildContext context) {
-    final ctrl = Get.find<HomeController>();
-    return Obx(() {
-      final style = Get.find<StyleService>().selectedStyle.value;
-      return GlassButton(
-        onTap: ctrl.navigateToBubbleStyle,
-        accentColor: Colors.white,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Classic uses the bubble icon (🫧 renders as water-drop on
-            // older Android); all other styles keep their safe emojis.
-            if (style == BubbleStyle.classic)
-              Icon(Icons.bubble_chart_rounded, color: Colors.white, size: 14.sp)
-            else
-              Text(style.emoji, style: TextStyle(fontSize: 14.sp)),
-            SizedBox(width: 2.w),
-            Text(
-              'STYLE',
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  LEVELS BUTTON
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _LevelsButton extends StatelessWidget {
-  const _LevelsButton();
+  const _EarnAwardGridPill({
+    required this.canAfford,
+    required this.busy,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = Get.find<HomeController>();
-    return GlassGradientButton(
-      onTap: ctrl.navigateToLevels,
-      gradientColors: [
-        AppColors.styleHeaderMid.withOpacity(0.45),
-        AppColors.styleHeaderBot.withOpacity(0.45),
-      ],
-      borderColor: AppColors.glassBorderB,
-      padding: EdgeInsets.symmetric(vertical: 1.8.h),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.map_rounded, color: Colors.white, size: 5.5.w),
-          SizedBox(width: 2.5.w),
-          Text(
-            'LEVELS',
-            style: TextStyle(
-              fontSize: 12.sp,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: 1.5,
+    return GestureDetector(
+      onTap: busy ? null : onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(50),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: Container(
+            height: 6.h,
+            decoration: BoxDecoration(
+              // Pink/rose tint — matches EARN AWARD pill in screenshot
+              color: const Color(0xFFB06080).withOpacity(0.28),
+              borderRadius: BorderRadius.circular(50),
+              border: Border.all(
+                  color: Colors.white.withOpacity(0.35), width: 1.2),
             ),
+            padding: EdgeInsets.symmetric(horizontal: 4.w),
+            child: busy
+                ? Center(
+                    child: SizedBox(
+                      width: 5.w, height: 5.w,
+                      child: const CircularProgressIndicator(
+                          strokeWidth: 2.2, color: Colors.white),
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Text('🏅', style: TextStyle(fontSize: 15.sp)),
+                      SizedBox(width: 3.w),
+                      Expanded(
+                        child: Text(
+                          'EARN AWARD',
+                          style: TextStyle(
+                            fontSize: 11.5.sp,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 1.0,
+                            shadows: const [
+                              Shadow(color: Colors.black45, blurRadius: 6)
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  BACKGROUND BUTTON
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _BackgroundButton extends StatelessWidget {
-  const _BackgroundButton();
-
-  @override
-  Widget build(BuildContext context) {
-    final ctrl = Get.find<HomeController>();
-    final svc  = Get.find<StyleService>();
-    return Obx(() {
-      final asset     = svc.currentBgAsset.value;
-      final currentBg = BackgroundStyle.values.firstWhere(
-        (b) => b.assetPath == asset,
-        orElse: () => BackgroundStyle.sky,
-      );
-      return GlassGradientButton(
-        onTap: ctrl.navigateToBackground,
-        gradientColors: [
-          AppColors.pink.withOpacity(0.45),
-          AppColors.primary.withOpacity(0.45),
-        ],
-        borderColor: AppColors.glassBorderB,
-        padding: EdgeInsets.symmetric(vertical: 1.8.h),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(currentBg.emoji, style: TextStyle(fontSize: 12.sp)),
-            SizedBox(width: 1.5.w),
-            Text(
-              'BG',
-              style: TextStyle(
-                fontSize: 12.sp,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-//  CELEBRATION OVERLAY  — shown when player achieves a new personal best
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// ── Confetti particle data ────────────────────────────────────────────────────
 
 class _Particle {
   final double startX;   // 0–1 fraction of screen width

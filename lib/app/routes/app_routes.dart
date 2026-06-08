@@ -6,5 +6,6 @@ abstract class AppRoutes {
   static const bubbleStyle = '/bubble-style';
   static const levels = '/levels';
   static const backgroundStyle = '/background-style';
-  static const adWatch = '/ad-watch';
+  static const adWatch     = '/ad-watch';
+  static const moreOptions = '/more-options';
 }

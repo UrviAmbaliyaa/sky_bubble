@@ -7,6 +7,7 @@ import '../../presentation/screens/score_screen.dart';
 import '../../presentation/screens/bubble_style_screen.dart';
 import '../../presentation/screens/background_style_screen.dart';
 import '../../presentation/screens/ad_watch_screen.dart';
+import '../../presentation/screens/more_options_screen.dart';
 import '../bindings/app_bindings.dart';
 import 'app_routes.dart';
 
@@ -57,6 +58,12 @@ class AppPages {
       page: () => const AdWatchScreen(),
       binding: AdWatchBinding(),
       transition: Transition.fadeIn,
+    ),
+    GetPage(
+      name: AppRoutes.moreOptions,
+      page: () => const MoreOptionsScreen(),
+      binding: MoreOptionsBinding(),
+      transition: Transition.rightToLeft,
     ),
   ];
 }

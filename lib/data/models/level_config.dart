@@ -28,7 +28,7 @@ class LevelConfig {
   //
   // Level 1 → pop 1000 pts, Level 2 → 1200 pts, Level N → 1000 + (N-1)*200 pts.
   // Score comes purely from popping bubbles (each bubble = its point value).
-  static int scoreTargetForLevel(int level) => 1000 + (level - 1) * 200;
+  static int scoreTargetForLevel(int level) => 100 + (level - 1) * 200;
 
   // ─── Maximum time per level ─────────────────────────────────────────────────
   // If the player hasn't reached the score target within 15 minutes the level

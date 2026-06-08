@@ -345,12 +345,14 @@ class GameController extends GetxController with WidgetsBindingObserver {
       completedLevel.value = doneLv;
       coinsThisLevel.value = score.value;   // score earned this level (for display)
 
-      // Persist the level's score before resetting it.
+      // Persist the level's score before advancing.
       _persistScore();
 
-      // Reset per-level state.
+      // Award 3 coins for completing a level.
+      Get.find<StyleService>().addCoins(3);
+
+      // Advance level — keep score accumulating (do NOT reset to 0).
       level.value++;
-      score.value  = 0;
       _scoreSaved  = false;
       lives.value  = 3;
       // Persist the new current level so the user resumes from here.
@@ -711,8 +713,10 @@ class GameController extends GetxController with WidgetsBindingObserver {
     completedLevel.value = doneLv;
     coinsThisLevel.value = score.value;
     _persistScore();
+    // Award 3 coins for completing the level.
+    Get.find<StyleService>().addCoins(3);
     level.value++;
-    score.value  = 0;
+    // Keep score — do NOT reset to 0.
     _scoreSaved  = false;
     lives.value  = 3;
     Get.find<StyleService>().updateCurrentLevel(level.value);

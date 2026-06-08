@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/style_service.dart';
 import '../../domain/usecases/score_usecases.dart';
+import '../widgets/not_enough_coins_dialog.dart';
 
 class HomeController extends GetxController with GetTickerProviderStateMixin {
   final GetScoresUseCase _getScores;
@@ -185,6 +186,11 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
   void navigateToLevels()       => Get.toNamed(AppRoutes.levels);
   void navigateToBackground()   => Get.toNamed(AppRoutes.backgroundStyle);
   void navigateToEarnCoins()    => Get.toNamed(AppRoutes.adWatch);
+  void navigateToMoreOptions()  => Get.toNamed(AppRoutes.moreOptions);
+  void navigateToSettings()     => Get.snackbar('Settings', 'Coming soon!',
+      snackPosition: SnackPosition.TOP);
+  void navigateToHelpSupport()  => Get.snackbar('Help & Support', 'Coming soon!',
+      snackPosition: SnackPosition.TOP);
 
   // ── Earn / buy award ───────────────────────────────────────────────────────
 
@@ -198,14 +204,9 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     final styleSvc = Get.find<StyleService>();
 
     if (styleSvc.totalCoins.value < StyleService.awardPurchaseCost) {
-      Get.snackbar(
-        'Not enough coins',
-        'You need ${StyleService.awardPurchaseCost} coins. Watch ads to earn more!',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: AppColors.earnAwardInsufficient,
-        colorText: AppColors.textWhite,
-        margin: const EdgeInsets.all(16),
-        borderRadius: AppDimensions.radiusM,
+      NotEnoughCoinsDialog.show(
+        currentCoins: styleSvc.totalCoins.value,
+        onWatchAds:   navigateToEarnCoins,
       );
       return;
     }
