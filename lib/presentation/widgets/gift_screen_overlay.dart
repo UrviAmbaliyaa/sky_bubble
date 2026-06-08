@@ -611,7 +611,7 @@ class _RewardCard extends StatelessWidget {
 
   static const _rewards = [
     _RewardData(emoji: '❤️', title: '+1 Heart',  subtitle: 'Extra life added!',        colors: [Color(0xFFFF4D6D), Color(0xFFE91E63)]),
-    _RewardData(emoji: '\$', title: '+5 Coins',  subtitle: 'Coins added to wallet!',   colors: [Color(0xFFFFD700), Color(0xFFFF8F00)]),
+    _RewardData(emoji: '🪙', title: '+5 Coins',  subtitle: 'Coins added to wallet!',   colors: [Color(0xFFFFD700), Color(0xFFFF8F00)]),
     _RewardData(emoji: '🏅', title: '+1 Award',  subtitle: 'Achievement unlocked!',    colors: [Color(0xFF43E97B), Color(0xFF11998E)]),
   ];
 

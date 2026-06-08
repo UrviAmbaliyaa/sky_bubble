@@ -250,10 +250,30 @@ class StyleService extends GetxService {
     _saveAll();
   }
 
+  /// Deducts [amount] coins. Returns false if insufficient balance (no change).
+  bool spendCoins(int amount) {
+    if (totalCoins.value < amount) return false;
+    totalCoins.value -= amount;
+    _saveAll();
+    return true;
+  }
+
   void addAward(int count) {
     if (count <= 0) return;
     totalAwards.value += count;
     _saveAll();
+  }
+
+  static const awardPurchaseCost = 50;
+
+  /// Spends [awardPurchaseCost] coins to buy 1 award.
+  /// Returns false if the player doesn't have enough coins.
+  bool purchaseAwardWithCoins() {
+    if (totalCoins.value < awardPurchaseCost) return false;
+    totalCoins.value -= awardPurchaseCost;
+    totalAwards.value++;
+    _saveAll();
+    return true;
   }
 
   // ── Gift tracking (called by GameController.claimGift) ────────────────────

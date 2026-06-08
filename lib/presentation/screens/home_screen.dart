@@ -3,12 +3,13 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
-import '../../app/routes/app_routes.dart';
 import '../../core/constants/background_assets.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/bubble_styles.dart';
 import '../../data/services/style_service.dart';
 import '../controllers/home_controller.dart';
+import '../widgets/coin_display.dart';
+import '../widgets/glass_button.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  HOME SCREEN
@@ -20,7 +21,7 @@ class HomeScreen extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B4A),
+      backgroundColor: AppColors.screenDarkBottom,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -65,11 +66,7 @@ class _HomeUI extends GetView<HomeController> {
         child: Column(
           children: [
             SizedBox(height: 1.5.h),
-            Obx(() => controller.bestScore.value == 0
-                ? const SizedBox.shrink()
-                : _BestScorePill(controller: controller)),
-            SizedBox(height: 1.5.h),
-            const _GiftsRow(),
+            const _HomeStatsRow(),
             const Spacer(),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 6.w),
@@ -83,7 +80,7 @@ class _HomeUI extends GetView<HomeController> {
                       Expanded(
                         child: _SecondaryButton(
                           icon: Icons.leaderboard_rounded,
-                          iconColor: const Color(0xFFFFD54F),
+                          iconColor: AppColors.scoreGold,
                           label: 'PROGRESS',
                           onPressed: controller.navigateToScores,
                         ),
@@ -100,7 +97,9 @@ class _HomeUI extends GetView<HomeController> {
                       const Expanded(child: _BackgroundButton()),
                     ],
                   ),
-                  SizedBox(height: 12.h),
+                  SizedBox(height: 2.h),
+                  const _EarnRow(),
+                  SizedBox(height: 4.h),
                 ],
               ),
             ),
@@ -112,54 +111,281 @@ class _HomeUI extends GetView<HomeController> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  BEST SCORE PILL
+//  HOME STATS ROW  — best score · coins · awards
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _BestScorePill extends StatelessWidget {
-  final HomeController controller;
-  const _BestScorePill({required this.controller});
+class _HomeStatsRow extends StatelessWidget {
+  const _HomeStatsRow();
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(50),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFD740).withOpacity(0.18),
-            borderRadius: BorderRadius.circular(50),
-            border: Border.all(
-              color: const Color(0xFFFFD740).withOpacity(0.55),
-              width: 1.4,
+    final ctrl = Get.find<HomeController>();
+    final svc  = Get.find<StyleService>();
+
+    return Obx(() {
+      final best   = ctrl.bestScore.value;
+      final coins  = svc.totalCoins.value;
+      final awards = svc.totalAwards.value;
+      final today  = ctrl.todayTotalScore.value;
+
+      // Hide the row if there's truly nothing to show
+      if (best == 0 && coins == 0 && awards == 0) return const SizedBox.shrink();
+
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.4.h),
+            decoration: BoxDecoration(
+              color: AppColors.glassWhite,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: AppColors.glassBorder, width: 1.3),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF9100).withOpacity(0.28),
-                blurRadius: 18,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Obx(() => Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('🏆', style: TextStyle(fontSize: 17.sp)),
-              SizedBox(width: 2.5.w),
-              Text(
-                '${controller.bestScore.value} pts',
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  height: 1.0,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Best score
+                if (best > 0) ...[
+                  _StatChip(
+                    emoji: '🏆',
+                    label: '$best',
+                    sublabel: 'BEST',
+                    chipColor: AppColors.gold,
+                  ),
+                  if (today > 0 || coins >= 0 || awards > 0)
+                    _StatDivider(),
+                ],
+                // Today's total score
+                if (today > 0) ...[
+                  _StatChip(
+                    emoji: '⭐',
+                    label: '$today',
+                    sublabel: 'TODAY',
+                    chipColor: AppColors.earnAward,
+                  ),
+                  _StatDivider(),
+                ],
+                // Total coins
+                _CoinStatChip(coins: coins),
+                if (awards >= 0) _StatDivider(),
+                // Total awards
+                _StatChip(
+                  emoji: '🏅',
+                  label: '$awards',
+                  sublabel: 'AWARDS',
+                  chipColor: AppColors.pink,
                 ),
-              ),
-            ],
-          )),
+              ],
+            ),
+          ),
         ),
-      ),
+      );
+    });
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final String sublabel;
+  final Color chipColor;
+
+  const _StatChip({
+    required this.emoji,
+    required this.label,
+    required this.sublabel,
+    required this.chipColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(emoji, style: TextStyle(fontSize: 13.sp)),
+            SizedBox(width: 1.2.w),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                height: 1.0,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 0.3.h),
+        Text(
+          sublabel,
+          style: TextStyle(
+            fontSize: 7.5.sp,
+            fontWeight: FontWeight.w700,
+            color: chipColor.withOpacity(0.85),
+            letterSpacing: 0.8,
+            height: 1.0,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1.0,
+      height: 3.5.h,
+      margin: EdgeInsets.symmetric(horizontal: 3.w),
+      color: AppColors.glassBorder,
+    );
+  }
+}
+
+class _CoinStatChip extends StatelessWidget {
+  final int coins;
+  const _CoinStatChip({required this.coins});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CoinDisplay(amount: coins, imageSize: 16, fontSize: 14, gap: 4),
+        SizedBox(height: 0.3.h),
+        Text(
+          'COINS',
+          style: TextStyle(
+            fontSize: 7.5.sp,
+            fontWeight: FontWeight.w700,
+            color: AppColors.scoreGoldD.withOpacity(0.85),
+            letterSpacing: 0.8,
+            height: 1.0,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  EARN ROW  — Watch Ads → Coins  |  Buy Award with Coins
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _EarnRow extends StatelessWidget {
+  const _EarnRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = Get.find<HomeController>();
+    return Obx(() {
+      final coins     = Get.find<StyleService>().totalCoins.value;
+      final canAfford = coins >= StyleService.awardPurchaseCost;
+      final busy      = ctrl.isBuyingAward.value;
+
+      return Row(
+        children: [
+          Expanded(child: _EarnCard(
+            isCoin:      true,
+            label:       'EARN COINS',
+            accentColor: AppColors.earnCoin,
+            busy:        false,
+            busyChild:   const SizedBox.shrink(),
+            onTap:       ctrl.navigateToEarnCoins,
+          )),
+          SizedBox(width: 3.5.w),
+          Expanded(child: _EarnCard(
+            isCoin:      false,
+            label:       'EARN AWARD',
+            accentColor: canAfford ? AppColors.earnAward : AppColors.earnAwardInsufficient,
+            busy:        busy,
+            busyChild:   Text(
+              'Showing ad…',
+              style: TextStyle(
+                fontSize: 9.5.sp,
+                color: Colors.white70,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            onTap: ctrl.buyAwardWithCoins,
+          )),
+        ],
+      );
+    });
+  }
+}
+
+class _EarnCard extends StatelessWidget {
+  final bool   isCoin;
+  final String label;
+  final Color  accentColor;
+  final bool   busy;
+  final Widget busyChild;
+  final VoidCallback onTap;
+
+  const _EarnCard({
+    required this.isCoin,
+    required this.label,
+    required this.accentColor,
+    required this.busy,
+    required this.busyChild,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassGradientButton(
+      onTap: busy ? null : onTap,
+      busy: busy,
+      gradientColors: [
+        accentColor.withOpacity(busy ? 0.50 : 0.38),
+        accentColor.withOpacity(busy ? 0.35 : 0.22),
+      ],
+      child: busy
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 4.5.w, height: 4.5.w,
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 2.w),
+                busyChild,
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isCoin)
+                  Image.asset(
+                    'assets/images/coin.png',
+                    width: 5.5.w,
+                    height: 5.5.w,
+                    fit: BoxFit.contain,
+                  )
+                else
+                  Text('🏅', style: TextStyle(fontSize: 14.sp)),
+                SizedBox(width: 2.w),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }
@@ -206,11 +432,11 @@ class _PlayButtonState extends State<_PlayButton> {
             gradient: const LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [Color(0xFF00D4FF), Color(0xFF007AFF)],
+              colors: [AppColors.earnCoin, AppColors.primaryDeep],
             ),
             boxShadow: [
-              BoxShadow(color: const Color(0xFF007AFF).withOpacity(0.50), blurRadius: 20, offset: const Offset(0, 8)),
-              BoxShadow(color: const Color(0xFF00D4FF).withOpacity(0.22), blurRadius: 6, offset: const Offset(0, 2)),
+              BoxShadow(color: AppColors.primaryDeep.withOpacity(0.50), blurRadius: 20, offset: const Offset(0, 8)),
+              BoxShadow(color: AppColors.earnCoin.withOpacity(0.22), blurRadius: 6, offset: const Offset(0, 2)),
             ],
           ),
           child: Row(
@@ -239,7 +465,7 @@ class _PlayButtonState extends State<_PlayButton> {
 //  SECONDARY BUTTON  (Leaderboard / Progress)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _SecondaryButton extends StatefulWidget {
+class _SecondaryButton extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String label;
@@ -253,57 +479,25 @@ class _SecondaryButton extends StatefulWidget {
   });
 
   @override
-  State<_SecondaryButton> createState() => _SecondaryButtonState();
-}
-
-class _SecondaryButtonState extends State<_SecondaryButton> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onPressed();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.95 : 1.0,
-        duration: const Duration(milliseconds: 110),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(50),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 2.h),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(50),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.35),
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(widget.icon, color: widget.iconColor, size: 5.5.w),
-                  SizedBox(width: 2.w),
-                  Text(
-                    widget.label,
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ],
-              ),
+    return GlassButton(
+      onTap: onPressed,
+      accentColor: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: iconColor, size: 5.5.w),
+          SizedBox(width: 2.w),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: 1.2,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -313,72 +507,40 @@ class _SecondaryButtonState extends State<_SecondaryButton> {
 //  STYLE BUTTON
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _StyleButton extends StatefulWidget {
+class _StyleButton extends StatelessWidget {
   const _StyleButton();
 
   @override
-  State<_StyleButton> createState() => _StyleButtonState();
-}
-
-class _StyleButtonState extends State<_StyleButton> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        Get.toNamed(AppRoutes.bubbleStyle);
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.95 : 1.0,
-        duration: const Duration(milliseconds: 110),
-        child: Obx(() {
-          final style = Get.find<StyleService>().selectedStyle.value;
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(50),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(
-                padding: EdgeInsets.symmetric(vertical: 2.h),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(50),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.35),
-                    width: 1.5,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Classic uses the bubble icon (🫧 renders as water-drop on
-                    // older Android); all other styles keep their safe emojis.
-                    if (style == BubbleStyle.classic)
-                      Icon(Icons.bubble_chart_rounded,
-                          color: Colors.white, size: 14.sp)
-                    else
-                      Text(style.emoji, style: TextStyle(fontSize: 14.sp)),
-                    SizedBox(width: 2.w),
-                    Text(
-                      'STYLE',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
+    final ctrl = Get.find<HomeController>();
+    return Obx(() {
+      final style = Get.find<StyleService>().selectedStyle.value;
+      return GlassButton(
+        onTap: ctrl.navigateToBubbleStyle,
+        accentColor: Colors.white,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Classic uses the bubble icon (🫧 renders as water-drop on
+            // older Android); all other styles keep their safe emojis.
+            if (style == BubbleStyle.classic)
+              Icon(Icons.bubble_chart_rounded, color: Colors.white, size: 14.sp)
+            else
+              Text(style.emoji, style: TextStyle(fontSize: 14.sp)),
+            SizedBox(width: 2.w),
+            Text(
+              'STYLE',
+              style: TextStyle(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 1.2,
               ),
             ),
-          );
-        }),
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -386,68 +548,35 @@ class _StyleButtonState extends State<_StyleButton> {
 //  LEVELS BUTTON
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _LevelsButton extends StatefulWidget {
+class _LevelsButton extends StatelessWidget {
   const _LevelsButton();
 
   @override
-  State<_LevelsButton> createState() => _LevelsButtonState();
-}
-
-class _LevelsButtonState extends State<_LevelsButton> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    final svc = Get.find<StyleService>();
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        Get.toNamed(AppRoutes.levels);
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.96 : 1.0,
-        duration: const Duration(milliseconds: 110),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(50),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 1.8.h),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF6C63FF).withOpacity(0.45),
-                    const Color(0xFF48CAE4).withOpacity(0.45),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(50),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.40),
-                  width: 1.5,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.map_rounded, color: Colors.white, size: 5.5.w),
-                  SizedBox(width: 2.5.w),
-                  Text(
-                    'LEVELS',
-                    style: TextStyle(
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                 
-                ],
-              ),
+    final ctrl = Get.find<HomeController>();
+    return GlassGradientButton(
+      onTap: ctrl.navigateToLevels,
+      gradientColors: [
+        AppColors.styleHeaderMid.withOpacity(0.45),
+        AppColors.styleHeaderBot.withOpacity(0.45),
+      ],
+      borderColor: AppColors.glassBorderB,
+      padding: EdgeInsets.symmetric(vertical: 1.8.h),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.map_rounded, color: Colors.white, size: 5.5.w),
+          SizedBox(width: 2.5.w),
+          Text(
+            'LEVELS',
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              letterSpacing: 1.5,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -457,80 +586,45 @@ class _LevelsButtonState extends State<_LevelsButton> {
 //  BACKGROUND BUTTON
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _BackgroundButton extends StatefulWidget {
+class _BackgroundButton extends StatelessWidget {
   const _BackgroundButton();
 
   @override
-  State<_BackgroundButton> createState() => _BackgroundButtonState();
-}
-
-class _BackgroundButtonState extends State<_BackgroundButton> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    final svc = Get.find<StyleService>();
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        Get.toNamed(AppRoutes.backgroundStyle);
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.96 : 1.0,
-        duration: const Duration(milliseconds: 110),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(50),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              padding: EdgeInsets.symmetric(vertical: 1.8.h),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFFFF6B9D).withOpacity(0.45),
-                    const Color(0xFF4FC3F7).withOpacity(0.45),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(50),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.40),
-                  width: 1.5,
-                ),
+    final ctrl = Get.find<HomeController>();
+    final svc  = Get.find<StyleService>();
+    return Obx(() {
+      final asset     = svc.currentBgAsset.value;
+      final currentBg = BackgroundStyle.values.firstWhere(
+        (b) => b.assetPath == asset,
+        orElse: () => BackgroundStyle.sky,
+      );
+      return GlassGradientButton(
+        onTap: ctrl.navigateToBackground,
+        gradientColors: [
+          AppColors.pink.withOpacity(0.45),
+          AppColors.primary.withOpacity(0.45),
+        ],
+        borderColor: AppColors.glassBorderB,
+        padding: EdgeInsets.symmetric(vertical: 1.8.h),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(currentBg.emoji, style: TextStyle(fontSize: 12.sp)),
+            SizedBox(width: 1.5.w),
+            Text(
+              'BG',
+              style: TextStyle(
+                fontSize: 12.sp,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 1.5,
               ),
-              child: Obx(() {
-                // Show the emoji of the currently-playing background.
-                final asset = svc.currentBgAsset.value;
-                final currentBg = BackgroundStyle.values.firstWhere(
-                  (b) => b.assetPath == asset,
-                  orElse: () => BackgroundStyle.sky,
-                );
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      currentBg.emoji,
-                      style: TextStyle(fontSize: 12.sp),
-                    ),
-                    SizedBox(width: 1.5.w),
-                    Text(
-                      'BG',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                  ],
-                );
-              }),
             ),
-          ),
+          ],
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -559,9 +653,9 @@ class _Particle {
         color     = _kConfettiColors[r.nextInt(_kConfettiColors.length)];
 
   static const _kConfettiColors = [
-    Color(0xFFFFD700), Color(0xFFFF6B9D), Color(0xFF43E97B),
-    Color(0xFF4FC3F7), Color(0xFFCE93D8), Color(0xFFFF8A65),
-    Color(0xFFFFFFFF), Color(0xFF00D4FF), Color(0xFFFF4081),
+    AppColors.gold,           AppColors.pink,      AppColors.earnAward,
+    AppColors.primary,        AppColors.auroraPurple, Color(0xFFFF8A65),
+    AppColors.textWhite,      AppColors.earnCoin,  AppColors.pinkLight,
   ];
 }
 
@@ -639,16 +733,16 @@ class _CelebrationCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF1A1A6E), Color(0xFF2D0082), Color(0xFF0D1B4A)],
+          colors: [AppColors.styleHeaderTop, AppColors.indigo, AppColors.screenDarkTop],
         ),
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
-          color: const Color(0xFFFFD700).withOpacity(0.65),
+          color: AppColors.gold.withOpacity(0.65),
           width: 2.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFFFD700).withOpacity(0.30),
+            color: AppColors.gold.withOpacity(0.30),
             blurRadius: 32,
             spreadRadius: 4,
           ),
@@ -663,7 +757,7 @@ class _CelebrationCard extends StatelessWidget {
           // Title
           ShaderMask(
             shaderCallback: (b) => const LinearGradient(
-              colors: [Color(0xFFFFD700), Color(0xFFFFA000)],
+              colors: [AppColors.gold, AppColors.orange],
             ).createShader(b),
             child: Text(
               'NEW BEST SCORE!',
@@ -681,14 +775,14 @@ class _CelebrationCard extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 9.w, vertical: 1.8.h),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFFFD700), Color(0xFFFF8C00)],
+                colors: [AppColors.gold, AppColors.goldDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(22),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFFD700).withOpacity(0.50),
+                  color: AppColors.gold.withOpacity(0.50),
                   blurRadius: 18,
                   offset: const Offset(0, 6),
                 ),
@@ -724,8 +818,8 @@ class _CelebrationCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   child: LinearProgressIndicator(
                     value: 1.0 - countdown.value, // shrinks left as time passes
-                    backgroundColor: Colors.white.withOpacity(0.12),
-                    valueColor: const AlwaysStoppedAnimation(Color(0xFFFFD700)),
+                    backgroundColor: Colors.white12,
+                    valueColor: const AlwaysStoppedAnimation(AppColors.gold),
                     minHeight: 5,
                   ),
                 ),
@@ -853,95 +947,3 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  GIFTS ROW  — shows lifetime gifted hearts / coins / awards on home screen
-// ═══════════════════════════════════════════════════════════════════════════════
-
-class _GiftsRow extends StatelessWidget {
-  const _GiftsRow();
-
-  @override
-  Widget build(BuildContext context) {
-    final svc = Get.find<StyleService>();
-
-    return Obx(() {
-      final hearts = svc.giftedHearts.value;
-      final coins  = svc.giftedCoins.value;
-      final awards = svc.giftedAwards.value;
-
-      // Hide the row entirely if no gifts have been received yet
-      if (hearts == 0 && coins == 0 && awards == 0) {
-        return const SizedBox.shrink();
-      }
-
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.2.h),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                  color: Colors.white.withOpacity(0.25), width: 1.2),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (hearts > 0) ...[
-                  _GiftChip(emoji: '❤️', label: 'x$hearts'),
-                  if (coins > 0 || awards > 0) _GiftDivider(),
-                ],
-                if (coins > 0) ...[
-                  _GiftChip(emoji: '🪙', label: 'x${coins * 5}'),
-                  if (awards > 0) _GiftDivider(),
-                ],
-                if (awards > 0)
-                  _GiftChip(emoji: '🏅', label: 'x$awards'),
-              ],
-            ),
-          ),
-        ),
-      );
-    });
-  }
-}
-
-class _GiftChip extends StatelessWidget {
-  final String emoji;
-  final String label;
-  const _GiftChip({required this.emoji, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(emoji, style: TextStyle(fontSize: 14.sp)),
-        SizedBox(width: 1.w),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.sp,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-            height: 1.0,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GiftDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1.2,
-      height: 2.h,
-      margin: EdgeInsets.symmetric(horizontal: 3.w),
-      color: Colors.white.withOpacity(0.35),
-    );
-  }
-}

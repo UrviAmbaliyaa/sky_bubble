@@ -6,6 +6,7 @@ import '../../presentation/screens/levels_screen.dart';
 import '../../presentation/screens/score_screen.dart';
 import '../../presentation/screens/bubble_style_screen.dart';
 import '../../presentation/screens/background_style_screen.dart';
+import '../../presentation/screens/ad_watch_screen.dart';
 import '../bindings/app_bindings.dart';
 import 'app_routes.dart';
 
@@ -50,6 +51,12 @@ class AppPages {
       name: AppRoutes.backgroundStyle,
       page: () => const BackgroundStyleScreen(),
       transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.adWatch,
+      page: () => const AdWatchScreen(),
+      binding: AdWatchBinding(),
+      transition: Transition.fadeIn,
     ),
   ];
 }

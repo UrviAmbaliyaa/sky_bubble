@@ -7,6 +7,7 @@ import '../../app/routes/app_routes.dart';
 import '../../core/constants/background_assets.dart';
 import '../../data/models/level_config.dart';
 import '../../data/services/style_service.dart';
+import '../widgets/coin_display.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  LEVELS SCREEN
@@ -291,27 +292,11 @@ class _HeroHeader extends StatelessWidget {
                                   width: 1.2,
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '\$',
-                                    style: TextStyle(
-                                      fontSize: 12.sp,
-                                      fontWeight: FontWeight.w900,
-                                      color: const Color(0xFFFFD700),
-                                    ),
-                                  ),
-                                  SizedBox(width: 1.w),
-                                  Text(
-                                    '${svc.totalCoins.value}',
-                                    style: TextStyle(
-                                      fontSize: 11.sp,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
+                              child: CoinDisplay(
+                                amount: svc.totalCoins.value,
+                                imageSize: 16,
+                                fontSize: 13,
+                                gap: 4,
                               ),
                             ),
                           ),

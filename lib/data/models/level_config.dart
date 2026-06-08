@@ -24,15 +24,38 @@ class LevelConfig {
     required this.scoreThreshold,
   });
 
-  // ─── Per-level score target (start 2000, +500 per level) ──────────────────
+  // ─── Per-level score target (start 1000, +200 per level) ──────────────────
   //
-  // Level 1 → pop 2000 pts, Level 2 → 2500 pts, Level N → 2000 + (N-1)*500 pts.
-  static int scoreTargetForLevel(int level) => 2000 + (level - 1) * 500;
+  // Level 1 → pop 1000 pts, Level 2 → 1200 pts, Level N → 1000 + (N-1)*200 pts.
+  // Score comes purely from popping bubbles (each bubble = its point value).
+  static int scoreTargetForLevel(int level) => 1000 + (level - 1) * 200;
 
-  // ─── Level from score ───────────────────────────────────────────────────────
+  // ─── Maximum time per level ─────────────────────────────────────────────────
+  // If the player hasn't reached the score target within 15 minutes the level
+  // is force-completed so they are never permanently stuck.
+  static const levelTimeLimit = Duration(minutes: 15);
 
-  /// Every 2000 points → next level (unbounded).
-  static int levelForScore(int score) => (score ~/ 2000) + 1;
+  // ─── Level from cumulative score (used only for speed/spawn formulas) ───────
+  // Approximates level from a running score total. First level = 1000 pts,
+  // each subsequent level adds 200 pts more, so cumulative target at level N is:
+  //   sum = N*1000 + N*(N-1)/2 * 200   →  solve approximately as N ≈ sqrt(score/100)
+  static int levelForScore(int score) {
+    // Binary search for accuracy
+    int lo = 1, hi = 200;
+    while (lo < hi) {
+      final mid = (lo + hi + 1) ~/ 2;
+      final cumulative = _cumulativeTarget(mid);
+      if (cumulative <= score) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  // Cumulative score needed to have completed [n] levels
+  static int _cumulativeTarget(int n) {
+    int total = 0;
+    for (int i = 1; i <= n; i++) total += scoreTargetForLevel(i);
+    return total;
+  }
 
   // ─── Speed multiplier (0.30 → 1.0 over 100 levels) ─────────────────────────
   //

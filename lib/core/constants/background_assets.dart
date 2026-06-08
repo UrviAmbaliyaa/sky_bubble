@@ -59,6 +59,10 @@ class BgAssets {
     '${_base}premium_bg_30.png',
     '${_base}premium_bg_31.png',
     '${_base}premium_bg_32.png',
+    '${_base}premium_bg_33.png',
+    '${_base}premium_bg_34.png',
+    '${_base}premium_bg_35.png',
+    '${_base}premium_bg_36.png',
   ];
 
   /// All backgrounds combined (free first, then premium).
@@ -127,6 +131,10 @@ enum BackgroundStyle {
   premium30,
   premium31,
   premium32,
+  premium33,
+  premium34,
+  premium35,
+  premium36,
 }
 
 extension BackgroundStyleInfo on BackgroundStyle {
@@ -139,11 +147,11 @@ extension BackgroundStyleInfo on BackgroundStyle {
 
   // ── Pricing ───────────────────────────────────────────────────────────────
 
-  /// Free for the first 14 (original) backgrounds; 100 coins for the rest.
-  int get coinCost  => index < 14 ? 0 : 100;
+  /// Only the very first background (sky) is free; all others cost 100 coins.
+  int get coinCost  => index == 0 ? 0 : 100;
   /// Alternative: unlock with 5 awards instead of coins.
-  int get awardCost => index < 14 ? 0 : 5;
-  bool get isPremium => coinCost > 0;
+  int get awardCost => index == 0 ? 0 : 5;
+  bool get isPremium => index > 0;
 
   // ── Asset ─────────────────────────────────────────────────────────────────
 
@@ -154,27 +162,7 @@ extension BackgroundStyleInfo on BackgroundStyle {
 
   // ── Display ───────────────────────────────────────────────────────────────
 
-  String get label {
-    switch (this) {
-      case BackgroundStyle.sky:              return 'Sky';
-      case BackgroundStyle.darkSky:          return 'Dark Sky';
-      case BackgroundStyle.galaxy:           return 'Galaxy';
-      case BackgroundStyle.garden:           return 'Garden';
-      case BackgroundStyle.gardenGate:       return 'Garden Gate';
-      case BackgroundStyle.monsoon:          return 'Monsoon';
-      case BackgroundStyle.night:            return 'Night';
-      case BackgroundStyle.nightStar:        return 'Night Stars';
-      case BackgroundStyle.beach:            return 'Beach';
-      case BackgroundStyle.morning:          return 'Morning';
-      case BackgroundStyle.morningView:      return 'Morning View';
-      case BackgroundStyle.morningViewWater: return 'Morning Water';
-      case BackgroundStyle.peacock:          return 'Peacock';
-      case BackgroundStyle.bsMorning:        return 'Sunrise';
-      default:
-        final n = index - 13; // premium01 → 1, premium02 → 2 …
-        return 'Premium $n';
-    }
-  }
+  String get label => 'Image ${index + 1}';
 
   String get emoji {
     switch (this) {

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'app/app.dart';
+import 'data/services/ad_service.dart';
 import 'data/services/sound_service.dart';
 import 'data/services/storage_service.dart';
 import 'data/services/style_service.dart';
@@ -13,6 +14,7 @@ void main() async {
   await Get.putAsync(() => StorageService().init(), permanent: true);
   await Get.putAsync(() => SoundService().init(),   permanent: true);
   await Get.putAsync(() => StyleService().init(),   permanent: true);
+  await Get.putAsync(() => AdService().init(),      permanent: true);
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(

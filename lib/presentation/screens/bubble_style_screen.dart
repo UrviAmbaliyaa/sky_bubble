@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/bubble_styles.dart';
 import '../../data/models/bubble_model.dart';
+import '../../data/services/ad_service.dart';
+import '../widgets/coin_display.dart';
 import '../../data/services/style_service.dart';
 import '../widgets/bubble_painter.dart';
 
@@ -229,27 +231,11 @@ class _HeroHeader extends StatelessWidget {
                                 width: 1.2,
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '\$',
-                                  style: TextStyle(
-                                    fontSize: 12.sp,
-                                    fontWeight: FontWeight.w900,
-                                    color: const Color(0xFFFFD700),
-                                  ),
-                                ),
-                                SizedBox(width: 1.w),
-                                Text(
-                                  '${svc.totalCoins.value}',
-                                  style: TextStyle(
-                                    fontSize: 11.sp,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
+                            child: CoinDisplay(
+                              amount: svc.totalCoins.value,
+                              imageSize: 14,
+                              fontSize: 12,
+                              gap: 4,
                             ),
                           ),
                         ),
@@ -466,15 +452,25 @@ class _StyleRowState extends State<_StyleRow>
 
                   // Cost or description line
                   if (locked)
-                    Text(
-                      '🪙 ${widget.style.coinCost} coins  🏅 ${widget.style.awardCost} awards ',
-                      style: TextStyle(
-                        fontSize: 10.5.sp,
-                        fontWeight: FontWeight.w600,
-                        color: canAfford
-                            ? const Color(0xFF2E7D32)
-                            : const Color(0xFF9099B0),
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CoinDisplay(
+                          amount: widget.style.coinCost,
+                          imageSize: 12,
+                          fontSize: 10,
+                          textColor: canAfford ? const Color(0xFF2E7D32) : const Color(0xFF9099B0),
+                          gap: 3,
+                        ),
+                        Text(
+                          '  🏅 ${widget.style.awardCost} awards',
+                          style: TextStyle(
+                            fontSize: 10.5.sp,
+                            fontWeight: FontWeight.w600,
+                            color: canAfford ? const Color(0xFF2E7D32) : const Color(0xFF9099B0),
+                          ),
+                        ),
+                      ],
                     )
                   else
                     Text(
@@ -799,6 +795,7 @@ void showUnlockDialog(
                       label: '${style.coinCost} Coins',
                       have: 'You have ${svc.totalCoins.value}',
                       ok: hasCoins,
+                      isCoin: true,
                     ),
                     const SizedBox(height: 8),
                     // Awards row
@@ -847,25 +844,34 @@ void showUnlockDialog(
                     ),
                     onPressed: () {
                       final success = svc.unlockStyle(style);
-                      Navigator.of(context).pop();
-                      if (success) {
-                        svc.setStyle(style);
-                        Get.snackbar(
-                          '${style.emoji} Unlocked!',
-                          '${style.label} style is now active.',
-                          backgroundColor: const Color(0xFF6C63FF),
-                          colorText: Colors.white,
-                          snackPosition: SnackPosition.BOTTOM,
-                          margin: const EdgeInsets.all(16),
-                          borderRadius: 14,
-                          duration: const Duration(seconds: 2),
-                        );
+                      if (!success) {
+                        Navigator.of(context).pop();
+                        return;
                       }
+                      Get.find<AdService>().showInterstitial(
+                        onDismissed: () {
+                          Navigator.of(context).pop();
+                          svc.setStyle(style);
+                          Get.snackbar(
+                            '${style.emoji} Unlocked!',
+                            '${style.label} style is now active.',
+                            backgroundColor: const Color(0xFF6C63FF),
+                            colorText: Colors.white,
+                            snackPosition: SnackPosition.BOTTOM,
+                            margin: const EdgeInsets.all(16),
+                            borderRadius: 14,
+                            duration: const Duration(seconds: 2),
+                          );
+                        },
+                      );
                     },
-                    child: Text(
-                      'Unlock — ${style.coinCost} 🪙 + ${style.awardCost} 🏅',
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w800),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Unlock — ', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                        CoinDisplay(amount: style.coinCost, imageSize: 16, fontSize: 14, gap: 3),
+                        Text(' + ${style.awardCost} 🏅', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                      ],
                     ),
                   ),
                 ),
@@ -896,11 +902,13 @@ class _CostRow extends StatelessWidget {
   final String label;
   final String have;
   final bool   ok;
+  final bool   isCoin;
   const _CostRow({
     required this.emoji,
     required this.label,
     required this.have,
     required this.ok,
+    this.isCoin = false,
   });
 
   @override
@@ -908,7 +916,10 @@ class _CostRow extends StatelessWidget {
     final color = ok ? const Color(0xFF2E7D32) : const Color(0xFFC62828);
     return Row(
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 18)),
+        if (isCoin)
+          Image.asset('assets/images/coin.png', width: 20, height: 20)
+        else
+          Text(emoji, style: const TextStyle(fontSize: 18)),
         const SizedBox(width: 8),
         Text(label,
             style: TextStyle(

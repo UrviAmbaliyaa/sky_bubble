@@ -2,6 +2,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/routes/app_routes.dart';
+import '../../core/constants/app_constants.dart';
+import '../../data/services/ad_service.dart';
+import '../../data/services/style_service.dart';
 import '../../domain/usecases/score_usecases.dart';
 
 class HomeController extends GetxController with GetTickerProviderStateMixin {
@@ -175,4 +178,54 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
   }
 
   void refreshStats() => _loadStats();
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+
+  void navigateToBubbleStyle()  => Get.toNamed(AppRoutes.bubbleStyle);
+  void navigateToLevels()       => Get.toNamed(AppRoutes.levels);
+  void navigateToBackground()   => Get.toNamed(AppRoutes.backgroundStyle);
+  void navigateToEarnCoins()    => Get.toNamed(AppRoutes.adWatch);
+
+  // ── Earn / buy award ───────────────────────────────────────────────────────
+
+  final RxBool isBuyingAward = false.obs;
+
+  bool get canAffordAward =>
+      Get.find<StyleService>().totalCoins.value >= StyleService.awardPurchaseCost;
+
+  void buyAwardWithCoins() {
+    if (isBuyingAward.value) return;
+    final styleSvc = Get.find<StyleService>();
+
+    if (styleSvc.totalCoins.value < StyleService.awardPurchaseCost) {
+      Get.snackbar(
+        'Not enough coins',
+        'You need ${StyleService.awardPurchaseCost} coins. Watch ads to earn more!',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: AppColors.earnAwardInsufficient,
+        colorText: AppColors.textWhite,
+        margin: const EdgeInsets.all(16),
+        borderRadius: AppDimensions.radiusM,
+      );
+      return;
+    }
+
+    isBuyingAward.value = true;
+    Get.find<AdService>().showInterstitial(onDismissed: () {
+      final ok = styleSvc.purchaseAwardWithCoins();
+      isBuyingAward.value = false;
+      if (ok) {
+        Get.snackbar(
+          '+1 Award Earned!',
+          '${StyleService.awardPurchaseCost} coins spent — award added to your balance!',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: AppColors.earnAward,
+          colorText: AppColors.textWhite,
+          margin: const EdgeInsets.all(16),
+          borderRadius: AppDimensions.radiusM,
+          duration: const Duration(seconds: 3),
+        );
+      }
+    });
+  }
 }

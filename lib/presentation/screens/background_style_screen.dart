@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../../core/constants/background_assets.dart';
+import '../../data/services/ad_service.dart';
 import '../../data/services/style_service.dart';
+import '../widgets/coin_display.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  BACKGROUND STYLE SCREEN  — white theme
@@ -203,27 +205,11 @@ class _HeroHeader extends StatelessWidget {
                                 width: 1.2,
                               ),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '\$',
-                                  style: TextStyle(
-                                    fontSize: 12.sp,
-                                    fontWeight: FontWeight.w900,
-                                    color: const Color(0xFFFFD700),
-                                  ),
-                                ),
-                                SizedBox(width: 1.w),
-                                Text(
-                                  '${svc.totalCoins.value}',
-                                  style: TextStyle(
-                                    fontSize: 11.sp,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
+                            child: CoinDisplay(
+                              amount: svc.totalCoins.value,
+                              imageSize: 14,
+                              fontSize: 12,
+                              gap: 4,
                             ),
                           ),
                         ),
@@ -691,7 +677,8 @@ class _UnlockSheetState extends State<_UnlockSheet> {
                     child: Row(
                       children: [
                         _TabBtn(
-                          label: '🪙  Coins',
+                          label: 'Coins',
+                          coinPrefix: true,
                           selected: _tab == 0,
                           onTap: () => setState(() => _tab = 0),
                         ),
@@ -717,6 +704,7 @@ class _UnlockSheetState extends State<_UnlockSheet> {
                         color: canAfford
                             ? const Color(0xFF43A047)
                             : Colors.redAccent,
+                        isCoin: _tab == 0,
                       ),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 3.w),
@@ -729,6 +717,7 @@ class _UnlockSheetState extends State<_UnlockSheet> {
                             ? '${bg.coinCost}'
                             : '${bg.awardCost}',
                         color: const Color(0xFFB8860B),
+                        isCoin: _tab == 0,
                       ),
                     ],
                   ),
@@ -754,9 +743,19 @@ class _UnlockSheetState extends State<_UnlockSheet> {
                   if (canAfford)
                     _PrimaryBtn(
                       label: _tab == 0
-                          ? 'Unlock for ${bg.coinCost} 🪙 Coins'
+                          ? ''
                           : 'Unlock for ${bg.awardCost} 🏅 Awards',
-                      icon: _tab == 0 ? '🪙' : '🏅',
+                      icon: _tab == 0 ? '' : '🏅',
+                      labelChild: _tab == 0
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('Unlock — ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                                CoinDisplay(amount: bg.coinCost, imageSize: 16, fontSize: 14, gap: 3),
+                                const Text(' Coins', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                              ],
+                            )
+                          : null,
                       colors: _tab == 0
                           ? const [Color(0xFFFFD700), Color(0xFFFF8C00)]
                           : const [Color(0xFF43E97B), Color(0xFF38F9D7)],
@@ -767,8 +766,13 @@ class _UnlockSheetState extends State<_UnlockSheet> {
                         final ok = _tab == 0
                             ? svc.unlockBackground(bg)
                             : svc.unlockBackgroundWithAwards(bg);
-                        Get.back();
-                        if (ok) _snackUnlocked();
+                        if (!ok) return; // insufficient funds — stay open
+                        Get.find<AdService>().showInterstitial(
+                          onDismissed: () {
+                            Get.back();
+                            _snackUnlocked();
+                          },
+                        );
                       },
                     ),
 
@@ -813,7 +817,13 @@ class _BalancePill extends StatelessWidget {
   final String label;
   final String value;
   final Color  color;
-  const _BalancePill({required this.label, required this.value, required this.color});
+  final bool   isCoin;
+  const _BalancePill({
+    required this.label,
+    required this.value,
+    required this.color,
+    this.isCoin = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -828,14 +838,22 @@ class _BalancePill extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: color.withOpacity(0.35), width: 1),
           ),
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w900,
-              color: color,
-            ),
-          ),
+          child: isCoin
+              ? CoinDisplay(
+                  amount: int.tryParse(value) ?? 0,
+                  imageSize: 14,
+                  fontSize: 13,
+                  textColor: color,
+                  gap: 4,
+                )
+              : Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
         ),
       ],
     );
@@ -850,12 +868,14 @@ class _PrimaryBtn extends StatelessWidget {
   final List<Color> colors;
   final Color shadowColor;
   final VoidCallback onTap;
+  final Widget? labelChild;
   const _PrimaryBtn({
     required this.label,
     required this.icon,
     required this.colors,
     required this.shadowColor,
     required this.onTap,
+    this.labelChild,
   });
 
   @override
@@ -879,8 +899,13 @@ class _PrimaryBtn extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(icon, style: TextStyle(fontSize: 13.sp)),
-            SizedBox(width: 2.w),
+            if (icon.isNotEmpty) ...[
+              Text(icon, style: TextStyle(fontSize: 13.sp)),
+              SizedBox(width: 2.w),
+            ],
+            if (labelChild != null)
+              labelChild!
+            else
             Text(
               label,
               style: TextStyle(
@@ -901,11 +926,18 @@ class _PrimaryBtn extends StatelessWidget {
 class _TabBtn extends StatelessWidget {
   final String   label;
   final bool     selected;
+  final bool     coinPrefix;
   final VoidCallback onTap;
-  const _TabBtn({required this.label, required this.selected, required this.onTap});
+  const _TabBtn({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.coinPrefix = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final textColor = selected ? const Color(0xFF1A1A2E) : const Color(0xFF9099B0);
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -919,14 +951,23 @@ class _TabBtn extends StatelessWidget {
                 ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 2))]
                 : [],
           ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 11.sp,
-              fontWeight: FontWeight.w700,
-              color: selected ? const Color(0xFF1A1A2E) : const Color(0xFF9099B0),
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (coinPrefix) ...[
+                Image.asset('assets/images/coin.png', width: 14, height: 14),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                ),
+              ),
+            ],
           ),
         ),
       ),

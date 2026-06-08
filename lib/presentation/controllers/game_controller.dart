@@ -9,6 +9,7 @@ import '../../core/constants/background_assets.dart';
 import '../../data/models/bubble_model.dart';
 import '../../data/models/level_config.dart';
 import '../../data/models/score_model.dart';
+import '../../data/services/ad_service.dart';
 import '../../data/services/sound_service.dart';
 import '../../data/services/style_service.dart';
 import '../../domain/usecases/score_usecases.dart';
@@ -52,6 +53,9 @@ class GameController extends GetxController with WidgetsBindingObserver {
   final _random = math.Random();
   Timer? _gameTimer;
   Timer? _spawnTimer;
+  Timer? _levelTimer;          // fires after 15 min to force-complete the level
+  DateTime? _levelStartTime;  // wall-clock when current level began (or resumed)
+  Duration _levelElapsed = Duration.zero; // accumulated time before last pause
   int _idCounter = 0;
   Size _screenSize = Size.zero;
 
@@ -193,6 +197,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
     _spawnWave();   // initial wave so the screen is never empty at start
     _startGameLoop();
     _startSpawnTimer();
+    _startLevelTimer();
   }
 
   void handleTapDown(TapDownDetails details) {
@@ -214,6 +219,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
       isGameRunning.value = true;
       _startGameLoop();
       _startSpawnTimer();
+      _resumeLevelTimer();
     } else {
       isPaused.value = true;
       isGameRunning.value = false;
@@ -358,10 +364,12 @@ class GameController extends GetxController with WidgetsBindingObserver {
       // Persist the new current level so the user resumes from here.
       Get.find<StyleService>().updateCurrentLevel(level.value);
 
-      // Pause game and immediately show the level-complete overlay.
+      // Pause game then show interstitial → level-complete overlay.
       _cancelTimers();
-      isGameRunning.value     = false;
-      showLevelComplete.value = true;
+      isGameRunning.value = false;
+      Get.find<AdService>().showInterstitial(onDismissed: () {
+        showLevelComplete.value = true;
+      });
     }
   }
 
@@ -381,6 +389,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
     _spawnWave();          // seed the first wave immediately
     _startGameLoop();
     _startSpawnTimer();
+    _startLevelTimer();   // fresh 15-min window for the new level
   }
 
   String _skinName(int lv) {
@@ -398,13 +407,14 @@ class GameController extends GetxController with WidgetsBindingObserver {
     if (score.value <= threshold) return;
     _newBestShown = true;
     newBestScore.value = score.value;
-    showNewBestBanner.value = true; // kept for banner — hidden by gift overlay
-    // Pause and show the gift screen
+    showNewBestBanner.value = true;
+    // Pause game, then show a full-screen ad; gift appears after ad is dismissed.
     _cancelTimers();
     isGameRunning.value = false;
     giftRewardType.value = _random.nextInt(3); // 0=heart, 1=coins, 2=award
-    showGiftScreen.value = true;
-    // Auto-dismiss banner (gift overlay shown separately)
+    Get.find<AdService>().showInterstitial(onDismissed: () {
+      showGiftScreen.value = true;
+    });
     Future.delayed(const Duration(seconds: 3), () {
       showNewBestBanner.value = false;
     });
@@ -432,6 +442,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
     isGameRunning.value = true;
     _startGameLoop();
     _startSpawnTimer();
+    _resumeLevelTimer();
   }
 
   // Speed is now purely level-driven (LevelConfig.speedMultiplierForLevel).
@@ -595,13 +606,33 @@ class GameController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  /// Restore 8 hearts and resume the game from where it was.
+  /// Cost in coins to buy a second chance.
+  static const int chanceCoinCost = 5;
+
+  bool get canAffordChance =>
+      Get.find<StyleService>().totalCoins.value >= chanceCoinCost;
+
+  /// Restore hearts and resume — shared implementation.
   void resetHearts() {
     lives.value = 3;
     isHeartsOver.value = false;
     isGameRunning.value = true;
     _startGameLoop();
     _startSpawnTimer();
+    _resumeLevelTimer();
+  }
+
+  /// Spend [chanceCoinCost] coins for a second chance.
+  void getChanceWithCoins() {
+    final svc = Get.find<StyleService>();
+    if (svc.totalCoins.value < chanceCoinCost) return;
+    svc.spendCoins(chanceCoinCost);
+    resetHearts();
+  }
+
+  /// Watch a single interstitial ad for a second chance.
+  void getChanceWithAd() {
+    Get.find<AdService>().showInterstitial(onDismissed: resetHearts);
   }
 
   void _endGame() {
@@ -620,5 +651,59 @@ class GameController extends GetxController with WidgetsBindingObserver {
     // a dead chain and restart it when the game resumes.
     _spawnTimer?.cancel();
     _spawnTimer = null;
+    _pauseLevelTimer();
+  }
+
+  // Starts (or restarts after a fresh level) the 15-minute level time limit.
+  void _startLevelTimer() {
+    _levelTimer?.cancel();
+    _levelElapsed = Duration.zero;
+    _levelStartTime = DateTime.now();
+    _scheduleLevelTimeout();
+  }
+
+  // Pauses the level timer — call when game pauses/overlays show.
+  void _pauseLevelTimer() {
+    if (_levelStartTime != null) {
+      _levelElapsed += DateTime.now().difference(_levelStartTime!);
+      _levelStartTime = null;
+    }
+    _levelTimer?.cancel();
+    _levelTimer = null;
+  }
+
+  // Resumes the level timer after a pause — fires with the remaining time.
+  void _resumeLevelTimer() {
+    _levelStartTime = DateTime.now();
+    _scheduleLevelTimeout();
+  }
+
+  void _scheduleLevelTimeout() {
+    final remaining = LevelConfig.levelTimeLimit - _levelElapsed;
+    if (remaining <= Duration.zero) {
+      _forceLevelComplete();
+      return;
+    }
+    _levelTimer = Timer(remaining, () {
+      if (!isGameRunning.value) return;
+      _forceLevelComplete();
+    });
+  }
+
+  void _forceLevelComplete() {
+    final doneLv = level.value;
+    completedLevel.value = doneLv;
+    coinsThisLevel.value = score.value;
+    _persistScore();
+    level.value++;
+    score.value  = 0;
+    _scoreSaved  = false;
+    lives.value  = 3;
+    Get.find<StyleService>().updateCurrentLevel(level.value);
+    _cancelTimers();
+    isGameRunning.value = false;
+    Get.find<AdService>().showInterstitial(onDismissed: () {
+      showLevelComplete.value = true;
+    });
   }
 }

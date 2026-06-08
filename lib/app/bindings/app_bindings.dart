@@ -5,6 +5,7 @@ import '../../domain/usecases/score_usecases.dart';
 import '../../presentation/controllers/game_controller.dart';
 import '../../presentation/controllers/home_controller.dart';
 import '../../presentation/controllers/score_controller.dart';
+import '../../presentation/controllers/ad_watch_controller.dart';
 import '../../presentation/controllers/splash_controller.dart';
 
 class SplashBinding extends Bindings {
@@ -59,5 +60,12 @@ class LevelsBinding extends Bindings {
   void dependencies() {
     // LevelsScreen reads directly from StyleService (already permanent).
     // No extra controller needed.
+  }
+}
+
+class AdWatchBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.put<AdWatchController>(AdWatchController());
   }
 }

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/background_assets.dart';
+import '../../data/services/ad_service.dart';
 import '../../data/services/sound_service.dart';
 import '../../data/services/style_service.dart';
 import '../controllers/game_controller.dart';
@@ -51,9 +53,25 @@ class _GameBody extends StatefulWidget {
   State<_GameBody> createState() => _GameBodyState();
 }
 
-class _GameBodyState extends State<_GameBody> {
+class _GameBodyState extends State<_GameBody>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _bubbleAnimCtrl;
+
   @override
-  void initState() { super.initState(); _onInit(); }
+  void initState() {
+    super.initState();
+    _bubbleAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat();
+    _onInit();
+  }
+
+  @override
+  void dispose() {
+    _bubbleAnimCtrl.dispose();
+    super.dispose();
+  }
 
   void _onInit() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -72,23 +90,34 @@ class _GameBodyState extends State<_GameBody> {
         GestureDetector(
           onTapDown: widget.controller.handleTapDown,
           behavior: HitTestBehavior.opaque,
-          child: Obx(
-            () => CustomPaint(
-              painter: BubblePainter(
-                bubbles: widget.controller.bubbles.toList(),
-                level: widget.controller.level.value,
-                style: Get.find<StyleService>().selectedStyle.value,
+          child: AnimatedBuilder(
+            animation: _bubbleAnimCtrl,
+            builder: (_, __) => Obx(
+              () => CustomPaint(
+                painter: BubblePainter(
+                  bubbles: widget.controller.bubbles.toList(),
+                  level: widget.controller.level.value,
+                  style: Get.find<StyleService>().selectedStyle.value,
+                  animTime: _bubbleAnimCtrl.value * 2 * 3.141592653589793,
+                ),
+                child: const SizedBox.expand(),
               ),
-              child: const SizedBox.expand(),
             ),
           ),
         ),
-        // HUD overlay
+        // ── Banner Ad (top of screen, edge-to-edge) ───────────────────────
+        const Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _BannerAdWidget(),
+        ),
+        // HUD overlay — offset below the banner
         Positioned(
           top: 0,
           left: 0,
           right: 0,
-          child: SafeArea(child: _GameHUD(controller: widget.controller)),
+          child: _GameHUD(controller: widget.controller),
         ),
         // Level-up / speed-ramp banner
         Obx(() => widget.controller.levelUpMessage.value.isEmpty
@@ -150,6 +179,27 @@ class _GameBodyState extends State<_GameBody> {
   }
 }
 
+// ─── Banner Ad Widget ─────────────────────────────────────────────────────────
+
+class _BannerAdWidget extends StatelessWidget {
+  const _BannerAdWidget();
+
+  @override
+  Widget build(BuildContext context) {
+    final adSvc = Get.find<AdService>();
+    return Obx(() {
+      if (!adSvc.isBannerLoaded.value || adSvc.bannerAd == null) {
+        return const SizedBox.shrink();
+      }
+      return SizedBox(
+        width: double.infinity,
+        height: adSvc.bannerAd!.size.height.toDouble(),
+        child: AdWidget(ad: adSvc.bannerAd!),
+      );
+    });
+  }
+}
+
 // ─── HUD ─────────────────────────────────────────────────────────────────────
 
 class _GameHUD extends StatelessWidget {
@@ -158,61 +208,74 @@ class _GameHUD extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-      child: Row(
-        children: [
-          // ── Score
-          _HudCard(
-            child: Obx(() => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 5.5.w),
-                SizedBox(width: 1.5.w),
-                Text(
-                  '${controller.score.value}',
-                  style: TextStyle(fontSize: 15.5.sp, fontWeight: FontWeight.w900, color: AppColors.textDark),
-                ),
-              ],
-            )),
+    final adSvc = Get.find<AdService>();
+    return Obx(() {
+      final bannerH = adSvc.isBannerLoaded.value && adSvc.bannerAd != null
+          ? adSvc.bannerAd!.size.height.toDouble()
+          : 0.0;
+      return Padding(
+        padding: EdgeInsets.fromLTRB(4.w, bannerH + 1.h, 4.w, 1.h),
+        child: SizedBox(
+          height: 10.w,   // single source of truth for all HUD element heights
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Score
+              _HudCard(
+                child: Obx(() => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 5.5.w),
+                    SizedBox(width: 1.5.w),
+                    Text(
+                      '${controller.score.value}',
+                      style: TextStyle(fontSize: 15.5.sp, fontWeight: FontWeight.w900, color: AppColors.textDark),
+                    ),
+                  ],
+                )),
+              ),
+              SizedBox(width: 2.w),
+              // ── Level
+              _HudCard(
+                child: Obx(() => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.trending_up_rounded, color: AppColors.levelGreen, size: 5.w),
+                    SizedBox(width: 1.w),
+                    Text(
+                      'LVL ${controller.level.value}',
+                      style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: AppColors.levelGreen),
+                    ),
+                  ],
+                )),
+              ),
+              const Spacer(),
+              // ── Hearts counter pill
+              _HudCard(
+                child: Obx(() => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.favorite, color: const Color(0xFFFF4D6D), size: 5.5.w),
+                    SizedBox(width: 1.5.w),
+                    Text(
+                      '${controller.lives.value}',
+                      style: TextStyle(fontSize: 14.5.sp, fontWeight: FontWeight.w900, color: const Color(0xFFFF4D6D)),
+                    ),
+                  ],
+                )),
+              ),
+              SizedBox(width: 2.w),
+              _SoundToggleButton(),
+              SizedBox(width: 2.w),
+              _PauseButton(onTap: controller.togglePause),
+            ],
           ),
-          SizedBox(width: 2.w),
-          // ── Level
-          _HudCard(
-            child: Obx(() => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.trending_up_rounded, color: AppColors.levelGreen, size: 5.w),
-                SizedBox(width: 1.w),
-                Text(
-                  'LVL ${controller.level.value}',
-                  style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: AppColors.levelGreen),
-                ),
-              ],
-            )),
-          ),
-          const Spacer(),
-          // ── Hearts counter pill
-          _HudCard(
-            child: Obx(() => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.favorite, color: const Color(0xFFFF4D6D), size: 5.5.w),
-                SizedBox(width: 1.5.w),
-                Text(
-                  '${controller.lives.value}',
-                  style: TextStyle(fontSize: 14.5.sp, fontWeight: FontWeight.w900, color: const Color(0xFFFF4D6D)),
-                ),
-              ],
-            )),
-          ),
-          SizedBox(width: 2.w),
-          _SoundToggleButton(),
-          SizedBox(width: 2.w),
-          _PauseButton(onTap: controller.togglePause),
-        ],
-      ),
-    );
+        ),
+      );
+    });
   }
 }
 
@@ -223,7 +286,7 @@ class _HudCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+      padding: EdgeInsets.symmetric(horizontal: 3.w),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.75),
         borderRadius: BorderRadius.circular(AppDimensions.radiusM),
@@ -249,17 +312,19 @@ class _SoundToggleButton extends StatelessWidget {
       final muted = _sound.isMuted.value;
       return GestureDetector(
         onTap: _sound.toggleMute,
-        child: Container(
-          width: 10.w, height: 10.w,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.92),
-            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
-          ),
-          child: Icon(
-            muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-            color: muted ? Colors.red.shade400 : AppColors.textDark,
-            size: 5.5.w,
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+            ),
+            child: Icon(
+              muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+              color: muted ? Colors.red.shade400 : AppColors.textDark,
+              size: 5.5.w,
+            ),
           ),
         ),
       );
@@ -275,14 +340,16 @@ class _PauseButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 10.w, height: 10.w,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.92),
-          borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+      child: AspectRatio(
+        aspectRatio: 1,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
+          ),
+          child: Icon(Icons.pause_rounded, color: AppColors.textDark, size: 6.w),
         ),
-        child: Icon(Icons.pause_rounded, color: AppColors.textDark, size: 6.w),
       ),
     );
   }
@@ -836,13 +903,13 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
                     SizedBox(height: 1.h),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(8, (_) => Padding(
+                      children: List.generate(1, (_) => Padding(
                         padding: EdgeInsets.symmetric(horizontal: 0.5.w),
                         child: Icon(Icons.favorite_border, color: const Color(0xFFFF4D6D), size: 5.w),
                       )),
                     ),
                     SizedBox(height: 1.h),
-                    Text('All 8 chances used up!',
+                    Text('1 chance used up!',
                         style: TextStyle(fontSize: 11.5.sp, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
                     SizedBox(height: 1.h),
                     Obx(() => Container(
@@ -859,27 +926,106 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
                             style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: const Color(0xFF7A4F00))),
                       ]),
                     )),
-                    SizedBox(height: 3.h),
-                    GestureDetector(
-                      onTap: widget.controller.resetHearts,
-                      child: Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 2.h),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [Color(0xFFFF6B9D), Color(0xFFFF4D6D)]),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [BoxShadow(color: const Color(0xFFFF4D6D).withOpacity(0.45), blurRadius: 16, offset: const Offset(0, 6))],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.favorite, color: Colors.white, size: 5.5.w),
-                            SizedBox(width: 2.5.w),
-                            Text('Reset Hearts',
-                                style: TextStyle(fontSize: 13.5.sp, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5)),
-                          ],
-                        ),
+                    SizedBox(height: 2.h),
+                    Text(
+                      'Get a Chance',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1A1A2E),
+                        letterSpacing: 0.3,
                       ),
+                    ),
+                    SizedBox(height: 1.2.h),
+                    Row(
+                      children: [
+                        // ── Option 1: Pay 5 coins ──────────────────────────────
+                        Expanded(
+                          child: Obx(() {
+                            final canAfford = widget.controller.canAffordChance;
+                            return GestureDetector(
+                              onTap: canAfford ? widget.controller.getChanceWithCoins : null,
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: canAfford ? 1.0 : 0.45,
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(vertical: 1.8.h),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFFFFB300), Color(0xFFFF8C00)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFFFF8C00).withOpacity(0.40),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 5),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Image.asset(
+                                        'assets/images/coin.png',
+                                        width: 6.w, height: 6.w,
+                                      ),
+                                      SizedBox(height: 0.5.h),
+                                      Text(
+                                        '5 Coins',
+                                        style: TextStyle(
+                                          fontSize: 11.sp,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        SizedBox(width: 3.w),
+                        // ── Option 2: Watch Ad ─────────────────────────────────
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: widget.controller.getChanceWithAd,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(vertical: 1.8.h),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF6C63FF).withOpacity(0.40),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.play_circle_fill_rounded,
+                                      color: Colors.white, size: 6.w),
+                                  SizedBox(height: 0.5.h),
+                                  Text(
+                                    'Watch Ad',
+                                    style: TextStyle(
+                                      fontSize: 11.sp,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     SizedBox(height: 1.5.h),
                     GestureDetector(

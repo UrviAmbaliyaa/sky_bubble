@@ -3,23 +3,29 @@ import 'package:flutter/material.dart';
 import '../../core/constants/bubble_styles.dart';
 import '../../data/models/bubble_model.dart';
 
-/// Level → Bubble skin mapping
-///  Lv 1  – Classic Soap      (transparent, iridescent rim)
-///  Lv 2  – Vivid Soap        (brighter iridescence, thicker rim)
-///  Lv 3  – Neon Glow         (electric edges, inner light source)
-///  Lv 4  – Gold Metallic     (amber/gold body, star sparkles)
-///  Lv 5  – Crystal Diamond   (icy facets, sharp multi-highlight)
-///  Lv 6  – Fire Burst        (flame gradient, ember glow)
-///  Lv 7+ – Premium Rainbow   (full-spectrum body + prismatic rim)
+/// Level → Bubble skin mapping (10-level tiers, 10 skins total)
+///  Lv  1-10  – Classic Soap    (transparent, iridescent rim)
+///  Lv 11-20  – Vivid Soap      (brighter iridescence, thicker rim)
+///  Lv 21-30  – Neon Glow       (electric edges, inner light source)
+///  Lv 31-40  – Gold Metallic   (amber/gold body, star sparkles)
+///  Lv 41-50  – Crystal Diamond (icy facets, sharp multi-highlight)
+///  Lv 51-60  – Fire Burst      (flame gradient, ember glow)
+///  Lv 61-70  – Rainbow         (full-spectrum body + prismatic rim)
+///  Lv 71-80  – Aurora          (northern-lights green/purple/teal)
+///  Lv 81-90  – Plasma          (hot magenta/pink energy burst)
+///  Lv 91-100 – Cosmic          (deep-space dark with star clusters)
 class BubblePainter extends CustomPainter {
   final List<BubbleModel> bubbles;
   final int level;
   final BubbleStyle style;
+  // 0→2π looping animation time used for gentle per-bubble pulse/wobble.
+  final double animTime;
 
   BubblePainter({
     required this.bubbles,
     required this.level,
     this.style = BubbleStyle.classic,
+    this.animTime = 0.0,
   });
 
   @override
@@ -52,15 +58,21 @@ class BubblePainter extends CustomPainter {
         _paintDiamond(canvas, b);
         break;
       case BubbleStyle.classic:
-      default:
-        switch (level.clamp(1, 7)) {
-          case 1: _paintSoap(canvas, b); break;
-          case 2: _paintVivid(canvas, b); break;
-          case 3: _paintNeon(canvas, b); break;
-          case 4: _paintGold(canvas, b); break;
-          case 5: _paintCrystal(canvas, b); break;
-          case 6: _paintFire(canvas, b); break;
-          default: _paintRainbow(canvas, b); break;
+        // Map level → tier index 0-9 (every 10 levels = one skin)
+        final tier = ((level - 1) ~/ 10).clamp(0, 9);
+        switch (tier) {
+          case 0: _paintSoap(canvas, b); break;
+          case 1: _paintVivid(canvas, b); break;
+          case 2: _paintNeon(canvas, b); break;
+          case 3: _paintGold(canvas, b); break;
+          case 4: _paintCrystal(canvas, b); break;
+          case 5: _paintFire(canvas, b); break;
+          case 6: _paintRainbow(canvas, b); break;
+          case 7: _paintAurora(canvas, b); break;
+          case 8: _paintPlasma(canvas, b); break;
+          case 9:
+          default:
+            _paintCosmic(canvas, b); break;
         }
     }
   }
@@ -79,7 +91,7 @@ class BubblePainter extends CustomPainter {
 
   void _rimStroke(Canvas canvas, BubbleModel b, List<Color> colors,
       {double widthFactor = 0.13, List<double>? stops}) {
-    final r = b.radius;
+    final r = _pulseRadius(b);
     final w = r * widthFactor;
     final rect = Rect.fromCircle(center: Offset(b.x, b.y), radius: r);
     canvas.drawCircle(
@@ -136,7 +148,7 @@ class BubblePainter extends CustomPainter {
   // ══════════════════════════════════════════════════════════
 
   void _paintSoap(Canvas canvas, BubbleModel b) {
-    final c = Offset(b.x, b.y); final r = b.radius;
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
     final rect = Rect.fromCircle(center: c, radius: r);
 
     _shadow(canvas, b, b.color.withOpacity(0.10), r * 0.55);
@@ -168,7 +180,7 @@ class BubblePainter extends CustomPainter {
   // ══════════════════════════════════════════════════════════
 
   void _paintVivid(Canvas canvas, BubbleModel b) {
-    final c = Offset(b.x, b.y); final r = b.radius;
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
     final rect = Rect.fromCircle(center: c, radius: r);
 
     _shadow(canvas, b, b.color.withOpacity(0.18), r * 0.6);
@@ -207,7 +219,7 @@ class BubblePainter extends CustomPainter {
   // ══════════════════════════════════════════════════════════
 
   void _paintNeon(Canvas canvas, BubbleModel b) {
-    final c = Offset(b.x, b.y); final r = b.radius;
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
 
     // Outer neon glow halo
     canvas.drawCircle(c, r + r * 0.18,
@@ -250,7 +262,7 @@ class BubblePainter extends CustomPainter {
   // ══════════════════════════════════════════════════════════
 
   void _paintGold(Canvas canvas, BubbleModel b) {
-    final c = Offset(b.x, b.y); final r = b.radius;
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
     final rect = Rect.fromCircle(center: c, radius: r);
 
     _shadow(canvas, b, const Color(0xFFFFB300).withOpacity(0.30), r * 0.6);
@@ -307,7 +319,7 @@ class BubblePainter extends CustomPainter {
   // ══════════════════════════════════════════════════════════
 
   void _paintCrystal(Canvas canvas, BubbleModel b) {
-    final c = Offset(b.x, b.y); final r = b.radius;
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
     final rect = Rect.fromCircle(center: c, radius: r);
 
     _shadow(canvas, b, Colors.cyan.withOpacity(0.20), r * 0.55);
@@ -359,7 +371,7 @@ class BubblePainter extends CustomPainter {
   // ══════════════════════════════════════════════════════════
 
   void _paintFire(Canvas canvas, BubbleModel b) {
-    final c = Offset(b.x, b.y); final r = b.radius;
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
     final rect = Rect.fromCircle(center: c, radius: r);
 
     // Outer ember glow
@@ -405,7 +417,7 @@ class BubblePainter extends CustomPainter {
   // ══════════════════════════════════════════════════════════
 
   void _paintRainbow(Canvas canvas, BubbleModel b) {
-    final c = Offset(b.x, b.y); final r = b.radius;
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
     final rect = Rect.fromCircle(center: c, radius: r);
 
     // Double outer rainbow glow
@@ -475,7 +487,7 @@ class BubblePainter extends CustomPainter {
   }
 
   void _paintStar(Canvas canvas, BubbleModel b) {
-    final cx = b.x; final cy = b.y; final r = b.radius;
+    final cx = b.x; final cy = b.y; final r = _pulseRadius(b);
     final outer = r * 0.95;
     final inner = r * 0.42;
     final starBounds = Rect.fromCenter(center: Offset(cx, cy), width: r * 2.0, height: r * 2.0);
@@ -814,7 +826,7 @@ class BubblePainter extends CustomPainter {
 
   void _paintBlur(Canvas canvas, BubbleModel b) {
     final c = Offset(b.x, b.y);
-    final r = b.radius;
+    final r = _pulseRadius(b);
 
     // Soft outer halo
     canvas.drawCircle(c, r * 1.25,
@@ -852,7 +864,7 @@ class BubblePainter extends CustomPainter {
 
   void _paintSpecial(Canvas canvas, BubbleModel b) {
     final c = Offset(b.x, b.y);
-    final r = b.radius;
+    final r = _pulseRadius(b);
     final rect = Rect.fromCircle(center: c, radius: r);
 
     // Pulsing outer aura
@@ -912,12 +924,239 @@ class BubblePainter extends CustomPainter {
   }
 
   // ══════════════════════════════════════════════════════════
+  //  LV 71-80 – AURORA BUBBLE  (northern lights)
+  // ══════════════════════════════════════════════════════════
+
+  void _paintAurora(Canvas canvas, BubbleModel b) {
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
+    final rect = Rect.fromCircle(center: c, radius: r);
+
+    // Soft outer aurora glow — green + purple haze
+    canvas.drawCircle(c, r + r * 0.28,
+      Paint()
+        ..color = const Color(0xFF00E676).withOpacity(0.16)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.7));
+    canvas.drawCircle(c, r + r * 0.15,
+      Paint()
+        ..color = const Color(0xFFCE93D8).withOpacity(0.20)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.4));
+
+    // Translucent body with aurora sweep
+    canvas.drawCircle(c, r, Paint()..color = Colors.black.withOpacity(0.08));
+    canvas.drawCircle(c, r, Paint()
+      ..shader = SweepGradient(
+        startAngle: -math.pi * 0.6,
+        endAngle: math.pi * 1.4,
+        colors: [
+          const Color(0xFF00E676).withOpacity(0.22),
+          const Color(0xFF00BCD4).withOpacity(0.20),
+          const Color(0xFF7C4DFF).withOpacity(0.22),
+          const Color(0xFFCE93D8).withOpacity(0.20),
+          const Color(0xFF00E676).withOpacity(0.22),
+        ],
+      ).createShader(rect));
+
+    // Vertical aurora band overlay
+    canvas.drawCircle(c, r, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0.0, -0.50), radius: 0.75,
+        colors: [
+          const Color(0xFF00E676).withOpacity(0.18),
+          Colors.transparent,
+        ],
+      ).createShader(rect));
+
+    // Aurora rim — green → teal → purple
+    _rimStroke(canvas, b, [
+      Colors.white,
+      const Color(0xFF00E676).withOpacity(0.95),
+      const Color(0xFF00BCD4).withOpacity(0.90),
+      const Color(0xFF7C4DFF).withOpacity(0.88),
+      const Color(0xFFCE93D8).withOpacity(0.92),
+      const Color(0xFF00E676).withOpacity(0.90),
+      Colors.white,
+    ], widthFactor: 0.17);
+
+    // Inner bright aurora line
+    canvas.drawCircle(c, r - r * 0.17 - 1,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.035
+        ..color = const Color(0xFF00E676).withOpacity(0.40));
+
+    _highlight(canvas, b.x - r * 0.22, b.y - r * 0.28, r * 0.72, r * 0.46);
+    _sparkle(canvas, b.x + r * 0.14, b.y - r * 0.54, r * 0.10);
+    _sparkle(canvas, b.x - r * 0.48, b.y + r * 0.42, r * 0.07);
+    _caustic(canvas, b);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  LV 81-90 – PLASMA BUBBLE  (hot magenta/pink energy)
+  // ══════════════════════════════════════════════════════════
+
+  void _paintPlasma(Canvas canvas, BubbleModel b) {
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
+    final rect = Rect.fromCircle(center: c, radius: r);
+
+    // Hot outer plasma corona
+    canvas.drawCircle(c, r + r * 0.30,
+      Paint()
+        ..color = const Color(0xFFE040FB).withOpacity(0.20)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.8));
+    canvas.drawCircle(c, r + r * 0.14,
+      Paint()
+        ..color = const Color(0xFFFF4081).withOpacity(0.22)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.4));
+
+    // Semi-dark body
+    canvas.drawCircle(c, r, Paint()..color = Colors.black.withOpacity(0.12));
+
+    // Plasma body gradient — core hot white fading to magenta
+    canvas.drawCircle(c, r, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.1, -0.2), radius: 0.80,
+        colors: [
+          Colors.white.withOpacity(0.22),
+          const Color(0xFFE040FB).withOpacity(0.28),
+          const Color(0xFFFF4081).withOpacity(0.20),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.35, 0.65, 1.0],
+      ).createShader(rect));
+
+    // Plasma sweep
+    canvas.drawCircle(c, r, Paint()
+      ..shader = SweepGradient(
+        colors: [
+          const Color(0xFFE040FB).withOpacity(0.25),
+          const Color(0xFFFF4081).withOpacity(0.22),
+          const Color(0xFFFFAB40).withOpacity(0.18),
+          const Color(0xFFE040FB).withOpacity(0.25),
+        ],
+      ).createShader(rect));
+
+    // Plasma rim — magenta/pink/orange
+    _rimStroke(canvas, b, [
+      Colors.white,
+      const Color(0xFFE040FB).withOpacity(0.95),
+      const Color(0xFFFF4081).withOpacity(0.92),
+      const Color(0xFFFFAB40).withOpacity(0.88),
+      const Color(0xFFE040FB).withOpacity(0.90),
+      const Color(0xFFFF4081).withOpacity(0.95),
+      Colors.white,
+    ], widthFactor: 0.17);
+
+    // Inner plasma ring
+    canvas.drawCircle(c, r - r * 0.17 - 1,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.04
+        ..color = const Color(0xFFE040FB).withOpacity(0.45));
+
+    // Energy burst sparks around equator
+    for (int i = 0; i < 6; i++) {
+      final angle = (i / 6) * math.pi * 2 + animTime * 0.5;
+      final dist = r * 0.72;
+      canvas.drawCircle(
+        Offset(c.dx + math.cos(angle) * dist, c.dy + math.sin(angle) * dist),
+        r * 0.055,
+        Paint()..color = const Color(0xFFFFAB40).withOpacity(0.80));
+    }
+
+    _highlight(canvas, b.x - r * 0.22, b.y - r * 0.28, r * 0.70, r * 0.44);
+    _sparkle(canvas, b.x + r * 0.14, b.y - r * 0.54, r * 0.11);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  LV 91-100 – COSMIC BUBBLE  (deep space, star clusters)
+  // ══════════════════════════════════════════════════════════
+
+  void _paintCosmic(Canvas canvas, BubbleModel b) {
+    final c = Offset(b.x, b.y); final r = _pulseRadius(b);
+    final rect = Rect.fromCircle(center: c, radius: r);
+
+    // Deep space outer glow — indigo + gold
+    canvas.drawCircle(c, r + r * 0.35,
+      Paint()
+        ..color = const Color(0xFF3D1A78).withOpacity(0.22)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.9));
+    canvas.drawCircle(c, r + r * 0.15,
+      Paint()
+        ..color = const Color(0xFFFFD700).withOpacity(0.18)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.4));
+
+    // Dark nebula body
+    canvas.drawCircle(c, r, Paint()..color = const Color(0xFF0A0020).withOpacity(0.55));
+
+    // Nebula colour sweep
+    canvas.drawCircle(c, r, Paint()
+      ..shader = SweepGradient(
+        colors: [
+          const Color(0xFF7C4DFF).withOpacity(0.30),
+          const Color(0xFF00BCD4).withOpacity(0.22),
+          const Color(0xFF3D1A78).withOpacity(0.28),
+          const Color(0xFFE040FB).withOpacity(0.20),
+          const Color(0xFF7C4DFF).withOpacity(0.30),
+        ],
+      ).createShader(rect));
+
+    // Radial core glow
+    canvas.drawCircle(c, r, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.15, -0.25), radius: 0.70,
+        colors: [
+          Colors.white.withOpacity(0.18),
+          const Color(0xFF7C4DFF).withOpacity(0.15),
+          Colors.transparent,
+        ],
+      ).createShader(rect));
+
+    // Cosmic rim — gold/purple/cyan
+    _rimStroke(canvas, b, [
+      Colors.white,
+      const Color(0xFFFFD700).withOpacity(0.95),
+      const Color(0xFF7C4DFF).withOpacity(0.90),
+      const Color(0xFF00BCD4).withOpacity(0.92),
+      const Color(0xFFE040FB).withOpacity(0.88),
+      const Color(0xFFFFD700).withOpacity(0.92),
+      Colors.white,
+    ], widthFactor: 0.18);
+
+    // Inner bright ring
+    canvas.drawCircle(c, r - r * 0.18 - 1,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.035
+        ..color = Colors.white.withOpacity(0.30));
+
+    // Star cluster — 8 stars scattered inside bubble
+    final rng = math.Random(b.x.toInt() ^ b.y.toInt());
+    for (int i = 0; i < 8; i++) {
+      final angle = rng.nextDouble() * math.pi * 2;
+      final dist  = rng.nextDouble() * r * 0.65;
+      final size  = r * (0.03 + rng.nextDouble() * 0.04);
+      canvas.drawCircle(
+        Offset(c.dx + math.cos(angle) * dist, c.dy + math.sin(angle) * dist),
+        size,
+        Paint()..color = Colors.white.withOpacity(0.60 + rng.nextDouble() * 0.30));
+    }
+
+    // Large specular highlight
+    _highlight(canvas, b.x - r * 0.24, b.y - r * 0.30, r * 0.76, r * 0.50);
+    // Gold star badge
+    _drawStar(canvas, b.x + r * 0.60, b.y - r * 0.54, r * 0.16,
+        const Color(0xFFFFD700).withOpacity(0.95));
+    _sparkle(canvas, b.x + r * 0.14, b.y - r * 0.56, r * 0.12);
+    _caustic(canvas, b);
+  }
+
+  // ══════════════════════════════════════════════════════════
   //  BURST (level-tinted pop)
   // ══════════════════════════════════════════════════════════
 
   void _paintBurst(Canvas canvas, BubbleModel b) {
     final c = Offset(b.x, b.y);
-    final r = b.radius;
+    final r = _pulseRadius(b);
     final p = b.burstProgress.clamp(0.0, 1.0);
     final fade = (1.0 - p).clamp(0.0, 1.0);
 
@@ -974,7 +1213,15 @@ class BubblePainter extends CustomPainter {
     }
   }
 
+  /// Returns the visually-animated radius for bubble [b].
+  /// Each bubble gets a unique phase from its position so they pulse in/out
+  /// independently, giving a natural floating feel.
+  double _pulseRadius(BubbleModel b) {
+    final phase = (b.x * 0.031 + b.y * 0.017) % (2 * math.pi);
+    return b.radius * (1.0 + 0.045 * math.sin(animTime + phase));
+  }
+
   @override
   bool shouldRepaint(BubblePainter old) =>
-      old.level != level || old.style != style || true;
+      old.animTime != animTime || old.level != level || old.style != style || true;
 }
