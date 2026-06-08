@@ -23,6 +23,10 @@ class AdService extends GetxService {
   InterstitialAd? _interstitialAd;
   final RxBool    isInterstitialLoaded = false.obs;
 
+  // ── Full-screen ad visibility (true while any interstitial is on screen) ───
+  // Used by GameScreen to block the physical back button while an ad is visible.
+  final RxBool isAdShowing = false.obs;
+
   // ── Sequential-ad progress (reactive so UI can show "Ad X of 3") ──────────
   final RxInt  seqAdCurrent = 0.obs;   // how many ads shown so far in this sequence
   final RxInt  seqAdTotal   = 0.obs;   // total ads in the current sequence
@@ -81,8 +85,13 @@ class AdService extends GetxService {
     );
   }
 
-  /// Loads a fresh interstitial and shows it immediately.
-  /// Used by AdWatchScreen so each ad is independent of the preloaded slot.
+  /// Loads a FRESH interstitial every time and shows it immediately.
+  ///
+  /// This is the **mandatory** path — always attempts a real load so the ad
+  /// cannot be skipped due to a stale/missing preloaded slot.
+  /// [onDismissed] fires after the ad closes normally.
+  /// [onFailure]   fires if loading or showing fails (caller should still
+  ///               proceed so the user is never permanently stuck).
   void loadAndShowInterstitial({
     required VoidCallback onDismissed,
     required VoidCallback onFailure,
@@ -93,13 +102,16 @@ class AdService extends GetxService {
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
           ad.setImmersiveMode(true);
+          isAdShowing.value = true;
           ad.fullScreenContentCallback = FullScreenContentCallback(
             onAdDismissedFullScreenContent: (a) {
               a.dispose();
+              isAdShowing.value = false;
               onDismissed();
             },
             onAdFailedToShowFullScreenContent: (a, _) {
               a.dispose();
+              isAdShowing.value = false;
               onFailure();
             },
           );
@@ -110,8 +122,10 @@ class AdService extends GetxService {
     );
   }
 
-  /// Shows the preloaded interstitial. Always calls [onDismissed] even when
-  /// no ad is available so callers never get stuck.
+  /// Shows the preloaded interstitial.
+  /// Falls back to [onDismissed] immediately when no ad is ready so callers
+  /// never get stuck — but [loadAndShowInterstitial] is preferred for events
+  /// where showing an ad is truly mandatory.
   void showInterstitial({required VoidCallback onDismissed}) {
     final ad = _interstitialAd;
     if (ad == null) {
@@ -120,14 +134,17 @@ class AdService extends GetxService {
     }
     _interstitialAd = null;
     isInterstitialLoaded.value = false;
+    isAdShowing.value = true;
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (a) {
         a.dispose();
+        isAdShowing.value = false;
         _loadInterstitial();
         onDismissed();
       },
       onAdFailedToShowFullScreenContent: (a, _) {
         a.dispose();
+        isAdShowing.value = false;
         _loadInterstitial();
         onDismissed();
       },
@@ -183,6 +200,7 @@ class AdService extends GetxService {
 
     void showAd(InterstitialAd ad) {
       ad.setImmersiveMode(true);
+      isAdShowing.value = true;
 
       // Start loading the NEXT ad immediately while this one is on screen.
       InterstitialAd? nextAd;
@@ -235,6 +253,7 @@ class AdService extends GetxService {
       ad.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (a) {
           a.dispose();
+          isAdShowing.value = false;
           currentDismissed = true;
           if (remaining - 1 <= 0) {
             seqAdCurrent.value++;
@@ -253,6 +272,7 @@ class AdService extends GetxService {
         },
         onAdFailedToShowFullScreenContent: (a, _) {
           a.dispose();
+          isAdShowing.value = false;
           onFailure();
         },
       );

@@ -183,14 +183,11 @@ class GameController extends GetxController with WidgetsBindingObserver {
     _scoreSaved   = false; // reset so the new game's score can be saved
     _newBestShown = false;
     showNewBestBanner.value = false;
-    // Initial background — free + user's unlocked premium only
+    // Initial background — only truly free (isPremium == false) + user's unlocked premium.
+    // Uses the isPremium rule from BackgroundStyle so it always stays in sync
+    // with whatever "free" means at any given time (currently only Image 1 / sky).
     final styleSvc = Get.find<StyleService>();
-    final initPool = [
-      ...BgAssets.free,
-      ...styleSvc.unlockedBackgrounds
-          .map((bg) => bg.assetPath)
-          .where((p) => p.isNotEmpty),
-    ];
+    final initPool = _buildBgPool(styleSvc);
     gameBgAsset.value = initPool[_random.nextInt(initPool.length)];
     bubbles.clear();
     _cancelTimers();
@@ -287,14 +284,9 @@ class GameController extends GetxController with WidgetsBindingObserver {
     final milestone = (score.value ~/ 200) * 200;
     if (milestone > _lastBgMilestone) {
       _lastBgMilestone = milestone;
-      // Build pool = all free backgrounds + any premium the user has unlocked
+      // Build pool = free backgrounds (per isPremium rule) + user-unlocked premium
       final svc  = Get.find<StyleService>();
-      final pool = [
-        ...BgAssets.free,
-        ...svc.unlockedBackgrounds
-            .map((bg) => bg.assetPath)
-            .where((p) => p.isNotEmpty),
-      ];
+      final pool = _buildBgPool(svc);
       if (pool.isEmpty) return;
       // Pick a random entry different from the current one
       String next;
@@ -364,12 +356,15 @@ class GameController extends GetxController with WidgetsBindingObserver {
       // Persist the new current level so the user resumes from here.
       Get.find<StyleService>().updateCurrentLevel(level.value);
 
-      // Pause game then show interstitial → level-complete overlay.
+      // Pause game then show a MANDATORY fresh interstitial → level-complete overlay.
+      // loadAndShowInterstitial always attempts a real ad load so it cannot be
+      // skipped due to a missing preloaded slot.
       _cancelTimers();
       isGameRunning.value = false;
-      Get.find<AdService>().showInterstitial(onDismissed: () {
-        showLevelComplete.value = true;
-      });
+      Get.find<AdService>().loadAndShowInterstitial(
+        onDismissed: () => showLevelComplete.value = true,
+        onFailure:   () => showLevelComplete.value = true, // graceful degradation
+      );
     }
   }
 
@@ -412,9 +407,10 @@ class GameController extends GetxController with WidgetsBindingObserver {
     _cancelTimers();
     isGameRunning.value = false;
     giftRewardType.value = _random.nextInt(3); // 0=heart, 1=coins, 2=award
-    Get.find<AdService>().showInterstitial(onDismissed: () {
-      showGiftScreen.value = true;
-    });
+    Get.find<AdService>().loadAndShowInterstitial(
+      onDismissed: () => showGiftScreen.value = true,
+      onFailure:   () => showGiftScreen.value = true,
+    );
     Future.delayed(const Duration(seconds: 3), () {
       showNewBestBanner.value = false;
     });
@@ -606,6 +602,26 @@ class GameController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  // ── Background pool helper ────────────────────────────────────────────────
+  // Builds the list of asset paths eligible for in-game background rotation:
+  //   • All BackgroundStyle values where isPremium == false  (currently only sky)
+  //   • Plus any premium backgrounds the user has explicitly unlocked
+  // Using BackgroundStyle.isPremium (not BgAssets.free) ensures this always
+  // respects the current "free" definition without needing a separate update.
+  List<String> _buildBgPool(StyleService svc) {
+    final free = BackgroundStyle.values
+        .where((b) => !b.isPremium)
+        .map((b) => b.assetPath)
+        .toList();
+
+    final unlocked = svc.unlockedBackgrounds
+        .map((b) => b.assetPath)
+        .where((p) => p.isNotEmpty)
+        .toList();
+
+    return [...free, ...unlocked];
+  }
+
   /// Cost in coins to buy a second chance.
   static const int chanceCoinCost = 5;
 
@@ -702,8 +718,9 @@ class GameController extends GetxController with WidgetsBindingObserver {
     Get.find<StyleService>().updateCurrentLevel(level.value);
     _cancelTimers();
     isGameRunning.value = false;
-    Get.find<AdService>().showInterstitial(onDismissed: () {
-      showLevelComplete.value = true;
-    });
+    Get.find<AdService>().loadAndShowInterstitial(
+      onDismissed: () => showLevelComplete.value = true,
+      onFailure:   () => showLevelComplete.value = true,
+    );
   }
 }

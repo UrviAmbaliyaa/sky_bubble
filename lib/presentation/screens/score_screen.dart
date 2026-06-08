@@ -1245,60 +1245,199 @@ class _MonthProgressRowState extends State<_MonthProgressRow>
 // ── Year picker dialog ────────────────────────────────────────────────────────
 
 void _showYearPicker(BuildContext context, ScoreController ctrl) {
-  final now = DateTime.now();
+  final now   = DateTime.now();
+  final years = List.generate(now.year - 2019, (i) => 2020 + i);
+
   showDialog(
     context: context,
-    barrierColor: Colors.black.withOpacity(0.45),
+    barrierDismissible: true,
+    barrierColor: Colors.black.withOpacity(0.55),
     builder: (_) => Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('Select Year',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppColors.textDark)),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10, runSpacing: 10, alignment: WrapAlignment.center,
-            children: List.generate(now.year - 2019, (i) {
-              final year = 2020 + i;
-              final isSel = year == ctrl.selectedYear.value;
-              return GestureDetector(
-                onTap: () {
-                  ctrl.setMonthYear(
-                    year == now.year ? now.month : ctrl.selectedMonth.value,
-                    year,
-                  );
-                  Navigator.of(context).pop();
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  width: 72, height: 48,
-                  decoration: BoxDecoration(
-                    gradient: isSel
-                        ? const LinearGradient(colors: [Color(0xFF9C27B0), Color(0xFFCE93D8)])
-                        : null,
-                    color: isSel ? null : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: isSel
-                        ? [BoxShadow(color: const Color(0xFF9C27B0).withOpacity(0.35), blurRadius: 8)]
-                        : null,
-                  ),
-                  child: Center(
-                    child: Text('$year',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w800,
-                            color: isSel ? Colors.white : AppColors.textDark)),
+      backgroundColor: Colors.transparent,
+      insetPadding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 10.h),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: Stack(
+          children: [
+            // ── Garden background at very low opacity ─────────────────────
+            Positioned.fill(
+              child: Image.asset(
+                'assets/backgrounds/bg_garden.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            // ── Dark-green tinted glass overlay ───────────────────────────
+            Positioned.fill(
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xCC0D2E1A), // deep forest green 80 %
+                      Color(0xCC1A4A2E), // mid forest green 80 %
+                      Color(0xCC0D2418), // dark base 80 %
+                    ],
                   ),
                 ),
-              );
-            }),
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textMedium)),
-          ),
-        ]),
+              ),
+            ),
+            // ── Frosted glass layer ────────────────────────────────────────
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: const SizedBox.expand(),
+              ),
+            ),
+
+            // ── Content ───────────────────────────────────────────────────
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header gradient strip
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(5.w, 3.h, 5.w, 2.5.h),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF1B5E20), Color(0xFF2E7D32), Color(0xFF388E3C)],
+                    ),
+                    boxShadow: [
+                      BoxShadow(color: Color(0x441B5E20), blurRadius: 16, offset: Offset(0, 6)),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: EdgeInsets.all(2.w),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text('📅', style: TextStyle(fontSize: 14.sp)),
+                      ),
+                      SizedBox(width: 3.w),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Select Year',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          Text(
+                            'Tap a year to filter your scores',
+                            style: TextStyle(
+                              fontSize: 8.5.sp,
+                              color: Colors.white70,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Year chips
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.5.h),
+                  child: Obx(() {
+                    final selYear = ctrl.selectedYear.value;
+                    return Wrap(
+                      spacing: 3.w,
+                      runSpacing: 1.5.h,
+                      alignment: WrapAlignment.center,
+                      children: years.map((year) {
+                        final isSel = year == selYear;
+                        return GestureDetector(
+                          onTap: () {
+                            ctrl.setMonthYear(
+                              year == now.year ? now.month : ctrl.selectedMonth.value,
+                              year,
+                            );
+                            Navigator.of(context).pop();
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeOut,
+                            padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.4.h),
+                            decoration: BoxDecoration(
+                              gradient: isSel
+                                  ? const LinearGradient(
+                                      colors: [Color(0xFF66BB6A), Color(0xFF43A047)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    )
+                                  : null,
+                              color: isSel ? null : Colors.white.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(50),
+                              border: Border.all(
+                                color: isSel
+                                    ? const Color(0xFF81C784)
+                                    : Colors.white.withOpacity(0.25),
+                                width: 1.5,
+                              ),
+                              boxShadow: isSel
+                                  ? [
+                                      BoxShadow(
+                                        color: const Color(0xFF43A047).withOpacity(0.50),
+                                        blurRadius: 14,
+                                        offset: const Offset(0, 5),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isSel) ...[
+                                  Icon(Icons.check_circle_rounded,
+                                      color: Colors.white, size: 4.w),
+                                  SizedBox(width: 1.5.w),
+                                ],
+                                Text(
+                                  '$year',
+                                  style: TextStyle(
+                                    fontSize: 13.sp,
+                                    fontWeight: FontWeight.w800,
+                                    color: isSel ? Colors.white : Colors.white70,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  }),
+                ),
+
+                // Subtle bottom hint
+                Padding(
+                  padding: EdgeInsets.only(bottom: 2.5.h),
+                  child: Text(
+                    'Tap outside to close',
+                    style: TextStyle(
+                      fontSize: 8.sp,
+                      color: Colors.white38,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     ),
   );

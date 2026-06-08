@@ -20,16 +20,24 @@ class GameScreen extends GetView<GameController> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      // Allow all back gestures / button presses to complete normally.
-      canPop: true,
-      // This fires synchronously when the pop is confirmed — BEFORE the route
-      // is fully removed and before Get.toNamed()'s future resolves in
-      // HomeController.  Calling persistScoreOnExit() here guarantees the score
-      // is written to storage before HomeController._loadStats() reads it, which
-      // fixes both swipe-back and predictive-back gesture scenarios on all
-      // Android/iOS variants.
+      // Back button is ALWAYS blocked by Flutter; we decide manually below.
+      // This prevents the user leaving the game screen while:
+      //   • a full-screen interstitial ad is visible
+      //   • a level-complete overlay is showing
+      //   • the gift-screen overlay is showing
+      //   • the hearts-over overlay is showing
+      // In all other states the back press behaves normally (saves score + pops).
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) controller.persistScoreOnExit();
+        if (didPop) return; // canPop:false → didPop is always false
+        final adSvc = Get.find<AdService>();
+        final blocked = adSvc.isAdShowing.value          // interstitial on screen
+            || controller.showLevelComplete.value         // level-complete card
+            || controller.showGiftScreen.value            // gift overlay
+            || controller.isHeartsOver.value;             // hearts-over dialog
+        if (blocked) return;                              // swallow the back press
+        controller.persistScoreOnExit();
+        Get.back();
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF87CEEB),

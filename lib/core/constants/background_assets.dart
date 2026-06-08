@@ -25,7 +25,7 @@ class BgAssets {
     '${_base}bs_morning.png',
   ];
 
-  // ── Premium backgrounds (32) ──────────────────────────────────────────────
+  // ── Premium backgrounds (36) ──────────────────────────────────────────────
   static const List<String> premium = [
     '${_base}premium_bg_01.png',
     '${_base}premium_bg_02.png',
@@ -77,8 +77,8 @@ class BgAssets {
 
 // ─── Background style enum ────────────────────────────────────────────────────
 //
-// 14 free entries  (index 0-13)  → coinCost = 0
-// 32 premium entries (index 14-45) → coinCost = 100
+// 14 free entries   (index 0-13)  → coinCost = 0  (only index 0 is actually free now)
+// 36 premium entries (index 14-49) → coinCost = 100
 //
 // The key == enum .name so it round-trips cleanly through GetStorage.
 

@@ -2,7 +2,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../data/models/level_config.dart';
+import '../../data/services/ad_service.dart';
 import '../controllers/game_controller.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -126,22 +128,34 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
           ),
         ),
 
-        // ── Main card ────────────────────────────────────────────────────
-        Center(
-          child: AnimatedBuilder(
-            animation: _cardCtrl,
-            builder: (_, child) => FadeTransition(
-              opacity: _cardFade,
-              child: Transform.scale(scale: _cardScale.value, child: child),
-            ),
-            child: _LevelCard(
-              ctrl: ctrl,
-              celebCtrl: _celebCtrl,
-              scoreAnim: _scoreAnim,
-              btnFade: _btnFade,
-              btnSlide: _btnSlide,
+        // ── Main card (leaves room for the banner below) ─────────────────
+        Positioned(
+          top: 0, left: 0, right: 0,
+          // Keep enough bottom space so the card never hides behind the banner.
+          bottom: AdSize.banner.height.toDouble() + 2,
+          child: Center(
+            child: AnimatedBuilder(
+              animation: _cardCtrl,
+              builder: (_, child) => FadeTransition(
+                opacity: _cardFade,
+                child: Transform.scale(scale: _cardScale.value, child: child),
+              ),
+              child: _LevelCard(
+                ctrl: ctrl,
+                celebCtrl: _celebCtrl,
+                scoreAnim: _scoreAnim,
+                btnFade: _btnFade,
+                btnSlide: _btnSlide,
+              ),
             ),
           ),
+        ),
+
+        // ── Banner ad pinned to the bottom ───────────────────────────────
+        // Shown on the "Next Level" card as required.
+        const Positioned(
+          bottom: 0, left: 0, right: 0,
+          child: _LevelCompleteBanner(),
         ),
       ],
     );
@@ -568,6 +582,29 @@ class _CelebParticle {
     Color(0xFFFF4D6D), Color(0xFF43E97B), Color(0xFFFF8C00),
   ];
 }
+
+// ─── Banner ad shown at the bottom of the level-complete overlay ─────────────
+
+class _LevelCompleteBanner extends StatelessWidget {
+  const _LevelCompleteBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final adSvc = Get.find<AdService>();
+    return Obx(() {
+      final loaded = adSvc.isBannerLoaded.value;
+      final ad     = adSvc.bannerAd;
+      if (!loaded || ad == null) return const SizedBox.shrink();
+      return Container(
+        height: ad.size.height.toDouble(),
+        color: Colors.white,
+        child: AdWidget(ad: ad),
+      );
+    });
+  }
+}
+
+// ─── Celebration confetti ─────────────────────────────────────────────────────
 
 class _CelebConfettiPainter extends CustomPainter {
   final List<_CelebParticle> particles;
