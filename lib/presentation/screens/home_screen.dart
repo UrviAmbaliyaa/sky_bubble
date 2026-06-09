@@ -67,7 +67,7 @@ class _HomeUI extends GetView<HomeController> {
           children: [
             SizedBox(height: 1.5.h),
             const _HomeStatsRow(),
-            const Spacer(),
+            Spacer(),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 5.w),
               child: _PlayButton(onPressed: controller.navigateToGame),
@@ -81,34 +81,47 @@ class _HomeUI extends GetView<HomeController> {
                 children: [
                   _OptionsRow(
                     left: _GridPill(
-                      icon: '📊', label: 'PROGRESS',
-                      tintColor: const Color(0xFF8A9060),
+                      iconData: Icons.bar_chart_rounded,
+                      label: 'PROGRESS',
+                      tintColor: const Color(0xFFD0D8E0),
+                      opacity: 0.32,
+                      iconColor: Colors.amber,
                       onTap: controller.navigateToScores,
                     ),
                     right: _GridPill(
-                      icon: '🫧', label: 'STYLE',
-                      tintColor: const Color(0xFF808090),
+                      iconData: Icons.bubble_chart_rounded,
+                      label: 'STYLE',
+                      tintColor: const Color(0xFF7090AA),
+                      opacity: 0.32,
                       onTap: controller.navigateToBubbleStyle,
                     ),
                   ),
                   SizedBox(height: 2.h),
                   _OptionsRow(
                     left: _GridPill(
-                      icon: '🗺', label: 'LEVELS',
-                      tintColor: const Color(0xFF505060),
+                      iconData: Icons.menu_book_rounded,
+                      label: 'LEVELS',
+                      tintColor: const Color(0xFF2850C0),
+                      opacity: 0.32,
                       onTap: controller.navigateToLevels,
                     ),
                     right: _GridPill(
-                      icon: '☀️', label: 'BG',
-                      tintColor: const Color(0xFF905060),
+                      iconData: Icons.wb_sunny_rounded,
+                      label: 'BACKGROUND',
+                      tintColor: const Color(0xFF904888),
+                      opacity: 0.32,
+                      iconColor: Colors.amber,
                       onTap: controller.navigateToBackground,
                     ),
                   ),
                   SizedBox(height: 2.h),
                   _OptionsRow(
                     left: _GridPill(
-                      icon: '💰', label: 'EARN COINS',
-                      tintColor: const Color(0xFF206850),
+                      iconData: Icons.monetization_on_rounded,
+                      label: 'EARN COINS',
+                      tintColor: const Color(0xFF107858),
+                      opacity: 0.32,
+                      iconColor: Colors.amber,
                       onTap: controller.navigateToEarnCoins,
                     ),
                     right: Obx(() {
@@ -249,7 +262,7 @@ class _StatChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 7.5.sp,
             fontWeight: FontWeight.w700,
-            color: chipColor.withOpacity(0.85),
+            color: Colors.black87.withOpacity(0.85),
             letterSpacing: 0.8,
             height: 1.0,
           ),
@@ -286,9 +299,10 @@ class _CoinStatChip extends StatelessWidget {
           'COINS',
           style: TextStyle(
             fontSize: 7.5.sp,
-            fontWeight: FontWeight.w700,
-            color: AppColors.scoreGoldD.withOpacity(0.85),
+            fontWeight: FontWeight.bold,
+            color: Colors.black87.withOpacity(0.85),
             letterSpacing: 0.8,
+
             height: 1.0,
           ),
         ),
@@ -393,17 +407,20 @@ class _OptionsRow extends StatelessWidget {
 }
 
 class _GridPill extends StatelessWidget {
-  final String icon;
+  final IconData iconData;
   final String label;
-  // tintColor: very subtle overlay on the frosted glass — matches screenshot
   final Color tintColor;
+  final double opacity;
+  final Color iconColor;
   final VoidCallback onTap;
 
   const _GridPill({
-    required this.icon,
+    required this.iconData,
     required this.label,
     required this.tintColor,
     required this.onTap,
+    this.opacity   = 0.28,
+    this.iconColor = Colors.white,
   });
 
   @override
@@ -417,15 +434,18 @@ class _GridPill extends StatelessWidget {
           child: Container(
             height: 6.5.h,
             decoration: BoxDecoration(
-              color: tintColor.withOpacity(0.28),
+              color: tintColor.withOpacity(opacity),
               borderRadius: BorderRadius.circular(50),
               border: Border.all(
-                  color: Colors.white.withOpacity(0.35), width: 1.2),
+                color: Colors.white.withOpacity(0.30),
+                width: 1.2,
+              ),
             ),
             padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: Row(
               children: [
-                Text(icon, style: TextStyle(fontSize: 15.sp)),
+                Icon(iconData, color: iconColor, size: 6.w,
+                    shadows: const [Shadow(color: Colors.black54, blurRadius: 6)]),
                 SizedBox(width: 3.w),
                 Expanded(
                   child: Text(
@@ -435,9 +455,7 @@ class _GridPill extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       letterSpacing: 1.0,
-                      shadows: const [
-                        Shadow(color: Colors.black45, blurRadius: 6)
-                      ],
+                      shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
                     ),
                   ),
                 ),
@@ -470,13 +488,14 @@ class _EarnAwardGridPill extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
           child: Container(
-            height: 6.h,
+            height: 6.5.h,
             decoration: BoxDecoration(
-              // Pink/rose tint — matches EARN AWARD pill in screenshot
-              color: const Color(0xFFB06080).withOpacity(0.28),
+              color: const Color(0xFFA83050).withOpacity(0.68),
               borderRadius: BorderRadius.circular(50),
               border: Border.all(
-                  color: Colors.white.withOpacity(0.35), width: 1.2),
+                color: Colors.white.withOpacity(0.30),
+                width: 1.2,
+              ),
             ),
             padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: busy
@@ -489,7 +508,9 @@ class _EarnAwardGridPill extends StatelessWidget {
                   )
                 : Row(
                     children: [
-                      Text('🏅', style: TextStyle(fontSize: 15.sp)),
+                      Icon(Icons.emoji_events_rounded,
+                          color: Colors.amber, size: 6.w,
+                          shadows: const [Shadow(color: Colors.black54, blurRadius: 6)]),
                       SizedBox(width: 3.w),
                       Expanded(
                         child: Text(
@@ -499,9 +520,7 @@ class _EarnAwardGridPill extends StatelessWidget {
                             fontWeight: FontWeight.w900,
                             color: Colors.white,
                             letterSpacing: 1.0,
-                            shadows: const [
-                              Shadow(color: Colors.black45, blurRadius: 6)
-                            ],
+                            shadows: const [Shadow(color: Colors.black54, blurRadius: 6)],
                           ),
                         ),
                       ),

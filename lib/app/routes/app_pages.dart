@@ -29,7 +29,7 @@ class AppPages {
       name: AppRoutes.game,
       page: () => const GameScreen(),
       binding: GameBinding(),
-      transition: Transition.zoom,
+      transition: Transition.rightToLeft,
     ),
     GetPage(
       name: AppRoutes.score,

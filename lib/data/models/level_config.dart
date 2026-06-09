@@ -24,11 +24,11 @@ class LevelConfig {
     required this.scoreThreshold,
   });
 
-  // ─── Per-level score target (start 1000, +200 per level) ──────────────────
+  // ─── Per-level score target (start 1000, +1000 per level) ─────────────────
   //
-  // Level 1 → pop 1000 pts, Level 2 → 1200 pts, Level N → 1000 + (N-1)*200 pts.
-  // Score comes purely from popping bubbles (each bubble = its point value).
-  static int scoreTargetForLevel(int level) => 100 + (level - 1) * 200;
+  // Level 1 → 1000 pts, Level 2 → 2000 pts, Level N → N * 1000 pts.
+  // Score resets to 0 at the start of each level.
+  static int scoreTargetForLevel(int level) => level * 1000;
 
   // ─── Maximum time per level ─────────────────────────────────────────────────
   // If the player hasn't reached the score target within 15 minutes the level

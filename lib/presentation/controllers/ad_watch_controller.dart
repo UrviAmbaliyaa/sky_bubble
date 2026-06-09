@@ -69,8 +69,10 @@ class AdWatchController extends GetxController {
     if (!isRunning.value) return;
     isRunning.value = false;
     Get.find<StyleService>().addCoins(coinReward);
-    // Navigate all the way back to home, removing this screen from the stack.
-    Get.until((route) => route.settings.name == AppRoutes.home);
+    // Navigate to home, clearing the entire back stack so the user is never
+    // stranded. Get.until() can silently pop everything if the home route
+    // isn't found; Get.offAllNamed() always lands on home unconditionally.
+    Get.offAllNamed(AppRoutes.home);
     Get.snackbar(
       '+$coinReward Coins Earned! 🪙',
       'Thanks for watching — enjoy your coins!',

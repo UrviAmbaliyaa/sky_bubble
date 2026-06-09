@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -9,10 +10,15 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 //  ⚠️  BEFORE RELEASE: replace every test ID below with your real AdMob IDs.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class AdService extends GetxService {
-  // ── Test Ad Unit IDs (Android) — swap before release ──────────────────────
-  static const _bannerAdUnitId       = 'ca-app-pub-3940256099942544/6300978111';
-  static const _interstitialAdUnitId = 'ca-app-pub-3940256099942544/1033173712';
+class AdService extends GetxService with WidgetsBindingObserver {
+  // ── Ad Unit IDs — test in debug, real in release ───────────────────────────
+  static const _bannerAdUnitId = kReleaseMode
+      ? 'ca-app-pub-6979328267625068/8444566416'      // real
+      : 'ca-app-pub-3940256099942544/6300978111';     // test
+
+  static const _interstitialAdUnitId = kReleaseMode
+      ? 'ca-app-pub-6979328267625068/1770512709'      // real
+      : 'ca-app-pub-3940256099942544/1033173712';     // test
 
   // ── Banner state ───────────────────────────────────────────────────────────
   BannerAd?      _bannerAd;
@@ -28,17 +34,69 @@ class AdService extends GetxService {
   final RxBool isAdShowing = false.obs;
 
   // ── Sequential-ad progress (reactive so UI can show "Ad X of 3") ──────────
-  final RxInt  seqAdCurrent = 0.obs;   // how many ads shown so far in this sequence
-  final RxInt  seqAdTotal   = 0.obs;   // total ads in the current sequence
+  final RxInt  seqAdCurrent = 0.obs;
+  final RxInt  seqAdTotal   = 0.obs;
   final RxBool seqRunning   = false.obs;
+
+  // ── Safety: pending callback fired if dismiss event is never received ───────
+  // Tracks a VoidCallback to fire if the app resumes while isAdShowing is true.
+  // This recovers navigation if Google Mobile Ads SDK skips the dismiss event.
+  VoidCallback? _pendingAdDismissed;
+  Timer?        _adSafetyTimer;
 
   // ── Init ───────────────────────────────────────────────────────────────────
 
   Future<AdService> init() async {
     await MobileAds.instance.initialize();
+    WidgetsBinding.instance.addObserver(this);
     _loadBanner();
     _loadInterstitial();
     return this;
+  }
+
+  // ── App lifecycle observer ─────────────────────────────────────────────────
+  // If the app returns to foreground while isAdShowing is true, the ad was
+  // dismissed externally (e.g., system back gesture on some OEMs, or an app
+  // switch) and the dismiss callback may never fire. Force-clear the flag and
+  // invoke the pending callback so navigation is never permanently blocked.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && isAdShowing.value) {
+      // Give the SDK a short grace period to deliver the callback itself.
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (isAdShowing.value) {
+          _forceResolveAd();
+        }
+      });
+    }
+  }
+
+  void _forceResolveAd() {
+    isAdShowing.value = false;
+    _adSafetyTimer?.cancel();
+    _adSafetyTimer = null;
+    final cb = _pendingAdDismissed;
+    _pendingAdDismissed = null;
+    cb?.call();
+  }
+
+  // Start a hard safety timer — even if lifecycle events don't fire (e.g. the
+  // ad is shown in a way that keeps the app in foreground), the timer ensures
+  // the callback fires within 5 minutes so the user is never permanently stuck.
+  void _startSafetyTimer(VoidCallback onDismissed) {
+    _adSafetyTimer?.cancel();
+    _pendingAdDismissed = onDismissed;
+    _adSafetyTimer = Timer(const Duration(minutes: 5), () {
+      if (isAdShowing.value) {
+        _forceResolveAd();
+      }
+    });
+  }
+
+  void _cancelSafetyTimer() {
+    _adSafetyTimer?.cancel();
+    _adSafetyTimer = null;
+    _pendingAdDismissed = null;
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -103,14 +161,18 @@ class AdService extends GetxService {
         onAdLoaded: (ad) {
           ad.setImmersiveMode(true);
           isAdShowing.value = true;
+          _startSafetyTimer(onDismissed);
+
           ad.fullScreenContentCallback = FullScreenContentCallback(
             onAdDismissedFullScreenContent: (a) {
               a.dispose();
+              _cancelSafetyTimer();
               isAdShowing.value = false;
               onDismissed();
             },
             onAdFailedToShowFullScreenContent: (a, _) {
               a.dispose();
+              _cancelSafetyTimer();
               isAdShowing.value = false;
               onFailure();
             },
@@ -135,15 +197,19 @@ class AdService extends GetxService {
     _interstitialAd = null;
     isInterstitialLoaded.value = false;
     isAdShowing.value = true;
+    _startSafetyTimer(onDismissed);
+
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (a) {
         a.dispose();
+        _cancelSafetyTimer();
         isAdShowing.value = false;
         _loadInterstitial();
         onDismissed();
       },
       onAdFailedToShowFullScreenContent: (a, _) {
         a.dispose();
+        _cancelSafetyTimer();
         isAdShowing.value = false;
         _loadInterstitial();
         onDismissed();
@@ -190,7 +256,7 @@ class AdService extends GetxService {
     required int remaining,
     required VoidCallback onAllDone,
     required VoidCallback onFailure,
-    InterstitialAd? preloaded,   // pass already-loaded ad to show instantly
+    InterstitialAd? preloaded,
   }) {
     if (remaining <= 0) {
       preloaded?.dispose();
@@ -202,7 +268,16 @@ class AdService extends GetxService {
       ad.setImmersiveMode(true);
       isAdShowing.value = true;
 
-      // Start loading the NEXT ad immediately while this one is on screen.
+      // Safety callback: if the dismiss event never fires, resolve after timeout.
+      _startSafetyTimer(() {
+        seqAdCurrent.value++;
+        if (remaining - 1 <= 0) {
+          onAllDone();
+        } else {
+          onFailure();
+        }
+      });
+
       InterstitialAd? nextAd;
       bool nextLoaded = false;
       bool currentDismissed = false;
@@ -222,11 +297,8 @@ class AdService extends GetxService {
             preloaded: nextAd,
           );
         }
-        // If nextAd not ready yet, proceedToNext was called early — the
-        // onAdLoaded callback below will fire and call _showNextInSequence.
       }
 
-      // Kick off the pre-load of ad N+1.
       if (remaining - 1 > 0) {
         InterstitialAd.load(
           adUnitId: _interstitialAdUnitId,
@@ -236,15 +308,13 @@ class AdService extends GetxService {
               nextAd = next;
               nextLoaded = true;
               if (currentDismissed) {
-                // Current ad already dismissed — show next immediately.
                 proceedToNext();
               }
             },
             onAdFailedToLoad: (_) {
-              if (currentDismissed) onFailure();
-              // else: set a flag and handle in dismiss callback
-              nextLoaded = true; // mark as "done" so dismiss knows to fail
+              nextLoaded = true;
               nextAd = null;
+              if (currentDismissed) onFailure();
             },
           ),
         );
@@ -253,6 +323,7 @@ class AdService extends GetxService {
       ad.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (a) {
           a.dispose();
+          _cancelSafetyTimer();
           isAdShowing.value = false;
           currentDismissed = true;
           if (remaining - 1 <= 0) {
@@ -264,14 +335,13 @@ class AdService extends GetxService {
             if (nextAd != null) {
               proceedToNext();
             } else {
-              // Next ad failed to load
               onFailure();
             }
           }
-          // If nextLoaded is false, the preload callback will call proceedToNext.
         },
         onAdFailedToShowFullScreenContent: (a, _) {
           a.dispose();
+          _cancelSafetyTimer();
           isAdShowing.value = false;
           onFailure();
         },
@@ -284,7 +354,6 @@ class AdService extends GetxService {
       return;
     }
 
-    // No preloaded ad — load fresh (first ad in sequence).
     InterstitialAd.load(
       adUnitId: _interstitialAdUnitId,
       request: const AdRequest(),
@@ -297,6 +366,8 @@ class AdService extends GetxService {
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _adSafetyTimer?.cancel();
     _bannerAd?.dispose();
     _interstitialAd?.dispose();
     super.onClose();

@@ -373,8 +373,9 @@ class GameController extends GetxController with WidgetsBindingObserver {
   /// Called by the "Next Level" button on the level-complete overlay.
   void continueAfterLevelComplete() {
     showLevelComplete.value = false;
-    // Clear any leftover bubbles so the new level starts with a clean screen.
+    // Clear any leftover bubbles and reset score so the new level starts from 0.
     bubbles.clear();
+    score.value = 0;
     _lastSpeedRampScore = 0;
     levelUpMessage.value = '🚀 Level ${level.value} — ${_skinName(level.value)}';
     Future.delayed(const Duration(seconds: 2), () {
@@ -716,7 +717,6 @@ class GameController extends GetxController with WidgetsBindingObserver {
     // Award 3 coins for completing the level.
     Get.find<StyleService>().addCoins(3);
     level.value++;
-    // Keep score — do NOT reset to 0.
     _scoreSaved  = false;
     lives.value  = 3;
     Get.find<StyleService>().updateCurrentLevel(level.value);

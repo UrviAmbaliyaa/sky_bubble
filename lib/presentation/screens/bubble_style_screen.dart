@@ -845,12 +845,12 @@ void showUnlockDialog(
                     onPressed: () {
                       final success = svc.unlockStyle(style);
                       if (!success) {
-                        Navigator.of(context).pop();
+                        Get.back();
                         return;
                       }
                       Get.find<AdService>().showInterstitial(
                         onDismissed: () {
-                          Navigator.of(context).pop();
+                          Get.back();
                           svc.setStyle(style);
                           Get.snackbar(
                             '${style.emoji} Unlocked!',

@@ -237,7 +237,7 @@ class _GameHUD extends StatelessWidget {
                     Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 5.5.w),
                     SizedBox(width: 1.5.w),
                     Text(
-                      '${controller.score.value}',
+                      '21434${controller.score.value}',
                       style: TextStyle(fontSize: 15.5.sp, fontWeight: FontWeight.w900, color: AppColors.textDark),
                     ),
                   ],
@@ -253,7 +253,7 @@ class _GameHUD extends StatelessWidget {
                     Icon(Icons.trending_up_rounded, color: AppColors.levelGreen, size: 5.w),
                     SizedBox(width: 1.w),
                     Text(
-                      'LVL ${controller.level.value}',
+                      'L ${controller.level.value}',
                       style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: AppColors.levelGreen),
                     ),
                   ],

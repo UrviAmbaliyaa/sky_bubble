@@ -162,6 +162,32 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
   }
 }
 
+// ─── Level-specific color palette ────────────────────────────────────────────
+
+class _LevelTheme {
+  final Color primary;
+  final Color secondary;
+  final String trophy;
+
+  const _LevelTheme({required this.primary, required this.secondary, required this.trophy});
+
+  // 10 rotating themes — cycles every 10 levels
+  static const _themes = [
+    _LevelTheme(primary: Color(0xFF6C63FF), secondary: Color(0xFF48CAE4), trophy: '🏆'), // purple-cyan
+    _LevelTheme(primary: Color(0xFFFF6B6B), secondary: Color(0xFFFFE66D), trophy: '🔥'), // red-yellow
+    _LevelTheme(primary: Color(0xFF43E97B), secondary: Color(0xFF38F9D7), trophy: '🌿'), // green-teal
+    _LevelTheme(primary: Color(0xFFFF8C00), secondary: Color(0xFFFFD700), trophy: '⭐'), // orange-gold
+    _LevelTheme(primary: Color(0xFFE040FB), secondary: Color(0xFFFF80AB), trophy: '💜'), // purple-pink
+    _LevelTheme(primary: Color(0xFF00B4DB), secondary: Color(0xFF0083B0), trophy: '🌊'), // ocean blue
+    _LevelTheme(primary: Color(0xFFF7971E), secondary: Color(0xFFFFD200), trophy: '🌟'), // amber-gold
+    _LevelTheme(primary: Color(0xFFCB2D3E), secondary: Color(0xFFEF473A), trophy: '💎'), // crimson
+    _LevelTheme(primary: Color(0xFF11998E), secondary: Color(0xFF38EF7D), trophy: '🌈'), // emerald
+    _LevelTheme(primary: Color(0xFF4776E6), secondary: Color(0xFF8E54E9), trophy: '🚀'), // blue-violet
+  ];
+
+  static _LevelTheme forLevel(int level) => _themes[(level - 1) % _themes.length];
+}
+
 // ─── Main card ────────────────────────────────────────────────────────────────
 
 class _LevelCard extends StatelessWidget {
@@ -189,6 +215,8 @@ class _LevelCard extends StatelessWidget {
       final nextLv   = ctrl.level.value;
       final hearts   = ctrl.lives.value;
       final target   = LevelConfig.scoreTargetForLevel(doneLv);
+      final theme    = _LevelTheme.forLevel(doneLv);
+      final nextTheme = _LevelTheme.forLevel(nextLv);
 
       return Container(
         margin: EdgeInsets.symmetric(horizontal: 5.w),
@@ -197,7 +225,7 @@ class _LevelCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(32),
           boxShadow: [
             BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 40, offset: const Offset(0, 16)),
-            BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.12), blurRadius: 30, offset: const Offset(0, 8)),
+            BoxShadow(color: theme.primary.withOpacity(0.18), blurRadius: 30, offset: const Offset(0, 8)),
           ],
         ),
         child: ClipRRect(
@@ -206,7 +234,7 @@ class _LevelCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               // ── Gradient header ──────────────────────────────────────────
-              _CardHeader(doneLv: doneLv, celebCtrl: celebCtrl, skinName: _skin(doneLv)),
+              _CardHeader(doneLv: doneLv, celebCtrl: celebCtrl, skinName: _skin(doneLv), theme: theme),
 
               // ── Body ─────────────────────────────────────────────────────
               Padding(
@@ -214,7 +242,7 @@ class _LevelCard extends StatelessWidget {
                 child: Column(
                   children: [
                     // Score counter
-                    _ScoreCounter(scoreAnim: scoreAnim, target: target),
+                    _ScoreCounter(scoreAnim: scoreAnim, target: target, theme: theme),
                     SizedBox(height: 2.5.h),
 
                     // Stats row
@@ -222,13 +250,13 @@ class _LevelCard extends StatelessWidget {
                       children: [
                         _StatPill(emoji: '❤️', label: 'Hearts', value: '$hearts', color: const Color(0xFFFF4D6D)),
                         SizedBox(width: 3.w),
-                        _StatPill(emoji: '🚀', label: 'Next Level', value: 'LVL $nextLv', color: const Color(0xFF6C63FF)),
+                        _StatPill(emoji: nextTheme.trophy, label: 'Next Level', value: 'LVL $nextLv', color: nextTheme.primary),
                       ],
                     ),
                     SizedBox(height: 2.5.h),
 
                     // Next level badge
-                    _NextLevelBadge(nextLv: nextLv, skinName: _skin(nextLv)),
+                    _NextLevelBadge(nextLv: nextLv, skinName: _skin(nextLv), theme: nextTheme),
                     SizedBox(height: 3.h),
 
                     // Action buttons
@@ -244,7 +272,7 @@ class _LevelCard extends StatelessWidget {
                           children: [
                             _PrimaryBtn(
                               label: 'Next Level →',
-                              colors: const [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                              colors: [theme.primary, theme.secondary],
                               onTap: () => ctrl.continueAfterLevelComplete(),
                             ),
                             SizedBox(height: 1.5.h),
@@ -273,8 +301,9 @@ class _CardHeader extends StatelessWidget {
   final int doneLv;
   final AnimationController celebCtrl;
   final String skinName;
+  final _LevelTheme theme;
 
-  const _CardHeader({required this.doneLv, required this.celebCtrl, required this.skinName});
+  const _CardHeader({required this.doneLv, required this.celebCtrl, required this.skinName, required this.theme});
 
   @override
   Widget build(BuildContext context) {
@@ -290,8 +319,8 @@ class _CardHeader extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color.lerp(const Color(0xFF6C63FF), const Color(0xFF48CAE4), t)!,
-                Color.lerp(const Color(0xFF48CAE4), const Color(0xFF6C63FF), t)!,
+                Color.lerp(theme.primary, theme.secondary, t)!,
+                Color.lerp(theme.secondary, theme.primary, t)!,
               ],
             ),
           ),
@@ -302,7 +331,7 @@ class _CardHeader extends StatelessWidget {
                 angle: math.sin(t * 2 * math.pi) * 0.08,
                 child: Transform.scale(
                   scale: 1.0 + math.sin(t * 2 * math.pi) * 0.06,
-                  child: Text('🏆', style: TextStyle(fontSize: 30.sp)),
+                  child: Text(theme.trophy, style: TextStyle(fontSize: 30.sp)),
                 ),
               ),
               SizedBox(height: 1.h),
@@ -341,7 +370,8 @@ class _CardHeader extends StatelessWidget {
 class _ScoreCounter extends StatelessWidget {
   final Animation<int> scoreAnim;
   final int target;
-  const _ScoreCounter({required this.scoreAnim, required this.target});
+  final _LevelTheme theme;
+  const _ScoreCounter({required this.scoreAnim, required this.target, required this.theme});
 
   @override
   Widget build(BuildContext context) {
@@ -352,9 +382,9 @@ class _ScoreCounter extends StatelessWidget {
           width: double.infinity,
           padding: EdgeInsets.symmetric(vertical: 2.h),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8F0FF),
+            color: theme.primary.withOpacity(0.07),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF6C63FF).withOpacity(0.18), width: 1.5),
+            border: Border.all(color: theme.primary.withOpacity(0.22), width: 1.5),
           ),
           child: Column(
             children: [
@@ -366,11 +396,11 @@ class _ScoreCounter extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.stars_rounded, color: const Color(0xFF6C63FF), size: 6.w),
+                  Icon(Icons.stars_rounded, color: theme.primary, size: 6.w),
                   SizedBox(width: 1.5.w),
                   Text(
                     '${scoreAnim.value}',
-                    style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.w900, color: const Color(0xFF6C63FF)),
+                    style: TextStyle(fontSize: 22.sp, fontWeight: FontWeight.w900, color: theme.primary),
                   ),
                   SizedBox(width: 1.w),
                   Text(
@@ -422,7 +452,8 @@ class _StatPill extends StatelessWidget {
 class _NextLevelBadge extends StatelessWidget {
   final int nextLv;
   final String skinName;
-  const _NextLevelBadge({required this.nextLv, required this.skinName});
+  final _LevelTheme theme;
+  const _NextLevelBadge({required this.nextLv, required this.skinName, required this.theme});
 
   @override
   Widget build(BuildContext context) {
@@ -430,15 +461,15 @@ class _NextLevelBadge extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.symmetric(vertical: 1.5.h, horizontal: 4.w),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF48CAE4), Color(0xFF6C63FF)],
+        gradient: LinearGradient(
+          colors: [theme.secondary, theme.primary],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6C63FF).withOpacity(0.35),
+            color: theme.primary.withOpacity(0.35),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -447,7 +478,7 @@ class _NextLevelBadge extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('🚀', style: TextStyle(fontSize: 14.sp)),
+          Text(theme.trophy, style: TextStyle(fontSize: 14.sp)),
           SizedBox(width: 2.w),
           Text(
             'Level $nextLv — $skinName',
