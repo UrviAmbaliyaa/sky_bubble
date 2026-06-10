@@ -112,7 +112,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
-        // App going to background / screen locked — pause if actively running.
+        // App going to background / screen locked — pause and show pause overlay.
         if (isGameRunning.value && !isPaused.value) {
           isPaused.value      = true;
           isGameRunning.value = false;
@@ -120,17 +120,22 @@ class GameController extends GetxController with WidgetsBindingObserver {
         }
         break;
       case AppLifecycleState.resumed:
-        // App is back in the foreground — resume only if we auto-paused it
-        // (don't resume if the player manually paused or the game is over).
-        if (isPaused.value && !isGameOver.value && !isHeartsOver.value) {
-          isPaused.value      = false;
-          isGameRunning.value = true;
-          _startGameLoop();
-        }
+        // App returns to foreground — keep the pause overlay visible so the
+        // player consciously taps Resume rather than being thrown back in-game.
+        // Do nothing here; the overlay stays until the player dismisses it.
         break;
       case AppLifecycleState.detached:
         break;
     }
+  }
+
+  /// Pause the game due to a navigation gesture (back-swipe, bottom nav bar).
+  /// Stops the game loop and raises the pause overlay without exiting the screen.
+  void pauseForNavigation() {
+    if (!isGameRunning.value || isPaused.value) return;
+    isGameRunning.value = false;
+    isPaused.value      = true;
+    _cancelTimers();
   }
 
   void setScreenSize(Size size) {

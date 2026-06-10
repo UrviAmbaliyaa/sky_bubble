@@ -72,7 +72,7 @@ class AdWatchController extends GetxController {
     // Navigate to home, clearing the entire back stack so the user is never
     // stranded. Get.until() can silently pop everything if the home route
     // isn't found; Get.offAllNamed() always lands on home unconditionally.
-    Get.offAllNamed(AppRoutes.home);
+    Get.offAllNamed(AppRoutes.home, arguments: {'skipAnimation': true});
     Get.snackbar(
       '+$coinReward Coins Earned! 🪙',
       'Thanks for watching — enjoy your coins!',

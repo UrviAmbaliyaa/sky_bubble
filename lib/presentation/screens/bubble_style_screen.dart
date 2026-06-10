@@ -2,8 +2,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/bubble_styles.dart';
+import '../../data/models/level_config.dart';
 import '../../data/models/bubble_model.dart';
 import '../../data/services/ad_service.dart';
 import '../widgets/coin_display.dart';
@@ -78,7 +80,7 @@ class _HeroHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final svc    = Get.find<StyleService>();
-    final heroH  = MediaQuery.of(context).size.height * 0.17;
+    final heroH  = MediaQuery.of(context).size.height * 0.26;
     final topPad = MediaQuery.of(context).padding.top;
 
     return ClipRRect(
@@ -89,12 +91,12 @@ class _HeroHeader extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             // ── Background image ────────────────────────────────────────────
-            Obx(() => Image.asset(
-              svc.currentBgAsset.value,
+            Image.asset(
+              'assets/backgrounds/premium_bg_29.png',
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) =>
                   Container(color: const Color(0xFF1A1A6E)),
-            )),
+            ),
 
             // ── Gradient overlay ────────────────────────────────────────────
             Container(
@@ -156,89 +158,153 @@ class _HeroHeader extends StatelessWidget {
               ),
             ),
 
-            // ── Bottom content: icon + title/subtitle + coin pill ───────────
+            // ── Coin + Awards pill (top-right) ────────────────────────────────
             Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(5.w, 0, 5.w, 3.2.h),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+              top: topPad + 1.5.h,
+              right: 4.w,
+              child: Obx(() {
+                final svc2 = Get.find<StyleService>();
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Icon circle
-                    Container(
-                      width: 13.w, height: 13.w,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.28),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.65), width: 1.2),
+                          ),
+                          child: CoinDisplay(amount: svc2.totalCoins.value, imageSize: 14, fontSize: 12, gap: 4),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF6C63FF).withOpacity(0.55),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Icon(Icons.bubble_chart_rounded,
-                          color: Colors.white, size: 6.w),
-                    ),
-                    SizedBox(width: 3.w),
-                    // Title + subtitle
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Bubble Styles',
-                            style: TextStyle(
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          Text(
-                            'Classic is free · earn 🪙 coins to unlock more',
-                            style: TextStyle(
-                              fontSize: 8.5.sp,
-                              color: Colors.white.withOpacity(0.75),
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                     SizedBox(width: 2.w),
-                    // Coin balance pill
-                    Obx(() {
-                      final svc = Get.find<StyleService>();
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 3.w, vertical: 0.8.h),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.28),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: const Color(0xFFFFD700).withOpacity(0.65),
-                                width: 1.2,
-                              ),
-                            ),
-                            child: CoinDisplay(
-                              amount: svc.totalCoins.value,
-                              imageSize: 14,
-                              fontSize: 12,
-                              gap: 4,
-                            ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.28),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFFF9500).withOpacity(0.80), width: 1.2),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('🏅', style: TextStyle(fontSize: 13, height: 1.0)),
+                              SizedBox(width: 1.w),
+                              Text('${svc2.totalAwards.value}',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0)),
+                            ],
                           ),
                         ),
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ),
+
+            // ── Bottom content: icon + title/subtitle + coin pill + progress ──
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(5.w, 0, 5.w, 2.4.h),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          width: 13.w, height: 13.w,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF6C63FF).withOpacity(0.55),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Icon(Icons.bubble_chart_rounded,
+                              color: Colors.white, size: 6.w),
+                        ),
+                        SizedBox(width: 3.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Bubble Styles',
+                                style: TextStyle(
+                                  fontSize: 18.sp,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              Text(
+                                'Classic is free · earn 🪙 coins to unlock more',
+                                style: TextStyle(
+                                  fontSize: 8.5.sp,
+                                  color: Colors.white.withOpacity(0.75),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 1.4.h),
+                    // ── Stat chips ──────────────────────────────────────────
+                    Obx(() {
+                      final current = svc.currentLevel.value;
+                      return Row(
+                        spacing: 2.4.w,
+                        children: [
+                          Expanded(
+                            child: _HeaderStatChip(
+                              icon: Icons.track_changes_rounded,
+                              label: 'Current',
+                              value: 'Lvl $current',
+                              gradStart: AppColors.levelMapCurrentStart,
+                              gradEnd: AppColors.levelMapCurrentEnd,
+                            ),
+                          ),
+                          Expanded(
+                            child: _HeaderStatChip(
+                              icon: Icons.emoji_events_rounded,
+                              label: 'Target',
+                              value: '${LevelConfig.scoreTargetForLevel(current)} pts',
+                              gradStart: AppColors.levelMapTargetStart,
+                              gradEnd: AppColors.levelMapTargetEnd,
+                            ),
+                          ),
+                          Expanded(
+                            child: _HeaderStatChip(
+                              icon: Icons.lock_rounded,
+                              label: 'Left',
+                              value: '${100 - current + 1} Lvls',
+                              gradStart: AppColors.levelMapLeftStart,
+                              gradEnd: AppColors.levelMapLeftEnd,
+                            ),
+                          ),
+                        ],
                       );
                     }),
                   ],
@@ -267,6 +333,66 @@ class _Orb extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: color.withOpacity(opacity),
+      ),
+    );
+  }
+}
+
+// ─── Stat chip (matches Level Map design) ────────────────────────────────────
+
+class _HeaderStatChip extends StatelessWidget {
+  final IconData icon;
+  final String   label;
+  final String   value;
+  final Color    gradStart;
+  final Color    gradEnd;
+
+  const _HeaderStatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.gradStart,
+    required this.gradEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 2.8.w, vertical: 1.2.h),
+      decoration: BoxDecoration(
+        color: AppColors.levelMapChipBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.levelMapChipBorder, width: 1.0),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8.w, height: 8.w,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [gradStart, gradEnd],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20.sp),
+          ),
+          SizedBox(width: 2.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label,
+                    style: TextStyle(fontSize: 10.sp, color: Colors.white.withOpacity(0.55), fontWeight: FontWeight.w500, height: 1.2)),
+                Text(value,
+                    style: TextStyle(fontSize: 11.sp, color: Colors.white, fontWeight: FontWeight.w800, height: 1.2)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

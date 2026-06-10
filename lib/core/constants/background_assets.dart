@@ -68,6 +68,9 @@ class BgAssets {
   /// All backgrounds combined (free first, then premium).
   static List<String> get all => [...free, ...premium];
 
+  /// Dedicated constant for the Level Map header background.
+  static const String levelMapHeader = '${_base}premium_bg_08.png';
+
   /// Cycles through free backgrounds based on level (used on the level map).
   static String forLevel(int level) => free[(level - 1) % free.length];
 

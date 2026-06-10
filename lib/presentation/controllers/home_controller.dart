@@ -70,11 +70,11 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
       end:   Offset.zero,
     ).animate(CurvedAnimation(parent: entryAnimCtrl, curve: Curves.easeOutCubic));
 
-    // When returning from the game screen the UI should appear instantly at
-    // full opacity. Only run the fade-in for the very first launch.
+    // Skip the entry animation when returning from game or earn-coins screens.
     final args = Get.arguments;
-    final returningFromGame = args is Map && args['fromGame'] == true;
-    if (returningFromGame) {
+    final skipAnim = args is Map &&
+        (args['fromGame'] == true || args['skipAnimation'] == true);
+    if (skipAnim) {
       entryAnimCtrl.value = 1.0; // jump to full opacity — no animation
     } else {
       entryAnimCtrl.forward(); // normal 900 ms fade-in on first open

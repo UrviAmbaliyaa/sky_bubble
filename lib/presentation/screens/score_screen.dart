@@ -5,9 +5,13 @@ import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../app/routes/app_routes.dart';
+import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
+import '../../data/models/level_config.dart';
 import '../../data/models/score_model.dart';
+import '../../data/services/style_service.dart';
 import '../controllers/score_controller.dart';
+import '../widgets/coin_display.dart';
 
 // ════════════════════════════════════════════════════════════════════════════
 //  PROGRESS SCREEN
@@ -73,116 +77,284 @@ class _HeaderBannerState extends State<_HeaderBanner>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(4.w, MediaQuery.of(context).padding.top + 1.5.h, 4.w, 2.h),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1565C0), Color(0xFF4FC3F7), Color(0xFF9C27B0)],
-          stops: [0.0, 0.55, 1.0],
-        ),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-      ),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // floating bubble decorations
-          ..._bubbleDecos(_ctrl.value),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                GestureDetector(
-                  onTap: Get.back,
-                  child: Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.22),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.35)),
+    final svc    = Get.find<StyleService>();
+    final heroH  = MediaQuery.of(context).size.height * 0.26;
+    final topPad = MediaQuery.of(context).padding.top;
+
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(36)),
+      child: SizedBox(
+        height: heroH + topPad,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // ── Game background ─────────────────────────────────────────────
+            Image.asset(
+              'assets/backgrounds/premium_bg_32.png',
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) =>
+                  Container(color: const Color(0xFF1A1A6E)),
+            ),
+
+            // ── Dark scrim ──────────────────────────────────────────────────
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x66000000),
+                    Color(0x22000000),
+                    Color(0xBB000000),
+                    Color(0xFF0D0D1A),
+                  ],
+                  stops: [0.0, 0.35, 0.72, 1.0],
+                ),
+              ),
+            ),
+
+            // ── Decorative orbs ─────────────────────────────────────────────
+            Positioned(top: 5.h, right: -6.w,
+                child: _BannerOrb(size: 26.w, color: const Color(0xFF6C63FF), opacity: 0.22)),
+            Positioned(top: heroH * 0.25, left: -5.w,
+                child: _BannerOrb(size: 18.w, color: const Color(0xFF48CAE4), opacity: 0.18)),
+
+            // ── Back button ─────────────────────────────────────────────────
+            Positioned(
+              top: topPad + 1.5.h, left: 4.w,
+              child: GestureDetector(
+                onTap: () => Get.back(),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(
+                      width: 11.w, height: 11.w,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.25),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withOpacity(0.50), width: 1.2),
+                      ),
+                      child: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 4.8.w),
                     ),
-                    child: const Icon(Icons.arrow_back_ios_new_rounded,
-                        color: Colors.white, size: 18),
                   ),
                 ),
-                SizedBox(width: 3.w),
-                Text(
-                  '🏆  My Progress',
-                  style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w900, color: Colors.white),
+              ),
+            ),
+
+            // ── Coin + Awards pill (top-right) ────────────────────────────────
+            Positioned(
+              top: topPad + 1.5.h,
+              right: 4.w,
+              child: Obx(() => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.28),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.65), width: 1.2),
+                        ),
+                        child: CoinDisplay(amount: svc.totalCoins.value, imageSize: 14, fontSize: 12, gap: 4),
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 2.w),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.28),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFFF9500).withOpacity(0.80), width: 1.2),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🏅', style: TextStyle(fontSize: 13, height: 1.0)),
+                            SizedBox(width: 1.w),
+                            Text('${svc.totalAwards.value}',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )),
+            ),
+
+            // ── Bottom: title + stats + progress bar ────────────────────────
+            Positioned(
+              bottom: 0, left: 0, right: 0,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(5.w, 0, 5.w, 2.4.h),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Title row
+                    Row(
+                      children: [
+                        Container(
+                          width: 13.w, height: 13.w,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.55), blurRadius: 16, offset: const Offset(0, 4))],
+                          ),
+                          child: Icon(Icons.bar_chart_rounded, color: Colors.white, size: 6.w),
+                        ),
+                        SizedBox(width: 3.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('My Progress',
+                                  style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.3)),
+                              // Stats inline
+                              Obx(() => Text(
+                                '⭐ Best ${widget.controller.globalBest.value}  •  🎮 ${widget.controller.allDateSummaries.fold(0, (s, d) => s + d.gamesPlayed)} games',
+                                style: TextStyle(fontSize: 8.5.sp, color: Colors.white.withOpacity(0.75), height: 1.4),
+                              )),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 1.4.h),
+                    // ── Stat chips ────────────────────────────────────────
+                    Obx(() {
+                      final current = svc.currentLevel.value;
+                      return Row(
+                        spacing: 2.4.w,
+                        children: [
+                          Expanded(
+                            child: _ScoreStatChip(
+                              icon: Icons.track_changes_rounded,
+                              label: 'Current',
+                              value: 'Lvl $current',
+                              gradStart: AppColors.levelMapCurrentStart,
+                              gradEnd: AppColors.levelMapCurrentEnd,
+                            ),
+                          ),
+                          Expanded(
+                            child: _ScoreStatChip(
+                              icon: Icons.emoji_events_rounded,
+                              label: 'Target',
+                              value: '${LevelConfig.scoreTargetForLevel(current)} pts',
+                              gradStart: AppColors.levelMapTargetStart,
+                              gradEnd: AppColors.levelMapTargetEnd,
+                            ),
+                          ),
+                          Expanded(
+                            child: _ScoreStatChip(
+                              icon: Icons.lock_rounded,
+                              label: 'Left',
+                              value: '${100 - current + 1} Lvls',
+                              gradStart: AppColors.levelMapLeftStart,
+                              gradEnd: AppColors.levelMapLeftEnd,
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ],
                 ),
-                const Spacer(),
-                const Icon(Icons.bubble_chart_rounded, color: Colors.white, size: 28),
-              ]),
-              SizedBox(height: 2.h),
-              // Stats row
-              Obx(() => Row(children: [
-                _HeaderStat(emoji: '⭐', label: 'Best Score',
-                    value: widget.controller.globalBest.value == 0
-                        ? '0' : '${widget.controller.globalBest.value}'),
-                const SizedBox(width: 10),
-                _HeaderStat(emoji: '🎮', label: 'Total Games',
-                    value: '${widget.controller.allDateSummaries.fold(0, (s, d) => s + d.gamesPlayed)}'),
-                const SizedBox(width: 10),
-                _HeaderStat(emoji: '📅', label: 'Days Played',
-                    value: '${widget.controller.allDateSummaries.length}'),
-              ])),
-            ],
-          ),
-        ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  static List<Widget> _bubbleDecos(double t) {
-    const specs = [
-      [0.85, 0.15, 22.0, Color(0x33FFFFFF)],
-      [0.70, 0.60, 14.0, Color(0x22FFFFFF)],
-      [0.92, 0.80, 18.0, Color(0x1AFFFFFF)],
-      [0.60, 0.10, 10.0, Color(0x2AFFFFFF)],
-    ];
-    return specs.map((s) {
-      final x = s[0] as double;
-      final y = s[1] as double;
-      final r = s[2] as double;
-      final c = s[3] as Color;
-      final dy = math.sin(t * math.pi * 2 + x * 3) * 6;
-      return Positioned(
-        right: x * 80,
-        top: y * 60 + dy,
-        child: Container(
-          width: r * 2, height: r * 2,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: c),
-        ),
-      );
-    }).toList();
-  }
 }
 
-class _HeaderStat extends StatelessWidget {
-  final String emoji, label, value;
-  const _HeaderStat({required this.emoji, required this.label, required this.value});
+// ─── Orb helper ───────────────────────────────────────────────────────────────
+
+class _BannerOrb extends StatelessWidget {
+  final double size;
+  final Color  color;
+  final double opacity;
+  const _BannerOrb({required this.size, required this.color, required this.opacity});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.18),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.30)),
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(emoji, style: const TextStyle(fontSize: 26)),
-          const SizedBox(height: 3),
-          Text(value,
-              style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0),
-              textAlign: TextAlign.center),
-          Text(label,
-              style: TextStyle(fontSize: 12.sp, color: Colors.white.withOpacity(0.85), fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center),
-        ]),
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withOpacity(opacity)),
+    );
+  }
+}
+
+// ─── Stat chip (matches Level Map design) ────────────────────────────────────
+
+class _ScoreStatChip extends StatelessWidget {
+  final IconData icon;
+  final String   label;
+  final String   value;
+  final Color    gradStart;
+  final Color    gradEnd;
+
+  const _ScoreStatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.gradStart,
+    required this.gradEnd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 2.8.w, vertical: 1.2.h),
+      decoration: BoxDecoration(
+        color: AppColors.levelMapChipBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.levelMapChipBorder, width: 1.0),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8.w, height: 8.w,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [gradStart, gradEnd],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20.sp),
+          ),
+          SizedBox(width: 2.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(label,
+                    style: TextStyle(fontSize: 10.sp, color: Colors.white.withOpacity(0.55), fontWeight: FontWeight.w500, height: 1.2)),
+                Text(value,
+                    style: TextStyle(fontSize: 11.sp, color: Colors.white, fontWeight: FontWeight.w800, height: 1.2)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

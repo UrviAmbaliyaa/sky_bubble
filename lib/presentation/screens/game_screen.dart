@@ -20,24 +20,23 @@ class GameScreen extends GetView<GameController> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      // Back button is ALWAYS blocked by Flutter; we decide manually below.
-      // This prevents the user leaving the game screen while:
-      //   • a full-screen interstitial ad is visible
-      //   • a level-complete overlay is showing
-      //   • the gift-screen overlay is showing
-      //   • the hearts-over overlay is showing
-      // In all other states the back press behaves normally (saves score + pops).
+      // Back / swipe-back is ALWAYS intercepted so we can pause first.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return; // canPop:false → didPop is always false
+        if (didPop) return;
         final adSvc = Get.find<AdService>();
-        final blocked = adSvc.isAdShowing.value          // interstitial on screen
-            || controller.showLevelComplete.value         // level-complete card
-            || controller.showGiftScreen.value            // gift overlay
-            || controller.isHeartsOver.value;             // hearts-over dialog
-        if (blocked) return;                              // swallow the back press
-        controller.persistScoreOnExit();
-        Get.back();
+        // Hard-block while overlays that have their own exit paths are visible.
+        final blocked = adSvc.isAdShowing.value
+            || controller.showLevelComplete.value
+            || controller.showGiftScreen.value
+            || controller.isHeartsOver.value
+            || controller.isGameOver.value;
+        if (blocked) return;
+        // If already showing pause overlay the user used the back gesture again
+        // while paused — treat it as a no-op (they must tap Go Home instead).
+        if (controller.isPaused.value) return;
+        // Pause the game and show the pause overlay instead of exiting.
+        controller.pauseForNavigation();
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF87CEEB),
