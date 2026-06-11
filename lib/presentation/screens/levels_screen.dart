@@ -133,15 +133,30 @@ class _LevelNode extends StatelessWidget {
           final pool    = _availablePool(svc);
           final bgAsset = pool[(level - 1) % pool.length];
           final nodeSize = 16.w;
-          return SizedBox(
-            width: nodeSize,
-            height: nodeSize,
-            child: _NodeBody(
-              level:    level,
-              state:    state,
-              bgAsset:  bgAsset,
-              nodeSize: nodeSize,
-            ),
+          final isCurrent = state == _NodeState.current;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: nodeSize,
+                height: nodeSize,
+                child: _NodeBody(
+                  level:    level,
+                  state:    state,
+                  bgAsset:  bgAsset,
+                  nodeSize: nodeSize,
+                ),
+              ),
+              SizedBox(height: 0.4.h),
+              Text(
+                '$level',
+                style: TextStyle(
+                  fontSize: 9.5.sp,
+                  fontWeight: FontWeight.w800,
+                  color: isCurrent ? const Color(0xFF6C63FF) : const Color(0xFF444466),
+                ),
+              ),
+            ],
           );
         }),
       ),
@@ -168,6 +183,7 @@ class _NodeBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
+      alignment: Alignment.center,
       children: [
         // Background image — always fully visible
         ClipOval(
@@ -181,11 +197,11 @@ class _NodeBody extends StatelessWidget {
 
         // State overlay
         if (state == _NodeState.done)
-          _DoneOverlay(nodeSize: nodeSize, level: level)
+          Center(child: _DoneOverlay(nodeSize: nodeSize, level: level))
         else if (state == _NodeState.current)
-          _CurrentOverlay(nodeSize: nodeSize, level: level)
+          Center(child: _CurrentOverlay(nodeSize: nodeSize, level: level))
         else
-          _LockedOverlay(nodeSize: nodeSize, level: level),
+          Center(child: _LockedOverlay(nodeSize: nodeSize, level: level)),
 
         // Outer ring — no shadows
         _NodeRing(state: state),
@@ -216,33 +232,17 @@ class _DoneOverlay extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Level number — top-left badge
-        Positioned(
-          top: nodeSize * 0.06,
-          left: nodeSize * 0.08,
-          child: Text(
-            '$level',
-            style: TextStyle(
-              fontSize: nodeSize * 0.20,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-            ),
-          ),
-        ),
-        // Checkmark — bottom-right
-        Positioned(
-          bottom: nodeSize * 0.06,
-          right:  nodeSize * 0.06,
+        // Checkmark — centred
+        Center(
           child: Container(
-            width:  nodeSize * 0.36,
-            height: nodeSize * 0.36,
+            width:  nodeSize * 0.44,
+            height: nodeSize * 0.44,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: Color(0xFF43E97B),
             ),
             child: Icon(Icons.check_rounded,
-                color: Colors.white, size: nodeSize * 0.22),
+                color: Colors.white, size: nodeSize * 0.28),
           ),
         ),
       ],
@@ -262,41 +262,21 @@ class _CurrentOverlay extends StatelessWidget {
     return ClipOval(
       child: Container(
         color: Colors.black.withValues(alpha: 0.22),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Level number — top-left
-            Positioned(
-              top:  nodeSize * 0.06,
-              left: nodeSize * 0.08,
-              child: Text(
-                '$level',
-                style: TextStyle(
-                  fontSize: nodeSize * 0.20,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-                ),
+        child: Center(
+          child: Container(
+            width:  nodeSize * 0.52,
+            height: nodeSize * 0.52,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-            // Play button — centred
-            Center(
-              child: Container(
-                width:  nodeSize * 0.52,
-                height: nodeSize * 0.52,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                child: Icon(Icons.play_arrow_rounded,
-                    color: Colors.white, size: nodeSize * 0.34),
-              ),
-            ),
-          ],
+            child: Icon(Icons.play_arrow_rounded,
+                color: Colors.white, size: nodeSize * 0.34),
+          ),
         ),
       ),
     );
@@ -318,20 +298,6 @@ class _LockedOverlay extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Level number — top-left
-            Positioned(
-              top:  nodeSize * 0.06,
-              left: nodeSize * 0.08,
-              child: Text(
-                '$level',
-                style: TextStyle(
-                  fontSize: nodeSize * 0.20,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white.withValues(alpha: 0.88),
-                  shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-                ),
-              ),
-            ),
             // Lock icon — centred
             Center(
               child: Icon(

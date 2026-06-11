@@ -87,6 +87,13 @@ class MoreOptionsScreen extends GetView<MoreOptionsController> {
                           gradientColors: const [Color(0xFF2193b0), Color(0xFF6dd5ed)],
                           onTap: controller.navigateToHelpSupport,
                         ),
+                        SizedBox(height: 2.h),
+                        _OptionTile(
+                          emoji: '🔒',
+                          label: 'PRIVACY POLICY',
+                          gradientColors: const [Color(0xFF373B44), Color(0xFF4286f4)],
+                          onTap: controller.navigateToPrivacyPolicy,
+                        ),
                         SizedBox(height: 3.h),
                       ],
                     ),

@@ -4,7 +4,6 @@ import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/constants/background_assets.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/sound_service.dart';
 import '../../data/services/style_service.dart';
@@ -193,15 +192,21 @@ class _BannerAdWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final adSvc = Get.find<AdService>();
+    final adSvc   = Get.find<AdService>();
+    final topPad  = MediaQuery.of(context).padding.top; // status-bar height
     return Obx(() {
       if (!adSvc.isBannerLoaded.value || adSvc.bannerAd == null) {
         return const SizedBox.shrink();
       }
-      return SizedBox(
-        width: double.infinity,
-        height: adSvc.bannerAd!.size.height.toDouble(),
-        child: AdWidget(ad: adSvc.bannerAd!),
+      // Offset by status-bar height so the banner is always fully visible
+      // and never hidden under notches or status bar on any device.
+      return Padding(
+        padding: EdgeInsets.only(top: topPad),
+        child: SizedBox(
+          width: double.infinity,
+          height: adSvc.bannerAd!.size.height.toDouble(),
+          child: AdWidget(ad: adSvc.bannerAd!),
+        ),
       );
     });
   }
@@ -215,13 +220,15 @@ class _GameHUD extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final adSvc = Get.find<AdService>();
+    final adSvc  = Get.find<AdService>();
+    final topPad = MediaQuery.of(context).padding.top;
     return Obx(() {
       final bannerH = adSvc.isBannerLoaded.value && adSvc.bannerAd != null
           ? adSvc.bannerAd!.size.height.toDouble()
           : 0.0;
       return Padding(
-        padding: EdgeInsets.fromLTRB(4.w, bannerH + 1.h, 4.w, 1.h),
+        // top = status-bar + banner height + breathing room
+        padding: EdgeInsets.fromLTRB(4.w, topPad + bannerH + 1.h, 4.w, 1.h),
         child: SizedBox(
           height: 10.w,   // single source of truth for all HUD element heights
           child: Row(
@@ -236,7 +243,7 @@ class _GameHUD extends StatelessWidget {
                     Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 5.5.w),
                     SizedBox(width: 1.5.w),
                     Text(
-                      '21434${controller.score.value}',
+                      '${controller.score.value}',
                       style: TextStyle(fontSize: 15.5.sp, fontWeight: FontWeight.w900, color: AppColors.textDark),
                     ),
                   ],
@@ -1065,12 +1072,6 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
       ),
     );
   }
-}
-
-void _closeApp() {
-  // Gracefully pop to the OS home screen.
-  // On Android this minimises; on iOS it does nothing (expected platform behaviour).
-  SystemNavigator.pop();
 }
 
 // ─── Game Over overlay ───────────────────────────────────────────────────────

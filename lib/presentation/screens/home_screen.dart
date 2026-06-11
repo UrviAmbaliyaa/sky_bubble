@@ -3,13 +3,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
-import '../../core/constants/background_assets.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/constants/bubble_styles.dart';
 import '../../data/services/style_service.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/coin_display.dart';
-import '../widgets/glass_button.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  HOME SCREEN

@@ -171,7 +171,7 @@ class _BirdOverlayPainter extends CustomPainter {
   final Color color;
 
   // [xPhase, yFrac, size, speed, flapPhase]
-  static const _defs = [
+  static const List<List<double>> _defs = [
     [0.04, 0.10, 11.0, 1.05, 0.0],
     [0.20, 0.07, 9.0,  1.30, 1.4],
     [0.38, 0.13, 13.0, 0.85, 2.6],
@@ -195,16 +195,13 @@ class _BirdOverlayPainter extends CustomPainter {
     final count = numBirds.clamp(0, _defs.length);
     for (int i = 0; i < count; i++) {
       final d = _defs[i];
-      final rawX = ((d[0] as double) + progress * (d[3] as double) * 1.15) % 1.2;
+      final rawX = (d[0] + progress * d[3] * 1.15) % 1.2;
       final bx = (rawX - 0.1) * s.width;
-      final by = (d[1] as double) * s.height +
-          math.sin(progress * math.pi * 2 * 0.75 + (d[4] as double)) *
-              (d[2] as double) *
-              0.50;
+      final by = d[1] * s.height +
+          math.sin(progress * math.pi * 2 * 0.75 + d[4]) * d[2] * 0.50;
 
-      final flap =
-          math.sin(progress * math.pi * 2 * 4.5 + (d[4] as double)) * 0.40;
-      final sz = d[2] as double;
+      final flap = math.sin(progress * math.pi * 2 * 4.5 + d[4]) * 0.40;
+      final sz = d[2];
 
       final p = Paint()
         ..color = color.withOpacity(0.78)

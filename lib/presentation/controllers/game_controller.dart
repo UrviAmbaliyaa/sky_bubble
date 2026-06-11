@@ -455,16 +455,6 @@ class GameController extends GetxController with WidgetsBindingObserver {
     final rampThreshold = _lastSpeedRampScore + 100;
     if (score.value >= rampThreshold && score.value > 0) {
       _lastSpeedRampScore = (score.value ~/ 100) * 100;
-      // Banner suppressed — speed changes are invisible and gradual.
-      // Uncomment the lines below if you want to restore the "⚡" toast.
-      if (false && levelUpMessage.value.isEmpty) {
-        levelUpMessage.value = '⚡ Speed up!';
-        Future.delayed(const Duration(milliseconds: 1200), () {
-          if (levelUpMessage.value == '⚡ Speed up!') {
-            levelUpMessage.value = '';
-          }
-        });
-      }
     }
   }
 
@@ -560,7 +550,6 @@ class GameController extends GetxController with WidgetsBindingObserver {
     final baseSpd = _screenSize.height * (0.0018 + _random.nextDouble() * 0.0008);
 
     final palette = AppColors.bubbleColorsForLevel(level.value);
-    _sound.playBubbleSpawn();
     bubbles.add(BubbleModel(
       id: 'b${_idCounter++}',
       color: palette[_random.nextInt(palette.length)],
@@ -583,7 +572,6 @@ class GameController extends GetxController with WidgetsBindingObserver {
     final fixedSpeed = _screenSize.height / (8 * 60.0); // always ~8 s crossing
 
     _lastSpecialBubbleTime = DateTime.now();
-    _sound.playBubbleSpawn();
     bubbles.add(BubbleModel(
       id: 'special_${_idCounter++}',
       color: const Color(0xFFFFD700),
@@ -657,15 +645,6 @@ class GameController extends GetxController with WidgetsBindingObserver {
   /// Watch a single interstitial ad for a second chance.
   void getChanceWithAd() {
     Get.find<AdService>().showInterstitial(onDismissed: resetHearts);
-  }
-
-  void _endGame() {
-    isGameRunning.value = false;
-    _cancelTimers();
-    _persistScore();
-    Future.delayed(const Duration(milliseconds: 400), () {
-      isGameOver.value = true;
-    });
   }
 
   void _cancelTimers() {

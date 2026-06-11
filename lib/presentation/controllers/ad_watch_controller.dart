@@ -45,23 +45,25 @@ class AdWatchController extends GetxController {
 
   void _startSequence() {
     Get.find<AdService>().showSequentialInterstitials(
-      count:      totalAds,
-      onAllDone:  _finish,
-      // On any ad failure abort silently and go back — don't leave user stuck.
-      onFailure: () {
-        if (!isRunning.value) return;
-        isRunning.value = false;
-        Get.back();
-        Get.snackbar(
-          'Ad unavailable',
-          'Please try again in a moment.',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Colors.grey.shade800,
-          colorText: Colors.white,
-          borderRadius: 16,
-          margin: const EdgeInsets.all(16),
-        );
-      },
+      count:     totalAds,
+      onAllDone: _finish,
+      onFailure: _onAdFailure,
+    );
+  }
+
+  void _onAdFailure() {
+    if (!isRunning.value) return;
+    isRunning.value = false;
+    Get.back();
+    Get.snackbar(
+      'Ad Unavailable',
+      'No ad available right now. Try again later.',
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.grey.shade800,
+      colorText: Colors.white,
+      borderRadius: 16,
+      margin: const EdgeInsets.all(16),
+      duration: const Duration(seconds: 3),
     );
   }
 

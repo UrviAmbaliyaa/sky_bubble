@@ -1,4 +1,4 @@
-package com.example.bubble_pumping
+package com.pandav.skybubbleburst
 
 import io.flutter.embedding.android.FlutterActivity
 

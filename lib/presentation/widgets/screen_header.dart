@@ -213,8 +213,8 @@ class ScreenHeader extends StatelessWidget {
                                   Text(
                                     subtitle!,
                                     style: TextStyle(
-                                      fontSize: 8.5.sp,
-                                      color: Colors.white.withValues(alpha: 0.75),
+                                      fontSize: 10.5.sp,
+                                      color: Colors.white,
                                       height: 1.4,
                                     ),
                                   ),
@@ -313,22 +313,23 @@ class HeaderStatChip extends StatelessWidget {
                       colors: [gradStart, gradEnd]),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: Colors.white, size: 3.5.w),
+                child: Icon(icon, color: Colors.white, size: 20.sp),
               ),
               SizedBox(width: 2.w),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: TextStyle(
-                          fontSize: 7.sp,
-                          color: Colors.white60,
-                          fontWeight: FontWeight.w500)),
                   Text(value,
                       style: TextStyle(
-                          fontSize: 9.sp,
+                          fontSize: 12.sp,
                           color: Colors.white,
                           fontWeight: FontWeight.w800)),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 9.5.sp,
+                          color: Colors.white60,
+                          fontWeight: FontWeight.w500)),
+                  
                 ],
               ),
             ],

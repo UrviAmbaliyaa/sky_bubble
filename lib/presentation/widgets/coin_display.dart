@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_sizer/flutter_sizer.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  COIN DISPLAY  — reusable coin image + amount widget

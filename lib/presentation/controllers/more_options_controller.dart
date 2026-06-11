@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../app/routes/app_routes.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/style_service.dart';
@@ -11,10 +12,12 @@ import '../widgets/not_enough_coins_dialog.dart';
 //  The screen itself is pure UI — no logic lives there.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ── Replace with your hosted privacy policy URL ────────────────────────────
+const _kPrivacyPolicyUrl = 'https://pandav.github.io/privacy-policy';
+
 class MoreOptionsController extends GetxController {
   // ── Reactive state ─────────────────────────────────────────────────────────
 
-  /// Coins balance — kept reactive so the Earn Award row live-updates.
   int get coins => Get.find<StyleService>().totalCoins.value;
 
   bool get canAffordAward =>
@@ -24,26 +27,31 @@ class MoreOptionsController extends GetxController {
 
   // ── Navigation ──────────────────────────────────────────────────────────────
 
-  void navigateToLevels()     => Get.toNamed(AppRoutes.levels);
-  void navigateToBackground() => Get.toNamed(AppRoutes.backgroundStyle);
-  void navigateToEarnCoins()  => Get.toNamed(AppRoutes.adWatch);
-  void navigateToBubbleStyle()=> Get.toNamed(AppRoutes.bubbleStyle);
+  void navigateToLevels()      => Get.toNamed(AppRoutes.levels);
+  void navigateToBackground()  => Get.toNamed(AppRoutes.backgroundStyle);
+  void navigateToEarnCoins()   => Get.toNamed(AppRoutes.adWatch);
+  void navigateToBubbleStyle() => Get.toNamed(AppRoutes.bubbleStyle);
 
   void navigateToSettings() {
-    // Settings screen placeholder — wire to real route when ready.
-    Get.snackbar(
-      'Settings',
-      'Coming soon!',
-      snackPosition: SnackPosition.TOP,
-    );
+    Get.snackbar('Settings', 'Coming soon!', snackPosition: SnackPosition.TOP);
   }
 
   void navigateToHelpSupport() {
-    Get.snackbar(
-      'Help & Support',
-      'Coming soon!',
-      snackPosition: SnackPosition.TOP,
-    );
+    Get.snackbar('Help & Support', 'Coming soon!', snackPosition: SnackPosition.TOP);
+  }
+
+  Future<void> navigateToPrivacyPolicy() async {
+    final uri = Uri.parse(_kPrivacyPolicyUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      Get.snackbar(
+        'Privacy Policy',
+        _kPrivacyPolicyUrl,
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 5),
+      );
+    }
   }
 
   // ── Earn Award ──────────────────────────────────────────────────────────────

@@ -80,8 +80,9 @@ class BgAssets {
 
 // ─── Background style enum ────────────────────────────────────────────────────
 //
-// 14 free entries   (index 0-13)  → coinCost = 0  (only index 0 is actually free now)
-// 36 premium entries (index 14-49) → coinCost = 100
+// Indices 0-3  (sky, darkSky, galaxy, garden) → FREE, no unlock required
+// Indices 4-13 (gardenGate … bsMorning)       → 100 coins to unlock
+// Indices 14-49 (premium01 … premium36)        → 100 coins to unlock
 //
 // The key == enum .name so it round-trips cleanly through GetStorage.
 
@@ -150,11 +151,11 @@ extension BackgroundStyleInfo on BackgroundStyle {
 
   // ── Pricing ───────────────────────────────────────────────────────────────
 
-  /// Only the very first background (sky) is free; all others cost 100 coins.
-  int get coinCost  => index == 0 ? 0 : 100;
+  /// First 4 backgrounds (sky, darkSky, galaxy, garden) are free; rest cost 100 coins.
+  int get coinCost  => index < 4 ? 0 : 100;
   /// Alternative: unlock with 5 awards instead of coins.
-  int get awardCost => index == 0 ? 0 : 5;
-  bool get isPremium => index > 0;
+  int get awardCost => index < 4 ? 0 : 5;
+  bool get isPremium => index >= 4;
 
   // ── Asset ─────────────────────────────────────────────────────────────────
 

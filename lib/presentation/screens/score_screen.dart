@@ -7,11 +7,8 @@ import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
-import '../../data/models/level_config.dart';
-import '../../data/models/score_model.dart';
-import '../../data/services/style_service.dart';
 import '../controllers/score_controller.dart';
-import '../widgets/coin_display.dart';
+import '../widgets/screen_header.dart';
 
 // ════════════════════════════════════════════════════════════════════════════
 //  PROGRESS SCREEN
@@ -26,7 +23,19 @@ class ScoreScreen extends GetView<ScoreController> {
       backgroundColor: const Color(0xFFF2F6FF),
       body: Column(
         children: [
-          _HeaderBanner(controller: controller),
+          ScreenHeader(
+            backgroundAsset: 'assets/backgrounds/premium_bg_32.png',
+            titleIcon: Icons.bar_chart_rounded,
+            title: 'My Progress',
+            subtitleWidget: Obx(() => Text(
+              '⭐ Best ${controller.globalBest.value}  •  🎮 ${controller.allDateSummaries.fold(0, (s, d) => s + d.gamesPlayed)} games',
+              style: TextStyle(
+                fontSize: 8.5.sp,
+                color: Colors.white.withValues(alpha: 0.75),
+                height: 1.4,
+              ),
+            )),
+          ),
           _TabStrip(controller: controller),
           Expanded(
             child: SafeArea(
@@ -38,320 +47,6 @@ class ScoreScreen extends GetView<ScoreController> {
                   default: return _MonthTab(ctrl: controller);
                 }
               }),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  HEADER BANNER  — gradient with floating bubbles + key stats
-// ════════════════════════════════════════════════════════════════════════════
-
-class _HeaderBanner extends StatefulWidget {
-  final ScoreController controller;
-  const _HeaderBanner({required this.controller});
-  @override
-  State<_HeaderBanner> createState() => _HeaderBannerState();
-}
-
-class _HeaderBannerState extends State<_HeaderBanner>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-
-  @override
-  void initState() { super.initState(); _onInit(); }
-
-  @override
-  void dispose() { _onDispose(); super.dispose(); }
-
-  void _onInit() {
-    _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 6))
-      ..repeat();
-    _ctrl.addListener(() => setState(() {}));
-  }
-
-  void _onDispose() => _ctrl.dispose();
-
-  @override
-  Widget build(BuildContext context) {
-    final svc    = Get.find<StyleService>();
-    final heroH  = MediaQuery.of(context).size.height * 0.26;
-    final topPad = MediaQuery.of(context).padding.top;
-
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(36)),
-      child: SizedBox(
-        height: heroH + topPad,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // ── Game background ─────────────────────────────────────────────
-            Image.asset(
-              'assets/backgrounds/premium_bg_32.png',
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  Container(color: const Color(0xFF1A1A6E)),
-            ),
-
-            // ── Dark scrim ──────────────────────────────────────────────────
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0x66000000),
-                    Color(0x22000000),
-                    Color(0xBB000000),
-                    Color(0xFF0D0D1A),
-                  ],
-                  stops: [0.0, 0.35, 0.72, 1.0],
-                ),
-              ),
-            ),
-
-            // ── Decorative orbs ─────────────────────────────────────────────
-            Positioned(top: 5.h, right: -6.w,
-                child: _BannerOrb(size: 26.w, color: const Color(0xFF6C63FF), opacity: 0.22)),
-            Positioned(top: heroH * 0.25, left: -5.w,
-                child: _BannerOrb(size: 18.w, color: const Color(0xFF48CAE4), opacity: 0.18)),
-
-            // ── Back button ─────────────────────────────────────────────────
-            Positioned(
-              top: topPad + 1.5.h, left: 4.w,
-              child: GestureDetector(
-                onTap: () => Get.back(),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                    child: Container(
-                      width: 11.w, height: 11.w,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white.withOpacity(0.50), width: 1.2),
-                      ),
-                      child: Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 4.8.w),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Coin + Awards pill (top-right) ────────────────────────────────
-            Positioned(
-              top: topPad + 1.5.h,
-              right: 4.w,
-              child: Obx(() => Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.28),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.65), width: 1.2),
-                        ),
-                        child: CoinDisplay(amount: svc.totalCoins.value, imageSize: 14, fontSize: 12, gap: 4),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 2.w),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                      child: Container(
-                        padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.28),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFFF9500).withOpacity(0.80), width: 1.2),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text('🏅', style: TextStyle(fontSize: 13, height: 1.0)),
-                            SizedBox(width: 1.w),
-                            Text('${svc.totalAwards.value}',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              )),
-            ),
-
-            // ── Bottom: title + stats + progress bar ────────────────────────
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(5.w, 0, 5.w, 2.4.h),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Title row
-                    Row(
-                      children: [
-                        Container(
-                          width: 13.w, height: 13.w,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            boxShadow: [BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.55), blurRadius: 16, offset: const Offset(0, 4))],
-                          ),
-                          child: Icon(Icons.bar_chart_rounded, color: Colors.white, size: 6.w),
-                        ),
-                        SizedBox(width: 3.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text('My Progress',
-                                  style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.3)),
-                              // Stats inline
-                              Obx(() => Text(
-                                '⭐ Best ${widget.controller.globalBest.value}  •  🎮 ${widget.controller.allDateSummaries.fold(0, (s, d) => s + d.gamesPlayed)} games',
-                                style: TextStyle(fontSize: 8.5.sp, color: Colors.white.withOpacity(0.75), height: 1.4),
-                              )),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 1.4.h),
-                    // ── Stat chips ────────────────────────────────────────
-                    Obx(() {
-                      final current = svc.currentLevel.value;
-                      return Row(
-                        spacing: 2.4.w,
-                        children: [
-                          Expanded(
-                            child: _ScoreStatChip(
-                              icon: Icons.track_changes_rounded,
-                              label: 'Current',
-                              value: 'Lvl $current',
-                              gradStart: AppColors.levelMapCurrentStart,
-                              gradEnd: AppColors.levelMapCurrentEnd,
-                            ),
-                          ),
-                          Expanded(
-                            child: _ScoreStatChip(
-                              icon: Icons.emoji_events_rounded,
-                              label: 'Target',
-                              value: '${LevelConfig.scoreTargetForLevel(current)} pts',
-                              gradStart: AppColors.levelMapTargetStart,
-                              gradEnd: AppColors.levelMapTargetEnd,
-                            ),
-                          ),
-                          Expanded(
-                            child: _ScoreStatChip(
-                              icon: Icons.lock_rounded,
-                              label: 'Left',
-                              value: '${100 - current + 1} Lvls',
-                              gradStart: AppColors.levelMapLeftStart,
-                              gradEnd: AppColors.levelMapLeftEnd,
-                            ),
-                          ),
-                        ],
-                      );
-                    }),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-}
-
-// ─── Orb helper ───────────────────────────────────────────────────────────────
-
-class _BannerOrb extends StatelessWidget {
-  final double size;
-  final Color  color;
-  final double opacity;
-  const _BannerOrb({required this.size, required this.color, required this.opacity});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size, height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withOpacity(opacity)),
-    );
-  }
-}
-
-// ─── Stat chip (matches Level Map design) ────────────────────────────────────
-
-class _ScoreStatChip extends StatelessWidget {
-  final IconData icon;
-  final String   label;
-  final String   value;
-  final Color    gradStart;
-  final Color    gradEnd;
-
-  const _ScoreStatChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.gradStart,
-    required this.gradEnd,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 2.8.w, vertical: 1.2.h),
-      decoration: BoxDecoration(
-        color: AppColors.levelMapChipBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.levelMapChipBorder, width: 1.0),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8.w, height: 8.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [gradStart, gradEnd],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Icon(icon, color: Colors.white, size: 20.sp),
-          ),
-          SizedBox(width: 2.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(label,
-                    style: TextStyle(fontSize: 10.sp, color: Colors.white.withOpacity(0.55), fontWeight: FontWeight.w500, height: 1.2)),
-                Text(value,
-                    style: TextStyle(fontSize: 11.sp, color: Colors.white, fontWeight: FontWeight.w800, height: 1.2)),
-              ],
             ),
           ),
         ],
@@ -1596,168 +1291,7 @@ void _showYearPicker(BuildContext context, ScoreController ctrl) {
   );
 }
 
-// ── Shared: Day detail header + game tile (used in month tap-through) ─────────
 
-class _DayDetailHeader extends StatelessWidget {
-  final DateSummary summary;
-  final VoidCallback onBack;
-  final Color accent;
-  const _DayDetailHeader({required this.summary, required this.onBack, required this.accent});
-
-  @override
-  Widget build(BuildContext context) {
-    const ms = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(children: [
-        Expanded(
-          child: Text(
-            '${ms[summary.date.month-1]} ${summary.date.day} — ${summary.totalScore} pts',
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textDark),
-          ),
-        ),
-        GestureDetector(
-          onTap: onBack,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(color: accent.withOpacity(0.10), borderRadius: BorderRadius.circular(10)),
-            child: Text('← Back', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: accent)),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _GameTile extends StatelessWidget {
-  final ScoreModel game;
-  final int index;
-  final bool isBest;
-  final Color accent;
-  const _GameTile({required this.game, required this.index, required this.isBest, required this.accent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: isBest ? const Color(0xFFFF9100).withOpacity(0.40) : Colors.transparent, width: 1.5),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6, offset: const Offset(0, 2))],
-      ),
-      child: Row(children: [
-        Container(
-          width: 36, height: 36,
-          decoration: BoxDecoration(
-            color: isBest ? const Color(0xFFFF9100).withOpacity(0.12) : accent.withOpacity(0.10),
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: Text(isBest ? '⭐' : '$index',
-                style: TextStyle(fontSize: isBest ? 18 : 13, fontWeight: FontWeight.w800,
-                    color: isBest ? const Color(0xFFFF9100) : accent)),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text('Game $index  •  ${_hhmm(game.playedAt)}  •  Lvl ${game.level}',
-              style: const TextStyle(fontSize: 13, color: AppColors.textMedium)),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: isBest ? const Color(0xFFFF9100).withOpacity(0.12) : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text('${game.score} pts',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800,
-                  color: isBest ? const Color(0xFFFF9100) : AppColors.textDark)),
-        ),
-      ]),
-    );
-  }
-
-  static String _hhmm(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-}
-
-// ════════════════════════════════════════════════════════════════════════════
-//  EMPTY STATE
-// ════════════════════════════════════════════════════════════════════════════
-
-// Draws a simple soap bubble — works on all Android versions (no emoji needed).
-class _EmptyBubblePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r  = size.width * 0.42;
-    final c  = Offset(cx, cy);
-    final rect = Rect.fromCircle(center: c, radius: r);
-
-    // Soft shadow
-    canvas.drawCircle(
-      Offset(cx + r * 0.06, cy + r * 0.10), r,
-      Paint()
-        ..color = const Color(0xFF4FC3F7).withOpacity(0.18)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
-
-    // Translucent body
-    canvas.drawCircle(c, r,
-        Paint()..color = const Color(0xFFB3E5FC).withOpacity(0.28));
-
-    // Iridescent fill
-    canvas.drawCircle(c, r, Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(-0.20, -0.40), radius: 0.80,
-        colors: [
-          Colors.cyanAccent.withOpacity(0.22),
-          Colors.blue.withOpacity(0.14),
-          Colors.purple.withOpacity(0.10),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.35, 0.65, 1.0],
-      ).createShader(rect));
-
-    // Coloured rim
-    canvas.drawCircle(c, r - r * 0.06,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = r * 0.12
-        ..shader = SweepGradient(
-          colors: [
-            Colors.white.withOpacity(0.90),
-            const Color(0xFF4FC3F7).withOpacity(0.85),
-            Colors.cyanAccent.withOpacity(0.80),
-            Colors.purpleAccent.withOpacity(0.75),
-            Colors.pinkAccent.withOpacity(0.70),
-            Colors.white.withOpacity(0.90),
-          ],
-        ).createShader(rect));
-
-    // Top-left highlight
-    final hlRect = Rect.fromCenter(
-      center: Offset(cx - r * 0.22, cy - r * 0.28),
-      width: r * 0.70, height: r * 0.44,
-    );
-    canvas.drawOval(hlRect, Paint()
-      ..shader = RadialGradient(
-        colors: [Colors.white.withOpacity(0.90), Colors.transparent],
-      ).createShader(hlRect));
-
-    // Small sparkle
-    canvas.drawCircle(
-      Offset(cx + r * 0.14, cy - r * 0.52), r * 0.09,
-      Paint()..color = Colors.white.withOpacity(0.88),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_EmptyBubblePainter _) => false;
-}
 
 class _EmptyState extends StatefulWidget {
   final bool showPlayButton;
@@ -2104,16 +1638,6 @@ void _showDateCalendarPicker(BuildContext context, ScoreController ctrl) {
       onPicked: (start, end) => ctrl.setDateRangeFilter(DateTimeRange(start: start, end: end ?? start)));
 }
 
-Future<void> _pickWeekByDate(BuildContext context, ScoreController ctrl) async {
-  _showCalendarSheet(context, initialStart: ctrl.selectedWeekStart.value,
-      onPicked: (start, _) => ctrl.setWeekForDate(start));
-}
-
-void _pickMonth(BuildContext context, ScoreController ctrl) {
-  _showCalendarSheet(context,
-      initialStart: DateTime(ctrl.selectedYear.value, ctrl.selectedMonth.value, 1),
-      onPicked: (start, _) => ctrl.setMonthYear(start.month, start.year));
-}
 
 class _CalendarSheet extends StatelessWidget {
   final DateTime? initialStart;
@@ -2306,8 +1830,6 @@ class _AppCalendarState extends State<_AppCalendar> {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-bool _sameDay(DateTime a, DateTime b) =>
-    a.year == b.year && a.month == b.month && a.day == b.day;
 
 String _fmtDate(DateTime d) {
   const s = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
