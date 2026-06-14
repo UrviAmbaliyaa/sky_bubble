@@ -35,7 +35,8 @@ void main() async {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light, // white icons — Android
+      statusBarBrightness: Brightness.dark,       // white icons — iOS
     ),
   );
   runApp(const BubblePopApp());

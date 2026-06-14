@@ -299,7 +299,6 @@ class _CoinStatChip extends StatelessWidget {
             fontWeight: FontWeight.bold,
             color: Colors.black87.withOpacity(0.85),
             letterSpacing: 0.8,
-
             height: 1.0,
           ),
         ),
@@ -307,6 +306,7 @@ class _CoinStatChip extends StatelessWidget {
     );
   }
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  PLAY BUTTON  — circular, layered, 3-D glow design
@@ -429,7 +429,7 @@ class _GridPill extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
           child: Container(
-            height: 6.5.h,
+            height: 6.h,
             decoration: BoxDecoration(
               color: tintColor.withOpacity(opacity),
               borderRadius: BorderRadius.circular(50),
@@ -443,12 +443,12 @@ class _GridPill extends StatelessWidget {
               children: [
                 Icon(iconData, color: iconColor, size: 6.w,
                     shadows: const [Shadow(color: Colors.black54, blurRadius: 6)]),
-                SizedBox(width: 3.w),
+                SizedBox(width: 2.w),
                 Expanded(
                   child: Text(
                     label,
                     style: TextStyle(
-                      fontSize: 11.5.sp,
+                      fontSize: 11.sp,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       letterSpacing: 1.0,

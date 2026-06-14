@@ -1,9 +1,11 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/background_assets.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/sound_service.dart';
 import '../../data/services/style_service.dart';
@@ -62,6 +64,8 @@ class _GameBody extends StatefulWidget {
 class _GameBodyState extends State<_GameBody>
     with SingleTickerProviderStateMixin {
   late final AnimationController _bubbleAnimCtrl;
+  ui.Image? _giftImage;
+  List<ui.Image> _dogImages = [];
 
   @override
   void initState() {
@@ -71,6 +75,27 @@ class _GameBodyState extends State<_GameBody>
       duration: const Duration(seconds: 3),
     )..repeat();
     _onInit();
+    _loadGiftImage();
+    _loadDogImages();
+  }
+
+  Future<void> _loadGiftImage() async {
+    final data = await rootBundle.load('assets/images/gift.png');
+    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final frame = await codec.getNextFrame();
+    if (mounted) setState(() => _giftImage = frame.image);
+  }
+
+  Future<void> _loadDogImages() async {
+    final paths = ['assets/dog/dog.png', 'assets/dog/dog_2.png', 'assets/dog/dog_3.png'];
+    final images = <ui.Image>[];
+    for (final path in paths) {
+      final data = await rootBundle.load(path);
+      final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+      final frame = await codec.getNextFrame();
+      images.add(frame.image);
+    }
+    if (mounted) setState(() => _dogImages = images);
   }
 
   @override
@@ -105,6 +130,8 @@ class _GameBodyState extends State<_GameBody>
                   level: widget.controller.level.value,
                   style: Get.find<StyleService>().selectedStyle.value,
                   animTime: _bubbleAnimCtrl.value * 2 * 3.141592653589793,
+                  giftImage: _giftImage,
+                  dogImages: _dogImages,
                 ),
                 child: const SizedBox.expand(),
               ),
@@ -186,26 +213,35 @@ class _GameBodyState extends State<_GameBody>
 }
 
 // ─── Banner Ad Widget ─────────────────────────────────────────────────────────
+// Hidden when the user has a premium (paid) background active — ads are a
+// reward for free users; premium background owners get an ad-free experience.
 
 class _BannerAdWidget extends StatelessWidget {
   const _BannerAdWidget();
 
+  static const _bannerH = 50.0; // standard AdMob banner height
+
   @override
   Widget build(BuildContext context) {
-    final adSvc   = Get.find<AdService>();
-    final topPad  = MediaQuery.of(context).padding.top; // status-bar height
+    final styleSvc = Get.find<StyleService>();
+    final topPad   = MediaQuery.of(context).padding.top;
     return Obx(() {
-      if (!adSvc.isBannerLoaded.value || adSvc.bannerAd == null) {
-        return const SizedBox.shrink();
-      }
-      // Offset by status-bar height so the banner is always fully visible
-      // and never hidden under notches or status bar on any device.
+      // Hide banner when user has a premium background active
+      final currentBg = styleSvc.currentBgAsset.value;
+      final isPremiumBg = BackgroundStyle.values.any(
+        (bg) => bg.assetPath == currentBg && bg.isPremium,
+      );
+      if (isPremiumBg) return const SizedBox.shrink();
+
       return Padding(
         padding: EdgeInsets.only(top: topPad),
-        child: SizedBox(
+        child: const SizedBox(
           width: double.infinity,
-          height: adSvc.bannerAd!.size.height.toDouble(),
-          child: AdWidget(ad: adSvc.bannerAd!),
+          height: _bannerH,
+          child: ApslBannerAd(
+            adNetwork: AdNetwork.admob,
+            adSize: AdSize.banner,
+          ),
         ),
       );
     });
@@ -220,66 +256,73 @@ class _GameHUD extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final adSvc  = Get.find<AdService>();
-    final topPad = MediaQuery.of(context).padding.top;
+    final styleSvc = Get.find<StyleService>();
+    final topPad   = MediaQuery.of(context).padding.top;
     return Obx(() {
-      final bannerH = adSvc.isBannerLoaded.value && adSvc.bannerAd != null
-          ? adSvc.bannerAd!.size.height.toDouble()
-          : 0.0;
+      final currentBg = styleSvc.currentBgAsset.value;
+      final isPremiumBg = BackgroundStyle.values.any(
+        (bg) => bg.assetPath == currentBg && bg.isPremium,
+      );
+      final bannerH = isPremiumBg ? 0.0 : _BannerAdWidget._bannerH;
       return Padding(
-        // top = status-bar + banner height + breathing room
         padding: EdgeInsets.fromLTRB(4.w, topPad + bannerH + 1.h, 4.w, 1.h),
         child: SizedBox(
           height: 10.w,   // single source of truth for all HUD element heights
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Score
-              _HudCard(
-                child: Obx(() => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 5.5.w),
-                    SizedBox(width: 1.5.w),
-                    Text(
-                      '${controller.score.value}',
-                      style: TextStyle(fontSize: 15.5.sp, fontWeight: FontWeight.w900, color: AppColors.textDark),
-                    ),
-                  ],
-                )),
+              // ── Score (IgnorePointer so taps pass through to the game canvas)
+              IgnorePointer(
+                child: _HudCard(
+                  child: Obx(() => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 5.5.w),
+                      SizedBox(width: 1.5.w),
+                      Text(
+                        '${controller.score.value}',
+                        style: TextStyle(fontSize: 15.5.sp, fontWeight: FontWeight.w900, color: AppColors.textDark),
+                      ),
+                    ],
+                  )),
+                ),
               ),
               SizedBox(width: 2.w),
               // ── Level
-              _HudCard(
-                child: Obx(() => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.trending_up_rounded, color: AppColors.levelGreen, size: 5.w),
-                    SizedBox(width: 1.w),
-                    Text(
-                      'L ${controller.level.value}',
-                      style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: AppColors.levelGreen),
-                    ),
-                  ],
-                )),
+              IgnorePointer(
+                child: _HudCard(
+                  child: Obx(() => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.trending_up_rounded, color: AppColors.levelGreen, size: 5.w),
+                      SizedBox(width: 1.w),
+                      Text(
+                        'L ${controller.level.value}',
+                        style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: AppColors.levelGreen),
+                      ),
+                    ],
+                  )),
+                ),
               ),
               const Spacer(),
               // ── Hearts counter pill
-              _HudCard(
-                child: Obx(() => Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.favorite, color: const Color(0xFFFF4D6D), size: 5.5.w),
-                    SizedBox(width: 1.5.w),
-                    Text(
-                      '${controller.lives.value}',
-                      style: TextStyle(fontSize: 14.5.sp, fontWeight: FontWeight.w900, color: const Color(0xFFFF4D6D)),
-                    ),
-                  ],
-                )),
+              IgnorePointer(
+                child: _HudCard(
+                  child: Obx(() => Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.favorite, color: const Color(0xFFFF4D6D), size: 5.5.w),
+                      SizedBox(width: 1.5.w),
+                      Text(
+                        '${controller.lives.value}',
+                        style: TextStyle(fontSize: 14.5.sp, fontWeight: FontWeight.w900, color: const Color(0xFFFF4D6D)),
+                      ),
+                    ],
+                  )),
+                ),
               ),
               SizedBox(width: 2.w),
               _SoundToggleButton(),
@@ -943,17 +986,12 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
                     SizedBox(height: 2.h),
                     Text(
                       'Get a Chance',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1A1A2E),
-                        letterSpacing: 0.3,
-                      ),
+                      style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A2E), letterSpacing: 0.3),
                     ),
                     SizedBox(height: 1.2.h),
                     Row(
                       children: [
-                        // ── Option 1: Pay 5 coins ──────────────────────────────
+                        // ── 5 Coins ───────────────────────────────────────────
                         Expanded(
                           child: Obx(() {
                             final canAfford = widget.controller.canAffordChance;
@@ -966,12 +1004,12 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
                                   padding: EdgeInsets.symmetric(vertical: 1.8.h),
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
-                                      colors: [Color(0xFFFFB300), Color(0xFFFF8C00)],
+                                      colors: [Color(0xFFFFB300), Color(0xFFE65100)],
                                     ),
                                     borderRadius: BorderRadius.circular(14),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: const Color(0xFFFF8C00).withOpacity(0.40),
+                                        color: const Color(0xFFE65100).withOpacity(0.45),
                                         blurRadius: 12,
                                         offset: const Offset(0, 5),
                                       ),
@@ -980,19 +1018,10 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Image.asset(
-                                        'assets/images/coin.png',
-                                        width: 6.w, height: 6.w,
-                                      ),
+                                      Text('🪙', style: TextStyle(fontSize: 16.sp)),
                                       SizedBox(height: 0.5.h),
-                                      Text(
-                                        '5 Coins',
-                                        style: TextStyle(
-                                          fontSize: 11.sp,
-                                          fontWeight: FontWeight.w900,
-                                          color: Colors.white,
-                                        ),
-                                      ),
+                                      Text('5 Coins',
+                                          style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w900, color: Colors.white)),
                                     ],
                                   ),
                                 ),
@@ -1001,7 +1030,7 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
                           }),
                         ),
                         SizedBox(width: 3.w),
-                        // ── Option 2: Watch Ad ─────────────────────────────────
+                        // ── Watch Ad ──────────────────────────────────────────
                         Expanded(
                           child: GestureDetector(
                             onTap: widget.controller.getChanceWithAd,
@@ -1023,17 +1052,10 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.play_circle_fill_rounded,
-                                      color: Colors.white, size: 6.w),
+                                  Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 6.w),
                                   SizedBox(height: 0.5.h),
-                                  Text(
-                                    'Watch Ad',
-                                    style: TextStyle(
-                                      fontSize: 11.sp,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                    ),
-                                  ),
+                                  Text('Watch Ad',
+                                      style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w900, color: Colors.white)),
                                 ],
                               ),
                             ),
@@ -1042,6 +1064,29 @@ class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
                       ],
                     ),
                     SizedBox(height: 1.5.h),
+                    // ── Archive (save & exit with heart) ─────────────────────
+                    GestureDetector(
+                      onTap: widget.controller.navigateHome,
+                      child: Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.symmetric(vertical: 1.8.h),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF4D6D).withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFFF4D6D).withOpacity(0.50), width: 1.8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.favorite_rounded, color: const Color(0xFFFF4D6D), size: 5.w),
+                            SizedBox(width: 2.w),
+                            Text('Archive',
+                                style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w700, color: const Color(0xFFFF4D6D))),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 1.h),
                     GestureDetector(
                       onTap: widget.controller.navigateHome,
                       child: Container(
@@ -1320,9 +1365,16 @@ class _PremiumBackgroundState extends State<_PremiumBackground>
     return Obx(() {
       // Background changes every 200 score points (random pick, never repeats).
       // Falls back to the first asset until the game starts and sets gameBgAsset.
-      final assetPath = widget.controller.gameBgAsset.value.isNotEmpty
-          ? widget.controller.gameBgAsset.value
-          : Get.find<StyleService>().currentBgAsset.value;
+      final styleSvc = Get.find<StyleService>();
+      final String assetPath;
+      if (!styleSvc.autoBackground.value && styleSvc.fixedBgStyle.value != null) {
+        // Fixed mode: always show the pinned background, live-updates immediately
+        assetPath = styleSvc.fixedBgStyle.value!.assetPath;
+      } else if (widget.controller.gameBgAsset.value.isNotEmpty) {
+        assetPath = widget.controller.gameBgAsset.value;
+      } else {
+        assetPath = styleSvc.currentBgAsset.value;
+      }
       final fallbackColors =
           _kFallbackMap[assetPath] ?? _kDefaultFallback;
 

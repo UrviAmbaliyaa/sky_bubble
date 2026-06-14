@@ -166,7 +166,60 @@ extension BackgroundStyleInfo on BackgroundStyle {
 
   // ── Display ───────────────────────────────────────────────────────────────
 
-  String get label => 'Image ${index + 1}';
+  String get label {
+    switch (this) {
+      case BackgroundStyle.sky:              return 'Sunrise Clouds';
+      case BackgroundStyle.darkSky:          return 'Starlit Horizon';
+      case BackgroundStyle.galaxy:           return 'Galaxy Mirror';
+      case BackgroundStyle.garden:           return 'Flower Garden';
+      case BackgroundStyle.gardenGate:       return 'Rose Arch';
+      case BackgroundStyle.monsoon:          return 'Rainy Village';
+      case BackgroundStyle.night:            return 'Moonlit Cabin';
+      case BackgroundStyle.nightStar:        return 'Milky Way';
+      case BackgroundStyle.beach:            return 'Garden Terrace';
+      case BackgroundStyle.morning:          return 'River Sunrise';
+      case BackgroundStyle.morningView:      return 'Misty Sunrise';
+      case BackgroundStyle.morningViewWater: return 'Creek at Dawn';
+      case BackgroundStyle.peacock:          return 'Peacock Garden';
+      case BackgroundStyle.bsMorning:        return 'Golden Creek';
+      case BackgroundStyle.premium01:        return 'Alpine Cascade';
+      case BackgroundStyle.premium02:        return 'Mountain Stream';
+      case BackgroundStyle.premium03:        return 'Alpine Glow';
+      case BackgroundStyle.premium04:        return 'Peak Reflection';
+      case BackgroundStyle.premium05:        return 'Summit Stream';
+      case BackgroundStyle.premium06:        return 'Alpine Meadow';
+      case BackgroundStyle.premium07:        return 'Lake Cabin';
+      case BackgroundStyle.premium08:        return 'Alpine Brook';
+      case BackgroundStyle.premium09:        return 'Lakeside Path';
+      case BackgroundStyle.premium10:        return 'Tropical Sunset';
+      case BackgroundStyle.premium11:        return 'Meadow Walk';
+      case BackgroundStyle.premium12:        return 'Moraine Lake';
+      case BackgroundStyle.premium13:        return 'Golden Clouds';
+      case BackgroundStyle.premium14:        return 'Forest Stream';
+      case BackgroundStyle.premium15:        return 'Lakeside Dock';
+      case BackgroundStyle.premium16:        return 'Mountain Valley';
+      case BackgroundStyle.premium17:        return 'Lake Lantern';
+      case BackgroundStyle.premium18:        return 'Hidden Waterfall';
+      case BackgroundStyle.premium19:        return 'Crystal Lake';
+      case BackgroundStyle.premium20:        return 'Wildflower Hill';
+      case BackgroundStyle.premium21:        return 'Flower Valley';
+      case BackgroundStyle.premium22:        return 'Cottage Garden';
+      case BackgroundStyle.premium23:        return 'Lantern Bridge';
+      case BackgroundStyle.premium24:        return 'Sunset Cottage';
+      case BackgroundStyle.premium25:        return 'Cascade Garden';
+      case BackgroundStyle.premium26:        return 'Autumn Stream';
+      case BackgroundStyle.premium27:        return 'Twilight Cabin';
+      case BackgroundStyle.premium28:        return 'Dusk Cabin';
+      case BackgroundStyle.premium29:        return 'Alpine Lake';
+      case BackgroundStyle.premium30:        return 'Rocky Stream';
+      case BackgroundStyle.premium31:        return 'Sunrise Rapids';
+      case BackgroundStyle.premium32:        return 'Golden Rapids';
+      case BackgroundStyle.premium33:        return 'Blossom Garden';
+      case BackgroundStyle.premium34:        return 'Gazebo Garden';
+      case BackgroundStyle.premium35:        return 'Forest Path';
+      case BackgroundStyle.premium36:        return 'Garden Lantern';
+    }
+  }
 
   String get emoji {
     switch (this) {

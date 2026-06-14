@@ -17,6 +17,8 @@ class BubbleModel {
   final int pointValue;
   /// True for the rare golden home-style bubble worth 100 pts.
   final bool isSpecial;
+  /// True for the once-per-level gift bubble — triggers ad → gift flow on pop.
+  final bool isGift;
 
   BubbleModel({
     required this.id,
@@ -33,6 +35,7 @@ class BubbleModel {
     this.burstProgress = 0.0,
     this.pointValue = 1,
     this.isSpecial = false,
+    this.isGift = false,
   });
 
   bool get isActive => !isPopped || isBursting;

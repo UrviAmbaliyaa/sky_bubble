@@ -46,6 +46,12 @@ class StyleService extends GetxService {
   final RxSet<BackgroundStyle> unlockedBackgrounds =
       <BackgroundStyle>{}.obs; // premium ones the user bought
 
+  // ── Background mode ────────────────────────────────────────────────────────
+  /// true  = rotate every 200 bubbles (default)
+  /// false = show one pinned background
+  final RxBool autoBackground             = true.obs;
+  final Rx<BackgroundStyle?> fixedBgStyle = Rx<BackgroundStyle?>(null);
+
   // ── Background rotation (reactive) ────────────────────────────────────────
   /// The asset path of the background currently displayed in the game.
   final RxString currentBgAsset = RxString(BgAssets.free[0]);
@@ -62,8 +68,8 @@ class StyleService extends GetxService {
   Future<StyleService> init() async {
     _storage = Get.find<StorageService>();
     _loadAll();
-    _buildQueue();                  // build initial rotation queue
-    _startRotationTimer();          // kick off 5-minute cycle
+    _buildQueue();
+    if (autoBackground.value) _startRotationTimer();
     return this;
   }
 
@@ -104,6 +110,17 @@ class StyleService extends GetxService {
       currentBgAsset.value =
           BackgroundStyleInfo.fromKey(savedBg).assetPath;
     }
+
+    // Restore auto / fixed preference
+    autoBackground.value = _storage.readAutoBg();
+    final fixedKey = _storage.readFixedBgKey();
+    if (fixedKey != null) {
+      try { fixedBgStyle.value = BackgroundStyleInfo.fromKey(fixedKey); } catch (_) {}
+    }
+    // In fixed mode, the pinned bg overrides whatever was last playing
+    if (!autoBackground.value && fixedBgStyle.value != null) {
+      currentBgAsset.value = fixedBgStyle.value!.assetPath;
+    }
   }
 
   void _saveAll() {
@@ -129,6 +146,8 @@ class StyleService extends GetxService {
       orElse: () => BackgroundStyle.sky,
     );
     _storage.writeSelectedBg(current.key);
+    _storage.writeAutoBg(autoBackground.value);
+    _storage.writeFixedBgKey(fixedBgStyle.value?.key);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -187,6 +206,27 @@ class StyleService extends GetxService {
 
   bool isBackgroundUnlocked(BackgroundStyle bg) =>
       !bg.isPremium || unlockedBackgrounds.contains(bg);
+
+  /// Enable Auto mode: backgrounds rotate every 200 bubbles in-game.
+  void setAutoBackground() {
+    if (autoBackground.value && fixedBgStyle.value == null) return; // already active
+    autoBackground.value = true;
+    fixedBgStyle.value   = null;
+    _buildQueue();
+    _startRotationTimer();
+    _advanceBg(); // show a new bg immediately on the background screen
+    _saveAll();
+  }
+
+  /// Pin a specific background and disable Auto mode.
+  void setFixedBackground(BackgroundStyle bg) {
+    autoBackground.value = false;
+    fixedBgStyle.value   = bg;
+    _bgTimer?.cancel();
+    _bgTimer = null;
+    currentBgAsset.value = bg.assetPath;
+    _saveAll();
+  }
 
   /// Unlock [bg] by spending coins (100). Returns false if insufficient.
   bool unlockBackground(BackgroundStyle bg) {

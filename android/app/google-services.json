@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "593537798139",
+    "project_id": "bubble-burst-6af28",
+    "storage_bucket": "bubble-burst-6af28.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:593537798139:android:9d89b9ab756faacf39c55e",
+        "android_client_info": {
+          "package_name": "com.bubble.skybubbleburst"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKFzJM8oGXDdZyzEmDYjL-3YKfKcCdLHQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -122,4 +122,20 @@ class StorageService extends GetxService {
   // ── Gifted awards ─────────────────────────────────────────────────────────
   int  readGiftedAwards()      { try { return (_box.read(_giftedAwardsKey) as num?)?.toInt() ?? 0; } catch (_) { return 0; } }
   void writeGiftedAwards(int v) => _box.write(_giftedAwardsKey, v);
+
+  // ── Auto / fixed background preference ───────────────────────────────────
+  static const _autoBgKey  = 'auto_bg';
+  static const _fixedBgKey = 'fixed_bg';
+
+  bool readAutoBg() {
+    try { return _box.read<bool>(_autoBgKey) ?? true; } catch (_) { return true; }
+  }
+  void writeAutoBg(bool v) => _box.write(_autoBgKey, v);
+
+  String? readFixedBgKey() {
+    try { return _box.read<String>(_fixedBgKey); } catch (_) { return null; }
+  }
+  void writeFixedBgKey(String? key) {
+    if (key == null) { _box.remove(_fixedBgKey); } else { _box.write(_fixedBgKey, key); }
+  }
 }

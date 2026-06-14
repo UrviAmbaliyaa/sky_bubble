@@ -178,19 +178,32 @@ class _StyleRowState extends State<_StyleRow>
                   child: AnimatedBuilder(
                     animation: _ctrl,
                     builder: (_, __) => ClipOval(
-                      child: CustomPaint(
-                        painter: isClassic
-                            ? _ClassicBubblePainter(
-                                animValue: _ctrl.value,
-                                tintColor: _classicColor,
-                              )
-                            : _BubblePreviewPainter(
-                                style: widget.style,
-                                color: AppColors.bubbleColors[
-                                    widget.style.index %
-                                        AppColors.bubbleColors.length],
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CustomPaint(
+                            painter: isClassic
+                                ? _ClassicBubblePainter(
+                                    animValue: _ctrl.value,
+                                    tintColor: _classicColor,
+                                  )
+                                : _BubblePreviewPainter(
+                                    style: widget.style,
+                                    color: AppColors.bubbleColors[
+                                        widget.style.index %
+                                            AppColors.bubbleColors.length],
+                                  ),
+                            child: const SizedBox.expand(),
+                          ),
+                          if (widget.style.dogAssetPath != null)
+                            Padding(
+                              padding: EdgeInsets.all(3.w),
+                              child: Image.asset(
+                                widget.style.dogAssetPath!,
+                                fit: BoxFit.contain,
                               ),
-                        child: const SizedBox.expand(),
+                            ),
+                        ],
                       ),
                     ),
                   ),

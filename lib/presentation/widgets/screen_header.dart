@@ -270,7 +270,6 @@ class ScreenHeader extends StatelessWidget {
     );
   }
 }
-
 // ─── Stat chip — exported so screens can still use it if needed ───────────────
 
 class HeaderStatChip extends StatelessWidget {
@@ -313,7 +312,7 @@ class HeaderStatChip extends StatelessWidget {
                       colors: [gradStart, gradEnd]),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: Colors.white, size: 20.sp),
+                child: Icon(icon, color: Colors.white, size: 15.sp),
               ),
               SizedBox(width: 2.w),
               Column(

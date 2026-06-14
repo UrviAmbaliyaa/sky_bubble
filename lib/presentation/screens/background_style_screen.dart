@@ -58,6 +58,8 @@ class _BgGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // +1 for the Auto card at index 0
+    final totalItems = BackgroundStyle.values.length + 1;
     return GridView.builder(
       padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 4.h),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -66,9 +68,183 @@ class _BgGrid extends StatelessWidget {
         mainAxisSpacing: 2.h,
         childAspectRatio: 0.70,
       ),
-      itemCount: BackgroundStyle.values.length,
-      itemBuilder: (_, i) => _BgCard(bg: BackgroundStyle.values[i]),
+      itemCount: totalItems,
+      itemBuilder: (_, i) {
+        if (i == 0) return const _AutoCard();
+        return _BgCard(bg: BackgroundStyle.values[i - 1]);
+      },
     );
+  }
+}
+
+// ─── Auto card ────────────────────────────────────────────────────────────────
+
+class _AutoCard extends StatefulWidget {
+  const _AutoCard();
+
+  @override
+  State<_AutoCard> createState() => _AutoCardState();
+}
+
+class _AutoCardState extends State<_AutoCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = Get.find<StyleService>();
+    return Obx(() {
+      final isAuto = svc.autoBackground.value;
+      return GestureDetector(
+        onTapDown:   (_) => setState(() => _pressed = true),
+        onTapUp:     (_) { setState(() => _pressed = false); svc.setAutoBackground(); },
+        onTapCancel: ()  => setState(() => _pressed = false),
+        child: AnimatedScale(
+          scale: _pressed ? 0.96 : 1.0,
+          duration: const Duration(milliseconds: 100),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            decoration: BoxDecoration(
+              color: isAuto
+                  ? const Color(0xFF6C63FF).withOpacity(0.08)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: isAuto ? const Color(0xFF6C63FF) : const Color(0xFFE8ECF5),
+                width: isAuto ? 2.5 : 1.2,
+              ),
+              boxShadow: isAuto
+                  ? [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.25),
+                        blurRadius: 18,
+                        spreadRadius: 2,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.07),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(21),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Gradient preview area ──────────────────────────────────
+                  Expanded(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Container(
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                          ),
+                        ),
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.auto_awesome_rounded,
+                                  color: Colors.white, size: 14.w),
+                              SizedBox(height: 1.h),
+                              Text(
+                                'Auto',
+                                style: TextStyle(
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isAuto)
+                          Positioned(
+                            top: 1.h, left: 2.w,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 2.w, vertical: 0.4.h),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.20),
+                                    blurRadius: 6,
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.play_arrow_rounded,
+                                      color: const Color(0xFF6C63FF),
+                                      size: 3.2.w),
+                                  SizedBox(width: 0.8.w),
+                                  Text(
+                                    'Playing',
+                                    style: TextStyle(
+                                      fontSize: 7.sp,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFF6C63FF),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // ── Label row ──────────────────────────────────────────────
+                  Container(
+                    color: Colors.white,
+                    padding: EdgeInsets.fromLTRB(2.5.w, 1.h, 2.5.w, 1.2.h),
+                    child: Row(
+                      children: [
+                        Text('🔄', style: TextStyle(fontSize: 11.sp)),
+                        SizedBox(width: 1.5.w),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Auto Rotate',
+                                style: TextStyle(
+                                  fontSize: 9.5.sp,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF1A1A2E),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              _StatusText(
+                                isAuto ? 'Playing' : 'Tap to enable',
+                                isAuto
+                                    ? const Color(0xFF6C63FF)
+                                    : const Color(0xFF9099B0),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
   }
 }
 
@@ -86,16 +262,21 @@ class _BgCardState extends State<_BgCard> {
   bool _pressed = false;
 
   void _onTap(StyleService svc) {
-    if (!widget.bg.isPremium) return;
-    if (svc.isBackgroundUnlocked(widget.bg)) return;
-    Get.dialog(
-      Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: EdgeInsets.symmetric(horizontal: 5.w),
-        child: _UnlockSheet(bg: widget.bg, svc: svc),
-      ),
-      barrierColor: Colors.black54,
-    );
+    if (widget.bg.isPremium && !svc.isBackgroundUnlocked(widget.bg)) {
+      Get.dialog(
+        Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.symmetric(horizontal: 5.w),
+          child: _UnlockSheet(bg: widget.bg, svc: svc),
+        ),
+        barrierColor: Colors.black54,
+      );
+      return;
+    }
+    // Already pinned — tapping again does nothing
+    if (!svc.autoBackground.value && svc.fixedBgStyle.value == widget.bg) return;
+    // Free or unlocked premium → pin this background, deselect Auto
+    svc.setFixedBackground(widget.bg);
   }
 
   @override
@@ -103,8 +284,11 @@ class _BgCardState extends State<_BgCard> {
     final svc = Get.find<StyleService>();
     return Obx(() {
       final isUnlocked = svc.isBackgroundUnlocked(widget.bg);
-      final isPlaying  = svc.currentBgAsset.value == widget.bg.assetPath;
       final isPremium  = widget.bg.isPremium;
+      final isAuto     = svc.autoBackground.value;
+      // A bg card is "selected" only in fixed mode when it is the pinned choice.
+      // In auto mode, no individual bg card is highlighted — the Auto card owns that.
+      final isPinned   = !isAuto && svc.fixedBgStyle.value == widget.bg;
 
       return GestureDetector(
         onTapDown:   (_) => setState(() => _pressed = true),
@@ -119,14 +303,14 @@ class _BgCardState extends State<_BgCard> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(22),
               border: Border.all(
-                color: isPlaying
+                color: isPinned
                     ? const Color(0xFF6C63FF)
                     : isUnlocked && isPremium
                         ? const Color(0xFF43E97B).withOpacity(0.60)
                         : const Color(0xFFE8ECF5),
-                width: isPlaying ? 2.5 : 1.2,
+                width: isPinned ? 2.5 : 1.2,
               ),
-              boxShadow: isPlaying
+              boxShadow: isPinned
                   ? [
                       BoxShadow(
                         color: const Color(0xFF6C63FF).withOpacity(0.28),
@@ -153,7 +337,6 @@ class _BgCardState extends State<_BgCard> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        // Full-clarity image — NO dark overlay
                         Image.asset(
                           widget.bg.assetPath,
                           fit: BoxFit.cover,
@@ -164,8 +347,8 @@ class _BgCardState extends State<_BgCard> {
                           ),
                         ),
 
-                        // ── Playing badge (top-left) ───────────────────────
-                        if (isPlaying)
+                        // ── Playing badge top-left (only when pinned) ─────
+                        if (isPinned)
                           Positioned(
                             top: 1.h, left: 2.w,
                             child: Container(
@@ -200,8 +383,43 @@ class _BgCardState extends State<_BgCard> {
                             ),
                           ),
 
-                        // ── Crown badge for premium (top-right) ────────────
-                        // Only a crown — image stays fully visible
+                        // ── Free badge top-right (free backgrounds only) ───
+                        if (!isPremium)
+                          Positioned(
+                            top: 1.h, right: 2.w,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 2.w, vertical: 0.4.h),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF43A047),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF43A047).withOpacity(0.45),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.lock_open_rounded,
+                                      color: Colors.white, size: 3.2.w),
+                                  SizedBox(width: 0.8.w),
+                                  Text(
+                                    'Free',
+                                    style: TextStyle(
+                                      fontSize: 7.sp,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        // ── Crown badge top-right (locked premium only) ────
                         if (isPremium && !isUnlocked)
                           Positioned(
                             top: 0.8.h, right: 2.w,
@@ -211,7 +429,7 @@ class _BgCardState extends State<_BgCard> {
                     ),
                   ),
 
-                  // ── Label row (white card below image) ────────────────────
+                  // ── Label row ─────────────────────────────────────────────
                   Container(
                     color: Colors.white,
                     padding: EdgeInsets.fromLTRB(2.5.w, 1.h, 2.5.w, 1.2.h),
@@ -233,13 +451,12 @@ class _BgCardState extends State<_BgCard> {
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              // Status line
-                              if (isPlaying)
-                                _StatusText('Now playing', const Color(0xFF6C63FF))
+                              if (isPinned)
+                                _StatusText('Playing', const Color(0xFF6C63FF))
                               else if (!isPremium)
                                 _StatusText('Free', const Color(0xFF43A047))
                               else if (isUnlocked)
-                                _StatusText('In rotation', const Color(0xFF43A047))
+                                _StatusText('Unlocked', const Color(0xFF43A047))
                               else
                                 _CostLine(cost: widget.bg.coinCost),
                             ],

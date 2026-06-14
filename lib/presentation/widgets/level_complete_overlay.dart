@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
 import '../../data/models/level_config.dart';
 import '../../data/services/ad_service.dart';
 import '../controllers/game_controller.dart';
@@ -106,6 +106,8 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
   @override
   Widget build(BuildContext context) {
     final ctrl = Get.find<GameController>();
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+    final bannerH   = AdSize.banner.height.toDouble();
 
     return Stack(
       fit: StackFit.expand,
@@ -128,11 +130,10 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
           ),
         ),
 
-        // ── Main card (leaves room for the banner below) ─────────────────
+        // ── Main card (leaves room for the banner + safe area below) ─────
         Positioned(
           top: 0, left: 0, right: 0,
-          // Keep enough bottom space so the card never hides behind the banner.
-          bottom: AdSize.banner.height.toDouble() + 2,
+          bottom: bannerH + bottomPad + 10,
           child: Center(
             child: AnimatedBuilder(
               animation: _cardCtrl,
@@ -151,11 +152,12 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
           ),
         ),
 
-        // ── Banner ad pinned to the bottom ───────────────────────────────
-        // Shown on the "Next Level" card as required.
-        const Positioned(
-          bottom: 0, left: 0, right: 0,
-          child: _LevelCompleteBanner(),
+        // ── Banner ad pinned above the system home indicator ─────────────
+        Positioned(
+          bottom: bottomPad,
+          left: 0,
+          right: 0,
+          child: const _LevelCompleteBanner(),
         ),
       ],
     );
@@ -250,7 +252,7 @@ class _LevelCard extends StatelessWidget {
                       children: [
                         _StatPill(emoji: '❤️', label: 'Hearts', value: '$hearts', color: const Color(0xFFFF4D6D)),
                         SizedBox(width: 3.w),
-                        _StatPill(emoji: nextTheme.trophy, label: 'Next Level', value: 'LVL $nextLv', color: nextTheme.primary),
+                        _RewardsPill(gifts: ctrl.sessionGifts.toList()),
                       ],
                     ),
                     SizedBox(height: 2.5.h),
@@ -272,12 +274,28 @@ class _LevelCard extends StatelessWidget {
                           children: [
                             _PrimaryBtn(
                               label: 'Next Level →',
-                              colors: [theme.primary, theme.secondary],
-                              onTap: () => ctrl.continueAfterLevelComplete(),
+                              colors: const [Color(0xFF6C63FF), Color(0xFF48CAE4)],
+                              onTap: () {
+                                Get.find<AdService>().loadAndShowInterstitial(
+                                  onDismissed: ctrl.continueAfterLevelComplete,
+                                  onFailure:   ctrl.continueAfterLevelComplete,
+                                );
+                              },
                             ),
-                            SizedBox(height: 1.5.h),
+                            SizedBox(height: 1.8.h),
+                            // iOS-style indicator bar
+                            Center(
+                              child: Container(
+                                width: 38.w,
+                                height: 3.5,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade300,
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 1.8.h),
                             _SecondaryBtn(
-                              label: '🏠  Go Home',
                               onTap: () => ctrl.navigateHome(),
                             ),
                           ],
@@ -447,6 +465,76 @@ class _StatPill extends StatelessWidget {
   }
 }
 
+// ─── Rewards pill — shows level-completion coins + any gifts earned ───────────
+
+class _RewardsPill extends StatelessWidget {
+  /// Raw gift types claimed this level: 0=+1 heart, 1=+5 coins, 2=+1 award.
+  final List<int> gifts;
+  const _RewardsPill({required this.gifts});
+
+  @override
+  Widget build(BuildContext context) {
+    int extraHearts = 0, extraCoins = 0, extraAwards = 0;
+    for (final g in gifts) {
+      if (g == 0) extraHearts++;
+      else if (g == 1) extraCoins += 5;
+      else extraAwards++;
+    }
+    final totalCoins = 3 + extraCoins; // 3 fixed level reward + gift coins
+    final hasGifts   = gifts.isNotEmpty;
+
+    return Expanded(
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: 1.5.h),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFB300).withOpacity(0.07),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFFFB300).withOpacity(0.20), width: 1.2),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(hasGifts ? '🎁' : '🪙', style: TextStyle(fontSize: 14.sp)),
+            SizedBox(height: 0.3.h),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 1.5.w,
+              children: [
+                _badge('🪙', '+$totalCoins'),
+                if (extraHearts > 0) _badge('❤️', '+$extraHearts'),
+                if (extraAwards > 0) _badge('🏅', '+$extraAwards'),
+              ],
+            ),
+            SizedBox(height: 0.3.h),
+            Text(
+              hasGifts ? 'Rewards' : 'Coins',
+              style: TextStyle(fontSize: 8.5.sp, color: Colors.grey.shade400, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _badge(String emoji, String amount) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(emoji, style: TextStyle(fontSize: 11.sp, height: 1.15)),
+        Text(
+          amount,
+          style: TextStyle(
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFFFFB300),
+            height: 1.15,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ─── Next level badge ─────────────────────────────────────────────────────────
 
 class _NextLevelBadge extends StatelessWidget {
@@ -550,9 +638,8 @@ class _PrimaryBtnState extends State<_PrimaryBtn> {
 }
 
 class _SecondaryBtn extends StatefulWidget {
-  final String label;
   final VoidCallback onTap;
-  const _SecondaryBtn({required this.label, required this.onTap});
+  const _SecondaryBtn({required this.onTap});
 
   @override
   State<_SecondaryBtn> createState() => _SecondaryBtnState();
@@ -563,6 +650,7 @@ class _SecondaryBtnState extends State<_SecondaryBtn> {
 
   @override
   Widget build(BuildContext context) {
+    const blue = Color(0xFF0288D1);
     return GestureDetector(
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) { setState(() => _pressed = false); widget.onTap(); },
@@ -574,18 +662,24 @@ class _SecondaryBtnState extends State<_SecondaryBtn> {
           width: double.infinity,
           padding: EdgeInsets.symmetric(vertical: 1.8.h),
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: blue.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.grey.shade200, width: 1.5),
+            border: Border.all(color: blue.withValues(alpha: 0.45), width: 1.8),
           ),
-          child: Text(
-            widget.label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.sp,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade600,
-            ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('🏠', style: TextStyle(fontSize: 13.sp)),
+              SizedBox(width: 2.w),
+              Text(
+                'Go Home',
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  fontWeight: FontWeight.w800,
+                  color: blue,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -615,46 +709,20 @@ class _CelebParticle {
 }
 
 // ─── Banner ad shown at the bottom of the level-complete overlay ─────────────
-//
-// Uses StatefulWidget so the AdWidget is created ONCE and never rebuilt with the
-// same ad object — rebuilding a StatelessWidget/Obx around AdWidget causes the
-// "AdWidget already in tree" assertion.
 
-class _LevelCompleteBanner extends StatefulWidget {
+class _LevelCompleteBanner extends StatelessWidget {
   const _LevelCompleteBanner();
 
   @override
-  State<_LevelCompleteBanner> createState() => _LevelCompleteBannerState();
-}
-
-class _LevelCompleteBannerState extends State<_LevelCompleteBanner> {
-  BannerAd? _mountedAd;
-
-  @override
   Widget build(BuildContext context) {
-    final adSvc = Get.find<AdService>();
-    // Read reactive values outside Obx to avoid creating a new AdWidget
-    // every time the observable fires.
-    return Obx(() {
-      final loaded = adSvc.isBannerLoaded.value;
-      final ad     = adSvc.bannerAd;
-
-      if (!loaded || ad == null) {
-        _mountedAd = null;
-        return const SizedBox.shrink();
-      }
-
-      // Only build AdWidget if this is the first time or the ad object changed.
-      if (_mountedAd != ad) {
-        _mountedAd = ad;
-      }
-
-      return Container(
-        height: _mountedAd!.size.height.toDouble(),
-        color: Colors.white,
-        child: AdWidget(ad: _mountedAd!),
-      );
-    });
+    return const SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ApslBannerAd(
+        adNetwork: AdNetwork.admob,
+        adSize: AdSize.banner,
+      ),
+    );
   }
 }
 

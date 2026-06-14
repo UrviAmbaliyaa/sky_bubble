@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
+import '../../data/services/ad_service.dart';
 import '../controllers/game_controller.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -90,6 +91,15 @@ class _GiftScreenOverlayState extends State<GiftScreenOverlay>
 
   void _openGift() {
     if (_opened) return;
+    // Show ad when tapping to open the gift, then reveal the reward.
+    Get.find<AdService>().loadAndShowInterstitial(
+      onDismissed: _doOpen,
+      onFailure:   _doOpen,
+    );
+  }
+
+  void _doOpen() {
+    if (!mounted) return;
     setState(() => _opened = true);
     _bounceCtrl.stop();
     _lidCtrl.forward();

@@ -47,8 +47,11 @@ class GameController extends GetxController with WidgetsBindingObserver {
 
   // ── Gift screen (shown when player breaks all-time high score) ────────────
   // 0 = +1 heart, 1 = +5 coins, 2 = +1 award
-  final RxBool showGiftScreen  = false.obs;
-  final RxInt  giftRewardType  = 0.obs;
+  final RxBool     showGiftScreen  = false.obs;
+  final RxInt      giftRewardType  = 0.obs;
+  // Accumulates all gift types claimed during the current level session.
+  // Cleared when a new level/game starts. Read by LevelCompleteOverlay.
+  final RxList<int> sessionGifts   = <int>[].obs;
 
   final _random = math.Random();
   Timer? _gameTimer;
@@ -75,11 +78,15 @@ class GameController extends GetxController with WidgetsBindingObserver {
   // level changes.
   int get bgIndex => ((level.value - 1) % BgAssets.all.length).toInt();
 
-  // ─── In-game background (score-driven, changes every 200 pts) ────────────
-  // A random background is picked from the full pool each time the score
-  // crosses a new 200-point milestone. Reactive so _PremiumBackground rebuilds.
+  // ─── In-game background (bubble-driven, changes every 200 bubbles spawned) ──
+  // A random background is picked from the full pool each time 200 bubbles
+  // have been spawned since the last change. Reactive so _PremiumBackground
+  // rebuilds automatically.
   final RxString gameBgAsset = RxString('');
-  int _lastBgMilestone = 0;   // last 200-pt boundary we changed bg at
+  int _totalBubblesSpawned   = 0;   // cumulative spawned this game session
+  int _lastBgBubbleMilestone = 0;   // last 200-bubble boundary we changed bg at
+  List<String> _gameBgPool   = [];  // shuffled background queue for Auto mode
+  int _gameBgPoolIdx         = 0;   // next-to-play index in _gameBgPool
 
   // ─── speed ramp ──────────────────────────────────────────────────────────
   int _lastSpeedRampScore = 0;
@@ -90,6 +97,12 @@ class GameController extends GetxController with WidgetsBindingObserver {
   static const _specialMinGap = Duration(minutes: 5);
   // Approximate chance per spawn cycle when the gap has elapsed (~1 in 80).
   static const _specialSpawnChance = 80;
+
+  // ─── gift bubble tracking ─────────────────────────────────────────────────
+  // Spawned once per level, ~20 s after level start. Tracks the current level
+  // so a new gift bubble becomes eligible each time the player levels up.
+  bool _giftBubbleSpawnedThisLevel = false;
+  int  _giftBubbleEligibleLevel    = -1;
 
   @override
   void onReady() {
@@ -183,23 +196,34 @@ class GameController extends GetxController with WidgetsBindingObserver {
     isHeartsOver.value = false;
     isGameRunning.value = true;
     isPaused.value = false;
-    _lastSpeedRampScore = 0;
-    _lastBgMilestone    = 0;
+    _lastSpeedRampScore    = 0;
+    _totalBubblesSpawned   = 0;
+    _lastBgBubbleMilestone = 0;
     _scoreSaved   = false; // reset so the new game's score can be saved
     _newBestShown = false;
     showNewBestBanner.value = false;
-    // Initial background — only truly free (isPremium == false) + user's unlocked premium.
-    // Uses the isPremium rule from BackgroundStyle so it always stays in sync
-    // with whatever "free" means at any given time (currently only Image 1 / sky).
+    sessionGifts.clear();
+    _gameBgPool    = [];
+    _gameBgPoolIdx = 0;
     final styleSvc = Get.find<StyleService>();
-    final initPool = _buildBgPool(styleSvc);
-    gameBgAsset.value = initPool[_random.nextInt(initPool.length)];
+    if (styleSvc.autoBackground.value) {
+      _gameBgPool       = _buildBgPoolList(styleSvc);
+      gameBgAsset.value = _gameBgPool.isNotEmpty
+          ? _gameBgPool[_gameBgPoolIdx++]
+          : BgAssets.free[0];
+    } else {
+      final fixed = styleSvc.fixedBgStyle.value;
+      gameBgAsset.value = fixed != null ? fixed.assetPath : BgAssets.free[0];
+    }
     bubbles.clear();
     _cancelTimers();
+    _giftBubbleSpawnedThisLevel = false;
+    _giftBubbleEligibleLevel    = -1;
     _spawnWave();   // initial wave so the screen is never empty at start
     _startGameLoop();
     _startSpawnTimer();
     _startLevelTimer();
+    _trySpawnGiftBubble();
   }
 
   void handleTapDown(TapDownDetails details) {
@@ -285,21 +309,6 @@ class GameController extends GetxController with WidgetsBindingObserver {
       _scheduleNextSpawn();
     }
 
-    // ── Score-driven background change (every 200 pts) ────────────────────────
-    final milestone = (score.value ~/ 200) * 200;
-    if (milestone > _lastBgMilestone) {
-      _lastBgMilestone = milestone;
-      // Build pool = free backgrounds (per isPremium rule) + user-unlocked premium
-      final svc  = Get.find<StyleService>();
-      final pool = _buildBgPool(svc);
-      if (pool.isEmpty) return;
-      // Pick a random entry different from the current one
-      String next;
-      do { next = pool[_random.nextInt(pool.length)]; }
-      while (next == gameBgAsset.value && pool.length > 1);
-      gameBgAsset.value = next;
-    }
-
     // Continuous speed multiplier: +0.15× every 5 score points
     final speedMult = LevelConfig.speedMultiplierForScore(score.value);
     final toRemove = <String>[];
@@ -363,21 +372,18 @@ class GameController extends GetxController with WidgetsBindingObserver {
       // Persist the new current level so the user resumes from here.
       Get.find<StyleService>().updateCurrentLevel(level.value);
 
-      // Pause game then show a MANDATORY fresh interstitial → level-complete overlay.
-      // loadAndShowInterstitial always attempts a real ad load so it cannot be
-      // skipped due to a missing preloaded slot.
+      // Pause game, then show the level-complete overlay immediately.
+      // The ad is deferred to when the user taps "Next Level".
       _cancelTimers();
       isGameRunning.value = false;
-      Get.find<AdService>().loadAndShowInterstitial(
-        onDismissed: () => showLevelComplete.value = true,
-        onFailure:   () => showLevelComplete.value = true, // graceful degradation
-      );
+      showLevelComplete.value = true;
     }
   }
 
   /// Called by the "Next Level" button on the level-complete overlay.
   void continueAfterLevelComplete() {
     showLevelComplete.value = false;
+    sessionGifts.clear(); // gifts shown on overlay — reset for next level
     // Clear any leftover bubbles and reset score so the new level starts from 0.
     bubbles.clear();
     score.value = 0;
@@ -393,6 +399,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
     _startGameLoop();
     _startSpawnTimer();
     _startLevelTimer();   // fresh 15-min window for the new level
+    _trySpawnGiftBubble(); // schedule once-per-level gift bubble
   }
 
   String _skinName(int lv) {
@@ -411,14 +418,11 @@ class GameController extends GetxController with WidgetsBindingObserver {
     _newBestShown = true;
     newBestScore.value = score.value;
     showNewBestBanner.value = true;
-    // Pause game, then show a full-screen ad; gift appears after ad is dismissed.
+    // Pause game and show gift screen directly; ad plays when user opens the gift.
     _cancelTimers();
     isGameRunning.value = false;
     giftRewardType.value = _random.nextInt(3); // 0=heart, 1=coins, 2=award
-    Get.find<AdService>().loadAndShowInterstitial(
-      onDismissed: () => showGiftScreen.value = true,
-      onFailure:   () => showGiftScreen.value = true,
-    );
+    showGiftScreen.value = true;
     Future.delayed(const Duration(seconds: 3), () {
       showNewBestBanner.value = false;
     });
@@ -427,6 +431,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
   /// Called when the player claims the gift reward.
   void claimGift() {
     showGiftScreen.value = false;
+    sessionGifts.add(giftRewardType.value); // record before applying
     final style = Get.find<StyleService>();
     switch (giftRewardType.value) {
       case 0:
@@ -467,7 +472,9 @@ class GameController extends GetxController with WidgetsBindingObserver {
     b.isPopped = true;
     b.isBursting = true;
     score.value += b.pointValue;
-    if (b.isSpecial) {
+    if (b.isGift) {
+      _triggerGiftBubbleReward();
+    } else if (b.isSpecial) {
       levelUpMessage.value = '🌟 Bonus Bubble!';
       Future.delayed(const Duration(seconds: 2), () {
         if (levelUpMessage.value == '🌟 Bonus Bubble!') {
@@ -476,9 +483,54 @@ class GameController extends GetxController with WidgetsBindingObserver {
       });
     }
     _sound.playPop();
-    // Soft, kid-friendly haptic — light impact so it feels like a gentle "pop"
-    HapticFeedback.lightImpact();
+    HapticFeedback.selectionClick();
     bubbles.refresh();
+  }
+
+  /// Called when the player pops the gift bubble.
+  /// Shows the gift screen immediately; ad plays when the user taps to open it.
+  void _triggerGiftBubbleReward() {
+    _cancelTimers();
+    isGameRunning.value = false;
+    giftRewardType.value = _random.nextInt(3);
+    showGiftScreen.value = true;
+  }
+
+  void _spawnGiftBubble() {
+    final r = _screenSize.shortestSide * 0.13;
+    final x = r + _random.nextDouble() * (_screenSize.width - 2 * r);
+    final fixedSpeed = _screenSize.height / (10 * 60.0); // ~10 s crossing
+    bubbles.add(BubbleModel(
+      id: 'gift_${_idCounter++}',
+      color: const Color(0xFFFF6B9D),
+      x: x,
+      y: _screenSize.height + r * 2,
+      radius: r,
+      speed: fixedSpeed,
+      driftAngle: _random.nextDouble() * math.pi * 2,
+      driftAmplitude: 2.5,
+      driftFrequency: 0.025,
+      pointValue: 0,
+      isGift: true,
+    ));
+  }
+
+  void _trySpawnGiftBubble() {
+    final currentLvl = level.value;
+    // Reset eligibility when the player levels up
+    if (currentLvl != _giftBubbleEligibleLevel) {
+      _giftBubbleSpawnedThisLevel = false;
+      _giftBubbleEligibleLevel = currentLvl;
+    }
+    if (!_giftBubbleSpawnedThisLevel) {
+      _giftBubbleSpawnedThisLevel = true;
+      // Delay the gift bubble by ~20 s so it doesn't appear right at level start
+      Future.delayed(const Duration(seconds: 20), () {
+        if (isGameRunning.value && !isGameOver.value) {
+          _spawnGiftBubble();
+        }
+      });
+    }
   }
 
   /// Radius range: minR = shortestSide * 0.055, maxR = shortestSide * 0.095
@@ -534,6 +586,28 @@ class GameController extends GetxController with WidgetsBindingObserver {
     while (spawned < waveSize) {
       _spawnNormalBubble();
       spawned++;
+    }
+
+    // ── Bubble-count background rotation (every 200 spawned) ──────────────
+    _totalBubblesSpawned += spawned;
+    final bgMilestone = (_totalBubblesSpawned ~/ 200) * 200;
+    if (bgMilestone > _lastBgBubbleMilestone) {
+      _lastBgBubbleMilestone = bgMilestone;
+      final svc = Get.find<StyleService>();
+      if (svc.autoBackground.value) {
+        // Queue-based: each background shown once before any repeats.
+        if (_gameBgPoolIdx >= _gameBgPool.length) {
+          _gameBgPool    = _buildBgPoolList(svc);
+          _gameBgPoolIdx = 0;
+        }
+        if (_gameBgPool.isNotEmpty) {
+          gameBgAsset.value = _gameBgPool[_gameBgPoolIdx++];
+        }
+      } else {
+        // Fixed mode: keep the pinned background at all times.
+        final fixed = svc.fixedBgStyle.value;
+        if (fixed != null) gameBgAsset.value = fixed.assetPath;
+      }
     }
   }
 
@@ -599,23 +673,22 @@ class GameController extends GetxController with WidgetsBindingObserver {
   }
 
   // ── Background pool helper ────────────────────────────────────────────────
-  // Builds the list of asset paths eligible for in-game background rotation:
-  //   • All BackgroundStyle values where isPremium == false  (currently only sky)
-  //   • Plus any premium backgrounds the user has explicitly unlocked
-  // Using BackgroundStyle.isPremium (not BgAssets.free) ensures this always
-  // respects the current "free" definition without needing a separate update.
-  List<String> _buildBgPool(StyleService svc) {
-    final free = BackgroundStyle.values
+  // Builds a shuffled queue for Auto mode:
+  //   • Unlocked premium backgrounds first (shuffled) — highest priority
+  //   • Then free backgrounds (shuffled)
+  // Each background appears exactly once before the queue resets, so no
+  // background repeats until all others have been shown.
+  List<String> _buildBgPoolList(StyleService svc) {
+    final rng      = math.Random();
+    final unlocked = svc.unlockedBackgrounds.toList()..shuffle(rng);
+    final free     = BackgroundStyle.values
         .where((b) => !b.isPremium)
-        .map((b) => b.assetPath)
-        .toList();
-
-    final unlocked = svc.unlockedBackgrounds
-        .map((b) => b.assetPath)
-        .where((p) => p.isNotEmpty)
-        .toList();
-
-    return [...free, ...unlocked];
+        .toList()
+      ..shuffle(rng);
+    return [
+      ...unlocked.map((b) => b.assetPath),
+      ...free.map((b) => b.assetPath),
+    ];
   }
 
   /// Cost in coins to buy a second chance.

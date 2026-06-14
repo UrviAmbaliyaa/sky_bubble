@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../../core/constants/bubble_styles.dart';
 import '../../data/models/bubble_model.dart';
@@ -20,12 +21,18 @@ class BubblePainter extends CustomPainter {
   final BubbleStyle style;
   // 0→2π looping animation time used for gentle per-bubble pulse/wobble.
   final double animTime;
+  /// Pre-loaded gift.png image — null until loaded, renders fallback if absent.
+  final ui.Image? giftImage;
+  /// Pre-loaded dog images for the animal bubble style.
+  final List<ui.Image> dogImages;
 
   BubblePainter({
     required this.bubbles,
     required this.level,
     this.style = BubbleStyle.classic,
     this.animTime = 0.0,
+    this.giftImage,
+    this.dogImages = const [],
   });
 
   @override
@@ -34,7 +41,9 @@ class BubblePainter extends CustomPainter {
       if (b.isBursting) {
         _paintBurst(canvas, b);
       } else if (!b.isPopped) {
-        if (b.isSpecial) {
+        if (b.isGift) {
+          _paintGiftBubble(canvas, b);
+        } else if (b.isSpecial) {
           _paintSpecial(canvas, b);
         } else {
           _paintWithStyle(canvas, b);
@@ -56,6 +65,15 @@ class BubblePainter extends CustomPainter {
         break;
       case BubbleStyle.diamond:
         _paintDiamond(canvas, b);
+        break;
+      case BubbleStyle.dog1:
+        _paintDogBubble(canvas, b, 0);
+        break;
+      case BubbleStyle.dog2:
+        _paintDogBubble(canvas, b, 1);
+        break;
+      case BubbleStyle.dog3:
+        _paintDogBubble(canvas, b, 2);
         break;
       case BubbleStyle.classic:
         // Map level → tier index 0-9 (every 10 levels = one skin)
@@ -856,6 +874,189 @@ class BubblePainter extends CustomPainter {
           ..strokeWidth = r * 0.06);
     // Highlight
     _highlight(canvas, b.x - r * 0.22, b.y - r * 0.28, r * 0.60, r * 0.38);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════
+  //  DOG BUBBLE – cute dog image inside a glass bubble
+  //  index 0 = dog.png  (warm orange)
+  //  index 1 = dog_2.png (mint green)
+  //  index 2 = dog_3.png (soft purple)
+  // ══════════════════════════════════════════════════════════
+
+  static const _dogBodyColors = [
+    // dog1 — warm peach/orange
+    [Color(0xFFFFF3E0), Color(0xFFFFCC80), Color(0xFFFF8A65)],
+    // dog2 — mint green
+    [Color(0xFFF1F8E9), Color(0xFFA5D6A7), Color(0xFF43A047)],
+    // dog3 — soft purple/lavender
+    [Color(0xFFF3E5F5), Color(0xFFCE93D8), Color(0xFF8E24AA)],
+  ];
+
+  static const _dogGlowColors = [
+    Color(0xFFFFCC80), Color(0xFFA5D6A7), Color(0xFFCE93D8),
+  ];
+
+  static const _dogRimPalettes = [
+    // dog1 — warm iridescent
+    [Colors.white, Color(0xFFFFCC80), Color(0xFFFFB74D), Color(0xFFFF8A65), Colors.white, Color(0xFFFFCC80), Colors.white],
+    // dog2 — cool mint iridescent
+    [Colors.white, Color(0xFFA5D6A7), Color(0xFF66BB6A), Color(0xFF43A047), Colors.white, Color(0xFFA5D6A7), Colors.white],
+    // dog3 — purple iridescent
+    [Colors.white, Color(0xFFCE93D8), Color(0xFFAB47BC), Color(0xFF8E24AA), Colors.white, Color(0xFFCE93D8), Colors.white],
+  ];
+
+  static const _dogSparkleColors = [
+    Color(0xFFFF6B9D), Color(0xFF66BB6A), Color(0xFFBA68C8),
+  ];
+
+  // Returns true for ~50% of bubbles — stable per bubble id so it never flickers.
+  // Out of every 5 bubbles, roughly 2-3 will show the animal image.
+  bool _shouldShowAnimal(BubbleModel b) => b.id.hashCode.abs() % 5 < 3;
+
+  void _paintDogBubble(Canvas canvas, BubbleModel b, int index) {
+    final c    = Offset(b.x, b.y);
+    final r    = _pulseRadius(b);
+    final rect = Rect.fromCircle(center: c, radius: r);
+    final glowColor = _dogGlowColors[index];
+    final body      = _dogBodyColors[index];
+
+    // Soft outer glow (colour-tinted per style)
+    canvas.drawCircle(c, r * 1.28,
+        Paint()
+          ..color = glowColor.withOpacity(0.18)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.5));
+
+    // Transparent glass body — nearly invisible like a real soap bubble
+    canvas.drawCircle(c, r, Paint()..color = body[0].withOpacity(0.07));
+    // Iridescent film layer
+    canvas.drawCircle(c, r, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.18, -0.42),
+        radius: 0.78,
+        colors: [
+          Colors.cyan.withOpacity(0.18),
+          body[1].withOpacity(0.14),
+          Colors.purple.withOpacity(0.10),
+          Colors.pink.withOpacity(0.08),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.28, 0.52, 0.72, 1.0],
+      ).createShader(rect));
+
+    // ── Animal image — only on ~50% of bubbles ──────────────────────────────
+    if (_shouldShowAnimal(b) && index < dogImages.length) {
+      final img     = dogImages[index];
+      final imgSize = r * 1.45;
+      final dst = Rect.fromCenter(center: c, width: imgSize, height: imgSize);
+      final src = Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
+      canvas.save();
+      canvas.clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: r * 0.72)));
+      canvas.drawImageRect(img, src, dst, Paint()..filterQuality = FilterQuality.medium);
+      canvas.restore();
+    }
+
+    // ── Rainbow iridescent rim — same full-spectrum sweep as Classic Soap ───
+    _rimStroke(canvas, b, [
+      Colors.white.withOpacity(0.95),
+      _dogGlowColors[index].withOpacity(0.88),
+      Colors.cyanAccent.withOpacity(0.82),
+      Colors.purpleAccent.withOpacity(0.78),
+      Colors.pinkAccent.withOpacity(0.74),
+      Colors.white.withOpacity(0.88),
+      Colors.lightBlueAccent.withOpacity(0.80),
+      Colors.white.withOpacity(0.95),
+    ]); // default widthFactor: 0.13 — same thickness as Classic Soap
+
+    // Top-left specular highlight (soap-bubble style oval)
+    _highlight(canvas, b.x - r * 0.22, b.y - r * 0.28, r * 0.72, r * 0.46);
+
+    // Small sparkle
+    _sparkle(canvas, b.x + r * 0.14, b.y - r * 0.54, r * 0.09);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  GIFT BUBBLE – once-per-level, shows gift.png inside
+  // ══════════════════════════════════════════════════════════
+
+  void _paintGiftBubble(Canvas canvas, BubbleModel b) {
+    final c = Offset(b.x, b.y);
+    final r = _pulseRadius(b);
+
+    // Outer pulsing pink/magenta aura
+    canvas.drawCircle(c, r * 1.45,
+        Paint()
+          ..color = const Color(0xFFFF6B9D).withOpacity(0.20)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.6));
+    canvas.drawCircle(c, r * 1.25,
+        Paint()
+          ..color = const Color(0xFFFF4081).withOpacity(0.30)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.3));
+
+    // Glass bubble body — pink-to-purple gradient
+    final rect = Rect.fromCircle(center: c, radius: r);
+    canvas.drawCircle(c, r, Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(-0.25, -0.30),
+        colors: [
+          const Color(0xFFFFB3D1).withOpacity(0.65),
+          const Color(0xFFFF6B9D).withOpacity(0.45),
+          const Color(0xFFCE93D8).withOpacity(0.25),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.40, 0.75, 1.0],
+      ).createShader(rect));
+
+    // Rainbow iridescent rim
+    _rimStroke(canvas, b, [
+      Colors.white,
+      Colors.pink.withOpacity(0.95),
+      Colors.purple.withOpacity(0.90),
+      Colors.cyan.withOpacity(0.85),
+      Colors.yellow.withOpacity(0.88),
+      Colors.pink.withOpacity(0.92),
+      Colors.white,
+    ], widthFactor: 0.09);
+
+    // Draw gift.png centred inside the bubble (60% of diameter)
+    if (giftImage != null) {
+      final imgSize = r * 1.2;
+      final dst = Rect.fromCenter(center: c, width: imgSize, height: imgSize);
+      final src = Rect.fromLTWH(0, 0,
+          giftImage!.width.toDouble(), giftImage!.height.toDouble());
+      canvas.save();
+      // Clip to circle so the image doesn't bleed outside the bubble
+      canvas.clipPath(Path()..addOval(Rect.fromCircle(center: c, radius: r * 0.9)));
+      canvas.drawImageRect(giftImage!, src, dst, Paint()..filterQuality = FilterQuality.medium);
+      canvas.restore();
+    } else {
+      // Fallback: gift emoji rendered as text if image not yet loaded
+      final tp = TextPainter(
+        text: const TextSpan(text: '🎁', style: TextStyle(fontSize: 28)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, c - Offset(tp.width / 2, tp.height / 2));
+    }
+
+    // Top-left specular highlight
+    final hcx = b.x - r * 0.28;
+    final hcy = b.y - r * 0.32;
+    canvas.drawCircle(Offset(hcx, hcy), r * 0.22,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [Colors.white.withOpacity(0.85), Colors.transparent],
+          ).createShader(
+              Rect.fromCircle(center: Offset(hcx, hcy), radius: r * 0.22)));
+
+    // Sparkle stars around the bubble
+    _drawStar(canvas, b.x + r * 0.80, b.y - r * 0.70, r * 0.12,
+        const Color(0xFFFFD700).withOpacity(0.95));
+    _drawStar(canvas, b.x - r * 0.82, b.y + r * 0.60, r * 0.09,
+        Colors.white.withOpacity(0.90));
+    _drawStar(canvas, b.x + r * 0.55, b.y + r * 0.78, r * 0.11,
+        const Color(0xFFFF80AB).withOpacity(0.95));
+    _drawStar(canvas, b.x - r * 0.70, b.y - r * 0.60, r * 0.10,
+        const Color(0xFFCE93D8).withOpacity(0.90));
   }
 
   // ══════════════════════════════════════════════════════════

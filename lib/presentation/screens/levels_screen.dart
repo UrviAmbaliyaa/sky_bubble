@@ -43,13 +43,12 @@ class LevelsScreen extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 10.h),
                   itemCount: totalRows,
                   itemBuilder: (_, rowIdx) {
-                    final start    = rowIdx * _kPerRow + 1;
-                    final end      = (start + _kPerRow - 1).clamp(1, _kMaxLevel);
-                    final levels   = List.generate(end - start + 1, (i) => start + i);
-                    final reversed = rowIdx.isOdd;
+                    final start  = rowIdx * _kPerRow + 1;
+                    final end    = (start + _kPerRow - 1).clamp(1, _kMaxLevel);
+                    final levels = List.generate(end - start + 1, (i) => start + i);
                     return _SnakeRow(
-                      levels:    reversed ? levels.reversed.toList() : levels,
-                      reversed:  reversed,
+                      levels:    levels,
+                      reversed:  false,
                       current:   current,
                       svc:       _svc,
                       isLastRow: rowIdx == totalRows - 1,
