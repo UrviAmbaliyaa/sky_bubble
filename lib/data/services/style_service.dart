@@ -46,6 +46,19 @@ class StyleService extends GetxService {
   final RxSet<BackgroundStyle> unlockedBackgrounds =
       <BackgroundStyle>{}.obs; // premium ones the user bought
 
+  // ── Level stars (1–3 per completed level) ─────────────────────────────────
+  final RxMap<int, int> levelStars = <int, int>{}.obs;
+
+  void saveLevelStars(int level, int stars) {
+    final current = levelStars[level] ?? 0;
+    if (stars > current) {
+      levelStars[level] = stars;
+      _storage.writeLevelStars(levelStars);
+    }
+  }
+
+  int getStarsForLevel(int level) => levelStars[level] ?? 0;
+
   // ── Background mode ────────────────────────────────────────────────────────
   /// true  = rotate every 200 bubbles (default)
   /// false = show one pinned background
@@ -81,6 +94,7 @@ class StyleService extends GetxService {
     totalCoins.value   = _storage.readCoins();
     totalAwards.value  = _storage.readAwards();
     currentLevel.value = _storage.readCurrentLevel();
+    levelStars.value   = _storage.readLevelStars();
     giftedHearts.value = _storage.readGiftedHearts();
     giftedCoins.value  = _storage.readGiftedCoins();
     giftedAwards.value = _storage.readGiftedAwards();

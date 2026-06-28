@@ -19,6 +19,8 @@ class BubbleModel {
   final bool isSpecial;
   /// True for the once-per-level gift bubble — triggers ad → gift flow on pop.
   final bool isGift;
+  /// True for a locked-style teaser bubble — shows a lock icon, 0 pts on pop.
+  final bool isLocked;
 
   BubbleModel({
     required this.id,
@@ -36,6 +38,7 @@ class BubbleModel {
     this.pointValue = 1,
     this.isSpecial = false,
     this.isGift = false,
+    this.isLocked = false,
   });
 
   bool get isActive => !isPopped || isBursting;

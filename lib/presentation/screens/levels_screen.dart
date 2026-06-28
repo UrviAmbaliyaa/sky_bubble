@@ -3,6 +3,8 @@ import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/constants/background_assets.dart';
+import '../../core/services/remote_ad_config_service.dart';
+import '../../data/services/ad_service.dart';
 import '../../data/services/style_service.dart';
 import '../widgets/screen_header.dart';
 
@@ -125,9 +127,18 @@ class _LevelNode extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 0.9.h),
       child: GestureDetector(
-        onTap: state != _NodeState.locked
-            ? () => Get.toNamed(AppRoutes.game, arguments: {'bestScore': 0})
-            : null,
+        onTap: state == _NodeState.locked ? null : () {
+          RemoteAdConfigService? remote;
+          try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+          final adsOn   = remote?.adsEnabled.value     ?? false;
+          final moreAds = remote?.moreAdsEnabled.value ?? false;
+          void goToGame() => Get.toNamed(AppRoutes.game, arguments: {'bestScore': 0, 'startLevel': level});
+          if (adsOn && moreAds) {
+            Get.find<AdService>().showInterstitial(onDismissed: goToGame);
+          } else {
+            goToGame();
+          }
+        },
         child: Obx(() {
           final pool    = _availablePool(svc);
           final bgAsset = pool[(level - 1) % pool.length];
@@ -155,6 +166,8 @@ class _LevelNode extends StatelessWidget {
                   color: isCurrent ? const Color(0xFF6C63FF) : const Color(0xFF444466),
                 ),
               ),
+              SizedBox(height: 0.3.h),
+              _LevelStars(level: level, state: state, svc: svc),
             ],
           );
         }),
@@ -200,7 +213,7 @@ class _NodeBody extends StatelessWidget {
         else if (state == _NodeState.current)
           Center(child: _CurrentOverlay(nodeSize: nodeSize, level: level))
         else
-          Center(child: _LockedOverlay(nodeSize: nodeSize, level: level)),
+          Center(child: _LockedOverlay(nodeSize: nodeSize)),
 
         // Outer ring — no shadows
         _NodeRing(state: state),
@@ -282,30 +295,63 @@ class _CurrentOverlay extends StatelessWidget {
   }
 }
 
-// ─── Locked overlay ───────────────────────────────────────────────────────────
+// ─── Level stars (shown below all nodes) ─────────────────────────────────────
+
+class _LevelStars extends StatelessWidget {
+  final int level;
+  final _NodeState state;
+  final StyleService svc;
+  const _LevelStars({required this.level, required this.state, required this.svc});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final stars = svc.getStarsForLevel(level);
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          final earned = i < stars;
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 1.0),
+            child: Icon(
+              Icons.star_rounded,
+              size: 15,
+              color: earned ? const Color(0xFFFFCC00) : const Color(0xFFDDDDDD),
+              shadows: earned
+                  ? [const Shadow(color: Color(0xFFFFAA00), blurRadius: 4)]
+                  : null,
+            ),
+          );
+        }),
+      );
+    });
+  }
+}
+
+// ─── Locked overlay — dimmed image + lock icon ────────────────────────────────
 
 class _LockedOverlay extends StatelessWidget {
   final double nodeSize;
-  final int    level;
-  const _LockedOverlay({required this.nodeSize, required this.level});
+  const _LockedOverlay({required this.nodeSize});
 
   @override
   Widget build(BuildContext context) {
     return ClipOval(
       child: Container(
-        color: Colors.black.withValues(alpha: 0.58),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Lock icon — centred
-            Center(
-              child: Icon(
-                Icons.lock_rounded,
-                color: Colors.white.withValues(alpha: 0.75),
-                size: nodeSize * 0.36,
-              ),
+        color: Colors.black.withValues(alpha: 0.45),
+        child: Center(
+          child: Container(
+            width:  nodeSize * 0.46,
+            height: nodeSize * 0.46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.black.withValues(alpha: 0.30),
             ),
-          ],
+            child: Icon(Icons.lock_rounded,
+                color: Colors.white.withValues(alpha: 0.75),
+                size: nodeSize * 0.28),
+          ),
         ),
       ),
     );

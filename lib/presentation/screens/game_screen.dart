@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/background_assets.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/sound_service.dart';
 import '../../data/services/style_service.dart';
@@ -30,7 +32,6 @@ class GameScreen extends GetView<GameController> {
         final blocked = adSvc.isAdShowing.value
             || controller.showLevelComplete.value
             || controller.showGiftScreen.value
-            || controller.isHeartsOver.value
             || controller.isGameOver.value;
         if (blocked) return;
         // If already showing pause overlay the user used the back gesture again
@@ -138,25 +139,38 @@ class _GameBodyState extends State<_GameBody>
             ),
           ),
         ),
-        // ── Banner Ad (top of screen, edge-to-edge) ───────────────────────
-        const Positioned(
+        // ── Banner Ad (bottom of screen, edge-to-edge) ──────────────────
+         Positioned(
           top: 0,
           left: 0,
           right: 0,
-          child: _BannerAdWidget(),
+          child: SafeArea(child: Column(
+            children: [
+              _BannerAdWidget(),
+              _GameHUD(controller: widget.controller)
+            ],
+          )),
         ),
-        // HUD overlay — offset below the banner
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: _GameHUD(controller: widget.controller),
-        ),
+       Obx(() {
+          RemoteAdConfigService? remote;
+          try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+          final adsOn   = remote?.adsEnabled.value     ?? false;
+          final moreAds = remote?.moreAdsEnabled.value ?? false;
+          if (!adsOn || !moreAds) return const SizedBox.shrink();
+          return Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(child: _BannerAdWidget()),
+          );
+        }),
+        // HUD overlay
+        
         // Level-up / speed-ramp banner
         Obx(() => widget.controller.levelUpMessage.value.isEmpty
             ? const SizedBox.shrink()
             : Positioned(
-                top: MediaQuery.of(context).padding.top + 10.h,
+                top: MediaQuery.of(context).padding.top + 6.h,
                 left: 0,
                 right: 0,
                 child: _LevelUpBanner(
@@ -189,12 +203,6 @@ class _GameBodyState extends State<_GameBody>
                 child: _GameOverOverlay(controller: widget.controller),
               )
             : const SizedBox.shrink()),
-        // Hearts-over popup
-        Obx(() => widget.controller.isHeartsOver.value
-            ? Positioned.fill(
-                child: _HeartsOverOverlay(controller: widget.controller),
-              )
-            : const SizedBox.shrink()),
         // Level-complete overlay — shown when the player advances to a new level
         Obx(() => widget.controller.showLevelComplete.value
             ? const Positioned.fill(
@@ -213,35 +221,86 @@ class _GameBodyState extends State<_GameBody>
 }
 
 // ─── Banner Ad Widget ─────────────────────────────────────────────────────────
-// Hidden when the user has a premium (paid) background active — ads are a
-// reward for free users; premium background owners get an ad-free experience.
+// Top-of-screen banner. Space collapses entirely if the ad fails to load.
+// Hidden when: premium background active, ads=false, or show_ads=false.
 
-class _BannerAdWidget extends StatelessWidget {
+class _BannerAdWidget extends StatefulWidget {
   const _BannerAdWidget();
 
-  static const _bannerH = 50.0; // standard AdMob banner height
+  static const _bannerH = 50.0;
+  // True only when the banner is actually rendered — HUD reads this to offset itself.
+  static final isVisible = false.obs;
+
+  @override
+  State<_BannerAdWidget> createState() => _BannerAdWidgetState();
+}
+
+class _BannerAdWidgetState extends State<_BannerAdWidget> {
+
+  // Reactive so Obx rebuilds automatically when the ad load state changes.
+  final _adFailed = false.obs;
+
+  StreamSubscription<AdEvent>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = ApslAds.instance.onEvent.listen((event) {
+      if (event.adUnitType != AdUnitType.banner) return;
+      if (event.type == AdEventType.adFailedToLoad) {
+        _adFailed.value = true;
+      } else if (event.type == AdEventType.adLoaded) {
+        _adFailed.value = false;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final styleSvc = Get.find<StyleService>();
-    final topPad   = MediaQuery.of(context).padding.top;
+    final styleSvc  = Get.find<StyleService>();
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
     return Obx(() {
-      // Hide banner when user has a premium background active
-      final currentBg = styleSvc.currentBgAsset.value;
+      bool shouldShow = false;
+
+      final currentBg   = styleSvc.currentBgAsset.value;
       final isPremiumBg = BackgroundStyle.values.any(
         (bg) => bg.assetPath == currentBg && bg.isPremium,
       );
-      if (isPremiumBg) return const SizedBox.shrink();
 
-      return Padding(
-        padding: EdgeInsets.only(top: topPad),
-        child: const SizedBox(
-          width: double.infinity,
-          height: _bannerH,
-          child: ApslBannerAd(
-            adNetwork: AdNetwork.admob,
-            adSize: AdSize.banner,
-          ),
+      if (!isPremiumBg && !_adFailed.value) {
+        try {
+          // Game banner: show whenever ads=true. Only hidden when ads=false.
+          shouldShow = Get.find<RemoteAdConfigService>().adsEnabled.value;
+        } catch (_) {}
+      }
+
+      // Keep HUD offset in sync — schedule after build to avoid setState-during-build.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _BannerAdWidget.isVisible.value = shouldShow;
+      });
+
+      if (!shouldShow) return const SizedBox.shrink();
+
+      return SizedBox(
+        height: _BannerAdWidget._bannerH + bottomPad,
+        child: Column(
+          children: [
+            const SizedBox(
+              height: _BannerAdWidget._bannerH,
+              child: ApslBannerAd(
+                adNetwork: AdNetwork.admob,
+                adSize: AdSize.banner,
+              ),
+            ),
+            SizedBox(height: bottomPad),
+          ],
         ),
       );
     });
@@ -256,16 +315,8 @@ class _GameHUD extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final styleSvc = Get.find<StyleService>();
-    final topPad   = MediaQuery.of(context).padding.top;
-    return Obx(() {
-      final currentBg = styleSvc.currentBgAsset.value;
-      final isPremiumBg = BackgroundStyle.values.any(
-        (bg) => bg.assetPath == currentBg && bg.isPremium,
-      );
-      final bannerH = isPremiumBg ? 0.0 : _BannerAdWidget._bannerH;
-      return Padding(
-        padding: EdgeInsets.fromLTRB(4.w, topPad + bannerH + 1.h, 4.w, 1.h),
+    return Padding(
+        padding: EdgeInsets.fromLTRB(4.w,  1.h, 4.w, 1.h),
         child: SizedBox(
           height: 10.w,   // single source of truth for all HUD element heights
           child: Row(
@@ -307,18 +358,18 @@ class _GameHUD extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              // ── Hearts counter pill
+              // ── Time remaining pill
               IgnorePointer(
                 child: _HudCard(
                   child: Obx(() => Row(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.favorite, color: const Color(0xFFFF4D6D), size: 5.5.w),
+                      Icon(Icons.timer_rounded, color: const Color(0xFF6C63FF), size: 5.5.w),
                       SizedBox(width: 1.5.w),
                       Text(
-                        '${controller.lives.value}',
-                        style: TextStyle(fontSize: 14.5.sp, fontWeight: FontWeight.w900, color: const Color(0xFFFF4D6D)),
+                        controller.timeRemaining.value.isEmpty ? '--:--' : controller.timeRemaining.value,
+                        style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w900, color: const Color(0xFF6C63FF)),
                       ),
                     ],
                   )),
@@ -331,8 +382,7 @@ class _GameHUD extends StatelessWidget {
             ],
           ),
         ),
-      );
-    });
+      );;
   }
 }
 
@@ -753,11 +803,11 @@ class _PauseOverlayState extends State<_PauseOverlay>
                               ),
                               SizedBox(width: 2.5.w),
                               _PauseStatChip(
-                                emoji: '❤️',
-                                label: '${widget.controller.lives.value}',
-                                bg: const Color(0xFFFFEBEE),
-                                border: const Color(0xFFFF8A80),
-                                textColor: const Color(0xFFD32F2F),
+                                emoji: '⏱',
+                                label: widget.controller.timeRemaining.value.isEmpty ? '--:--' : widget.controller.timeRemaining.value,
+                                bg: const Color(0xFFEDE7F6),
+                                border: const Color(0xFF9575CD),
+                                textColor: const Color(0xFF4A148C),
                               ),
                             ],
                           )),
@@ -766,7 +816,19 @@ class _PauseOverlayState extends State<_PauseOverlay>
                             label: '▶  Resume',
                             gradient: const [Color(0xFF43E97B), Color(0xFF11998E)],
                             glowColor: const Color(0xFF43E97B),
-                            onTap: widget.controller.togglePause,
+                            onTap: () {
+                              RemoteAdConfigService? remote;
+                              try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+                              final adsOn   = remote?.adsEnabled.value     ?? false;
+                              final moreAds = remote?.moreAdsEnabled.value ?? false;
+                              if (adsOn && moreAds) {
+                                Get.find<AdService>().showInterstitial(
+                                  onDismissed: widget.controller.togglePause,
+                                );
+                              } else {
+                                widget.controller.togglePause();
+                              }
+                            },
                           ),
                           SizedBox(height: 1.5.h),
                           _PauseOutlineBtn(
@@ -890,228 +952,6 @@ class _PauseOutlineBtnState extends State<_PauseOutlineBtn> {
             widget.label,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13.5.sp, fontWeight: FontWeight.w800, color: widget.color, letterSpacing: 0.3),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Hearts Over overlay ─────────────────────────────────────────────────────
-
-class _HeartsOverOverlay extends StatefulWidget {
-  final GameController controller;
-  const _HeartsOverOverlay({required this.controller});
-
-  @override
-  State<_HeartsOverOverlay> createState() => _HeartsOverOverlayState();
-}
-
-class _HeartsOverOverlayState extends State<_HeartsOverOverlay>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _scale;
-  late Animation<double> _fade;
-
-  @override
-  void initState() { super.initState(); _onInit(); }
-
-  @override
-  void dispose() { _onDispose(); super.dispose(); }
-
-  void _onInit() {
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 550))
-      ..forward();
-    _scale = Tween<double>(begin: 0.65, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut));
-    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
-  }
-
-  void _onDispose() => _ctrl.dispose();
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (_, __) => FadeTransition(
-        opacity: _fade,
-        child: Container(
-          color: Colors.black.withOpacity(0.60),
-          child: Center(
-            child: ScaleTransition(
-              scale: _scale,
-              child: Container(
-                margin: EdgeInsets.symmetric(horizontal: 9.w),
-                padding: EdgeInsets.fromLTRB(7.w, 4.h, 7.w, 3.h),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(28),
-                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 40, offset: Offset(0, 12))],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('💔', style: TextStyle(fontSize: 35.5.sp)),
-                    SizedBox(height: 1.5.h),
-                    Text(
-                      'Hearts Over!',
-                      style: TextStyle(fontSize: 18.5.sp, fontWeight: FontWeight.w900, color: const Color(0xFFFF4D6D), letterSpacing: 0.5),
-                    ),
-                    SizedBox(height: 1.h),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(1, (_) => Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 0.5.w),
-                        child: Icon(Icons.favorite_border, color: const Color(0xFFFF4D6D), size: 5.w),
-                      )),
-                    ),
-                    SizedBox(height: 1.h),
-                    Text('1 chance used up!',
-                        style: TextStyle(fontSize: 11.5.sp, color: Colors.grey.shade500, fontWeight: FontWeight.w500)),
-                    SizedBox(height: 1.h),
-                    Obx(() => Container(
-                      padding: EdgeInsets.symmetric(horizontal: 4.5.w, vertical: 1.h),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF3CD),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.60)),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.stars_rounded, color: const Color(0xFFFF9800), size: 5.w),
-                        SizedBox(width: 1.5.w),
-                        Text('${widget.controller.score.value} pts',
-                            style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w800, color: const Color(0xFF7A4F00))),
-                      ]),
-                    )),
-                    SizedBox(height: 2.h),
-                    Text(
-                      'Get a Chance',
-                      style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w800, color: const Color(0xFF1A1A2E), letterSpacing: 0.3),
-                    ),
-                    SizedBox(height: 1.2.h),
-                    Row(
-                      children: [
-                        // ── 5 Coins ───────────────────────────────────────────
-                        Expanded(
-                          child: Obx(() {
-                            final canAfford = widget.controller.canAffordChance;
-                            return GestureDetector(
-                              onTap: canAfford ? widget.controller.getChanceWithCoins : null,
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 200),
-                                opacity: canAfford ? 1.0 : 0.45,
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(vertical: 1.8.h),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFFFFB300), Color(0xFFE65100)],
-                                    ),
-                                    borderRadius: BorderRadius.circular(14),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFFE65100).withOpacity(0.45),
-                                        blurRadius: 12,
-                                        offset: const Offset(0, 5),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('🪙', style: TextStyle(fontSize: 16.sp)),
-                                      SizedBox(height: 0.5.h),
-                                      Text('5 Coins',
-                                          style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w900, color: Colors.white)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                        SizedBox(width: 3.w),
-                        // ── Watch Ad ──────────────────────────────────────────
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: widget.controller.getChanceWithAd,
-                            child: Container(
-                              padding: EdgeInsets.symmetric(vertical: 1.8.h),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF6C63FF), Color(0xFF48CAE4)],
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF6C63FF).withOpacity(0.40),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 6.w),
-                                  SizedBox(height: 0.5.h),
-                                  Text('Watch Ad',
-                                      style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w900, color: Colors.white)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 1.5.h),
-                    // ── Archive (save & exit with heart) ─────────────────────
-                    GestureDetector(
-                      onTap: widget.controller.navigateHome,
-                      child: Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 1.8.h),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF4D6D).withOpacity(0.07),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFFF4D6D).withOpacity(0.50), width: 1.8),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.favorite_rounded, color: const Color(0xFFFF4D6D), size: 5.w),
-                            SizedBox(width: 2.w),
-                            Text('Archive',
-                                style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w700, color: const Color(0xFFFF4D6D))),
-                          ],
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 1.h),
-                    GestureDetector(
-                      onTap: widget.controller.navigateHome,
-                      child: Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(vertical: 1.8.h),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0288D1).withOpacity(0.07),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFF0288D1).withOpacity(0.50), width: 1.8),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.home_rounded, color: const Color(0xFF0288D1), size: 5.w),
-                            SizedBox(width: 2.w),
-                            Text('Go Home',
-                                style: TextStyle(fontSize: 12.5.sp, fontWeight: FontWeight.w700, color: const Color(0xFF0288D1))),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ),
         ),
       ),

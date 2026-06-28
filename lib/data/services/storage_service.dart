@@ -123,6 +123,21 @@ class StorageService extends GetxService {
   int  readGiftedAwards()      { try { return (_box.read(_giftedAwardsKey) as num?)?.toInt() ?? 0; } catch (_) { return 0; } }
   void writeGiftedAwards(int v) => _box.write(_giftedAwardsKey, v);
 
+  // ── Level stars (per-level 1-3 star rating) ──────────────────────────────
+  static const _levelStarsKey = 'level_stars';
+
+  Map<int, int> readLevelStars() {
+    try {
+      final raw = _box.read<Map>(_levelStarsKey);
+      if (raw == null) return {};
+      return raw.map((k, v) => MapEntry(int.parse(k.toString()), (v as num).toInt()));
+    } catch (_) { return {}; }
+  }
+
+  void writeLevelStars(Map<int, int> stars) {
+    _box.write(_levelStarsKey, stars.map((k, v) => MapEntry(k.toString(), v)));
+  }
+
   // ── Auto / fixed background preference ───────────────────────────────────
   static const _autoBgKey  = 'auto_bg';
   static const _fixedBgKey = 'fixed_bg';

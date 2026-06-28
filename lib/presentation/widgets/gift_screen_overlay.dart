@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../controllers/game_controller.dart';
 
@@ -91,11 +92,17 @@ class _GiftScreenOverlayState extends State<GiftScreenOverlay>
 
   void _openGift() {
     if (_opened) return;
-    // Show ad when tapping to open the gift, then reveal the reward.
-    Get.find<AdService>().loadAndShowInterstitial(
-      onDismissed: _doOpen,
-      onFailure:   _doOpen,
-    );
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final adsOn = remote?.adsEnabled.value ?? false;
+    if (adsOn) {
+      Get.find<AdService>().loadAndShowInterstitial(
+        onDismissed: _doOpen,
+        onFailure:   _doOpen,
+      );
+    } else {
+      _doOpen();
+    }
   }
 
   void _doOpen() {
@@ -903,7 +910,7 @@ class _RewardCard extends StatelessWidget {
   const _RewardCard({required this.rewardType, required this.shimmer, required this.onClaim});
 
   static const _rewards = [
-    _RewardData(emoji: '❤️', title: '+1 Heart',  subtitle: 'Extra life added!',        colors: [Color(0xFFFF4D6D), Color(0xFFE91E63)]),
+    _RewardData(emoji: '🪙', title: '+5 Coins',  subtitle: 'Coins added to wallet!',   colors: [Color(0xFFFFD700), Color(0xFFFF8F00)]),
     _RewardData(emoji: '🪙', title: '+5 Coins',  subtitle: 'Coins added to wallet!',   colors: [Color(0xFFFFD700), Color(0xFFFF8F00)]),
     _RewardData(emoji: '🏅', title: '+1 Award',  subtitle: 'Achievement unlocked!',    colors: [Color(0xFF43E97B), Color(0xFF11998E)]),
   ];

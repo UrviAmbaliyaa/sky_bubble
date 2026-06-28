@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import '../../core/ads/ads_id_manager.dart';
+import '../../core/services/remote_ad_config_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  AD SERVICE  —  powered by apsl_admob_ads_flutter
@@ -70,14 +71,42 @@ class AdService extends GetxService with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && isAdShowing.value) {
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (isAdShowing.value) {
-          _logd('Safety: force-resolving stuck ad on resume');
-          _forceResolveAd();
-        }
-      });
+    if (state == AppLifecycleState.resumed) {
+      if (isAdShowing.value) {
+        // Safety: force-resolve a stuck ad that never fired its dismiss callback.
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (isAdShowing.value) {
+            _logd('Safety: force-resolving stuck ad on resume');
+            _forceResolveAd();
+          }
+        });
+        return;
+      }
+
+      // moreads: show interstitial on every app-resume before user continues.
+      RemoteAdConfigService? remote;
+      try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+      final adsOn   = remote?.adsEnabled.value     ?? false;
+      final moreAds = remote?.moreAdsEnabled.value ?? false;
+
+      // Resume interstitial requires ads=true AND moreads=true only.
+      if (adsOn && moreAds) {
+        _logd('moreads: showing interstitial on app resume');
+        showResumeInterstitial();
+      }
     }
+  }
+
+  // Shows an interstitial on app-resume (moreads mode). Uses a short cooldown
+  // so rapid background/foreground cycles don't spam the user.
+  static const _kResumeCooldown = Duration(seconds: 120);
+  DateTime _lastResumeAdAt = DateTime(2000);
+
+  void showResumeInterstitial() {
+    final elapsed = DateTime.now().difference(_lastResumeAdAt);
+    if (elapsed < _kResumeCooldown) return;
+    _lastResumeAdAt = DateTime.now();
+    _showOneInterstitial(onDismissed: () {}, onFailure: () {});
   }
 
   void _forceResolveAd() {

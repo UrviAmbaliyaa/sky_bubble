@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../app/routes/app_routes.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/style_service.dart';
 import '../widgets/not_enough_coins_dialog.dart';
@@ -69,7 +70,11 @@ class MoreOptionsController extends GetxController {
     }
 
     isBuyingAward.value = true;
-    Get.find<AdService>().showInterstitial(onDismissed: () {
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final adsOn = remote?.adsEnabled.value ?? false;
+
+    void complete() {
       final ok = styleSvc.purchaseAwardWithCoins();
       isBuyingAward.value = false;
       if (ok) {
@@ -79,6 +84,12 @@ class MoreOptionsController extends GetxController {
           snackPosition: SnackPosition.TOP,
         );
       }
-    });
+    }
+
+    if (adsOn) {
+      Get.find<AdService>().showInterstitial(onDismissed: complete);
+    } else {
+      complete();
+    }
   }
 }

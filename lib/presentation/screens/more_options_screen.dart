@@ -4,6 +4,7 @@ import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/style_service.dart';
 import '../controllers/more_options_controller.dart';
 
@@ -54,23 +55,36 @@ class MoreOptionsScreen extends GetView<MoreOptionsController> {
                           gradientColors: const [Color(0xFFf7971e), Color(0xFFffd200)],
                           onTap: controller.navigateToBackground,
                         ),
-                        SizedBox(height: 2.h),
-                        _OptionTile(
-                          emoji: '🪙',
-                          label: 'EARN COINS',
-                          gradientColors: const [Color(0xFF11998e), Color(0xFF38ef7d)],
-                          onTap: controller.navigateToEarnCoins,
-                        ),
-                        SizedBox(height: 2.h),
-                        // Earn Award — live-reactive coin affordability
+                        // Earn Coins + Earn Award — hidden when show_ads is OFF
+                        // or when Ad IDs could not be fetched from Firebase.
                         Obx(() {
-                          final svc = Get.find<StyleService>();
-                          final canAfford = svc.totalCoins.value >= StyleService.awardPurchaseCost;
-                          final busy = controller.isBuyingAward.value;
-                          return _EarnAwardTile(
-                            canAfford: canAfford,
-                            busy: busy,
-                            onTap: controller.buyAwardWithCoins,
+                          RemoteAdConfigService? remote;
+                          try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+                          final adsOn       = remote?.adsEnabled.value ?? false;
+                          final earnVisible = adsOn;
+                          if (!earnVisible) return const SizedBox.shrink();
+                          return Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(height: 2.h),
+                              _OptionTile(
+                                emoji: '🪙',
+                                label: 'EARN COINS',
+                                gradientColors: const [Color(0xFF11998e), Color(0xFF38ef7d)],
+                                onTap: controller.navigateToEarnCoins,
+                              ),
+                              SizedBox(height: 2.h),
+                              Obx(() {
+                                final svc = Get.find<StyleService>();
+                                final canAfford = svc.totalCoins.value >= StyleService.awardPurchaseCost;
+                                final busy = controller.isBuyingAward.value;
+                                return _EarnAwardTile(
+                                  canAfford: canAfford,
+                                  busy: busy,
+                                  onTap: controller.buyAwardWithCoins,
+                                );
+                              }),
+                            ],
                           );
                         }),
                         SizedBox(height: 2.h),

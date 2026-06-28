@@ -24,16 +24,15 @@ class LevelConfig {
     required this.scoreThreshold,
   });
 
-  // ─── Per-level score target (start 1000, +1000 per level) ─────────────────
+  // ─── Per-level score target — used for star rating only ────────────────────
   //
-  // Level 1 → 1000 pts, Level 2 → 2000 pts, Level N → N * 1000 pts.
-  // Score resets to 0 at the start of each level.
+  // 3 stars: score >= target; 2 stars: >= target/2; 1 star: any completion.
   static int scoreTargetForLevel(int level) => level * 1000;
 
-  // ─── Maximum time per level ─────────────────────────────────────────────────
-  // If the player hasn't reached the score target within 15 minutes the level
-  // is force-completed so they are never permanently stuck.
-  static const levelTimeLimit = Duration(minutes: 15);
+  // ─── Time-based level limit: Level 1 = 5 min, +1 min per level ─────────────
+  // Level 1 → 5 min, Level 2 → 6 min, Level N → N + 4 min.
+  static Duration timeLimitForLevel(int level) =>
+      Duration(minutes: level + 4);
 
   // ─── Level from cumulative score (used only for speed/spawn formulas) ───────
   // Approximates level from a running score total. First level = 1000 pts,

@@ -4,6 +4,8 @@
 //  • 32 new images       → PREMIUM, unlock for 100 coins each
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import 'package:flutter/foundation.dart';
+
 class BgAssets {
   static const _base = 'assets/backgrounds/';
 
@@ -151,10 +153,10 @@ extension BackgroundStyleInfo on BackgroundStyle {
 
   // ── Pricing ───────────────────────────────────────────────────────────────
 
-  /// First 4 backgrounds (sky, darkSky, galaxy, garden) are free; rest cost 100 coins.
-  int get coinCost  => index < 4 ? 0 : 100;
-  /// Alternative: unlock with 5 awards instead of coins.
-  int get awardCost => index < 4 ? 0 : 5;
+  /// Free backgrounds cost 0. Debug: premium costs 1 coin. Release: 100 coins.
+  int get coinCost  => index < 4 ? 0 : (kDebugMode ? 1 : 100);
+  /// Debug: 0 awards needed (1 coin is enough). Release: 5 awards.
+  int get awardCost => index < 4 ? 0 : (kDebugMode ? 0 : 5);
   bool get isPremium => index >= 4;
 
   // ── Asset ─────────────────────────────────────────────────────────────────

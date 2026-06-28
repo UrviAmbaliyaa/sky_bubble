@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../../core/constants/background_assets.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/style_service.dart';
 import '../widgets/coin_display.dart';
@@ -263,6 +264,28 @@ class _BgCardState extends State<_BgCard> {
 
   void _onTap(StyleService svc) {
     if (widget.bg.isPremium && !svc.isBackgroundUnlocked(widget.bg)) {
+      _showPremiumDialog(svc);
+      return;
+    }
+    // Already pinned — tapping again does nothing
+    if (!svc.autoBackground.value && svc.fixedBgStyle.value == widget.bg) return;
+
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final useMoreAds = (remote?.adsEnabled.value     ?? false)
+        && (remote?.moreAdsEnabled.value ?? false);
+
+    if (useMoreAds) {
+      Get.find<AdService>().showInterstitial(
+        onDismissed: () => svc.setFixedBackground(widget.bg),
+      );
+    } else {
+      svc.setFixedBackground(widget.bg);
+    }
+  }
+
+  void _showPremiumDialog(StyleService svc) {
+    void openDialog() {
       Get.dialog(
         Dialog(
           backgroundColor: Colors.transparent,
@@ -271,12 +294,19 @@ class _BgCardState extends State<_BgCard> {
         ),
         barrierColor: Colors.black54,
       );
-      return;
     }
-    // Already pinned — tapping again does nothing
-    if (!svc.autoBackground.value && svc.fixedBgStyle.value == widget.bg) return;
-    // Free or unlocked premium → pin this background, deselect Auto
-    svc.setFixedBackground(widget.bg);
+
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final adsOn   = remote?.adsEnabled.value     ?? false;
+    final moreAds = remote?.moreAdsEnabled.value ?? false;
+
+    // moreads interstitial: ads=true AND moreads=true.
+    if (adsOn && moreAds) {
+      Get.find<AdService>().showInterstitial(onDismissed: openDialog);
+    } else {
+      openDialog();
+    }
   }
 
   @override

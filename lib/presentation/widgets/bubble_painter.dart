@@ -41,7 +41,9 @@ class BubblePainter extends CustomPainter {
       if (b.isBursting) {
         _paintBurst(canvas, b);
       } else if (!b.isPopped) {
-        if (b.isGift) {
+        if (b.isLocked) {
+          _paintLockedBubble(canvas, b);
+        } else if (b.isGift) {
           _paintGiftBubble(canvas, b);
         } else if (b.isSpecial) {
           _paintSpecial(canvas, b);
@@ -978,6 +980,64 @@ class BubblePainter extends CustomPainter {
   // ══════════════════════════════════════════════════════════
   //  GIFT BUBBLE – once-per-level, shows gift.png inside
   // ══════════════════════════════════════════════════════════
+
+  void _paintLockedBubble(Canvas canvas, BubbleModel b) {
+    final c = Offset(b.x, b.y);
+    final r = b.radius;
+
+    // Dark translucent body
+    canvas.drawCircle(
+      c, r,
+      Paint()
+        ..color = const Color(0xFF37474F).withOpacity(0.80)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Subtle rim
+    canvas.drawCircle(
+      c, r,
+      Paint()
+        ..color = Colors.white.withOpacity(0.25)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5,
+    );
+
+    // Lock icon drawn with primitives
+    final lockW = r * 0.55;
+    final lockH = r * 0.65;
+    final lx = c.dx - lockW / 2;
+    final ly = c.dy - lockH * 0.25;
+
+    // Lock body (rounded rectangle)
+    final bodyRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(lx, ly, lockW, lockH * 0.6),
+      Radius.circular(lockW * 0.18),
+    );
+    canvas.drawRRect(
+      bodyRect,
+      Paint()..color = Colors.white.withOpacity(0.85),
+    );
+
+    // Lock shackle (arc)
+    final shacklePaint = Paint()
+      ..color = Colors.white.withOpacity(0.85)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = lockW * 0.18
+      ..strokeCap = StrokeCap.round;
+    final shackleRect = Rect.fromCenter(
+      center: Offset(c.dx, ly),
+      width: lockW * 0.55,
+      height: lockH * 0.5,
+    );
+    canvas.drawArc(shackleRect, math.pi, math.pi, false, shacklePaint);
+
+    // Keyhole
+    canvas.drawCircle(
+      Offset(c.dx, ly + lockH * 0.3),
+      lockW * 0.10,
+      Paint()..color = const Color(0xFF37474F).withOpacity(0.70),
+    );
+  }
 
   void _paintGiftBubble(Canvas canvas, BubbleModel b) {
     final c = Offset(b.x, b.y);

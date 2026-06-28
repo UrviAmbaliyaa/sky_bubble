@@ -66,28 +66,28 @@ extension BubbleStyleInfo on BubbleStyle {
     }
   }
 
-  /// Coin cost to unlock. 0 means free.
+  /// Coin cost to unlock. Debug: 1 coin for all premium. Release: normal prices.
   int get coinCost {
     switch (this) {
       case BubbleStyle.classic: return 0;
-      case BubbleStyle.blur:    return 100;
-      case BubbleStyle.heart:   return 200;
-      case BubbleStyle.star:    return 300;
-      case BubbleStyle.diamond: return 400;
+      case BubbleStyle.blur:    return kDebugMode ? 1 : 100;
+      case BubbleStyle.heart:   return kDebugMode ? 1 : 200;
+      case BubbleStyle.star:    return kDebugMode ? 1 : 300;
+      case BubbleStyle.diamond: return kDebugMode ? 1 : 400;
       case BubbleStyle.dog1:
       case BubbleStyle.dog2:
-      case BubbleStyle.dog3:    return kDebugMode ? 0 : 500;
+      case BubbleStyle.dog3:    return kDebugMode ? 1 : 500;
     }
   }
 
-  /// Award cost to unlock alongside coins. 0 means free.
+  /// Award cost alongside coins. Debug: 0 awards (only 1 coin needed). Release: normal.
   int get awardCost {
     switch (this) {
       case BubbleStyle.classic: return 0;
-      case BubbleStyle.blur:    return 1;
-      case BubbleStyle.heart:   return 2;
-      case BubbleStyle.star:    return 3;
-      case BubbleStyle.diamond: return 4;
+      case BubbleStyle.blur:    return kDebugMode ? 0 : 1;
+      case BubbleStyle.heart:   return kDebugMode ? 0 : 2;
+      case BubbleStyle.star:    return kDebugMode ? 0 : 3;
+      case BubbleStyle.diamond: return kDebugMode ? 0 : 4;
       case BubbleStyle.dog1:
       case BubbleStyle.dog2:
       case BubbleStyle.dog3:    return kDebugMode ? 0 : 5;

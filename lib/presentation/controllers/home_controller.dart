@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/style_service.dart';
 import '../../domain/usecases/score_usecases.dart';
@@ -157,20 +158,22 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
   }
 
   Future<void> navigateToGame() async {
-    // Pass the current best score as a route argument so GameController can
-    // detect — and celebrate — a new high score IN THE GAME SCREEN itself.
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final adsOn   = remote?.adsEnabled.value     ?? false;
+    final moreAds = remote?.moreAdsEnabled.value ?? false;
+
+    if (adsOn && moreAds) {
+      Get.find<AdService>().showInterstitial(onDismissed: _doNavigateToGame);
+    } else {
+      await _doNavigateToGame();
+    }
+  }
+
+  Future<void> _doNavigateToGame() async {
     await Get.toNamed(AppRoutes.game, arguments: {'bestScore': bestScore.value});
-
-    // ⚠️ Timing: GetX defers GameController.onClose() to the next frame via
-    // addPostFrameCallback.  PopScope in GameScreen also calls persistScoreOnExit()
-    // synchronously, but we still give a 150 ms buffer to cover swipe-back,
-    // predictive-back and any device-specific gesture-navigation variants.
     await Future.delayed(const Duration(milliseconds: 150));
-
-    // Refresh the home screen stats — score is guaranteed in storage by now.
     _loadStats();
-    // No in-app celebration here: the player already saw the 🏆 banner while
-    // playing.  We just make sure the best-score pill updates on screen.
   }
 
   Future<void> navigateToScores() async {
@@ -212,7 +215,11 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     }
 
     isBuyingAward.value = true;
-    Get.find<AdService>().showInterstitial(onDismissed: () {
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final adsOn = remote?.adsEnabled.value ?? false;
+
+    void complete() {
       final ok = styleSvc.purchaseAwardWithCoins();
       isBuyingAward.value = false;
       if (ok) {
@@ -227,6 +234,12 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
           duration: const Duration(seconds: 3),
         );
       }
-    });
+    }
+
+    if (adsOn) {
+      Get.find<AdService>().showInterstitial(onDismissed: complete);
+    } else {
+      complete();
+    }
   }
 }

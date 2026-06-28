@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/style_service.dart';
 import '../controllers/home_controller.dart';
 import '../widgets/coin_display.dart';
@@ -111,27 +112,41 @@ class _HomeUI extends GetView<HomeController> {
                       onTap: controller.navigateToBackground,
                     ),
                   ),
-                  SizedBox(height: 2.h),
-                  _OptionsRow(
-                    left: _GridPill(
-                      iconData: Icons.monetization_on_rounded,
-                      label: 'EARN COINS',
-                      tintColor: const Color(0xFF107858),
-                      opacity: 0.32,
-                      iconColor: Colors.amber,
-                      onTap: controller.navigateToEarnCoins,
-                    ),
-                    right: Obx(() {
-                      final svc       = Get.find<StyleService>();
-                      final canAfford = svc.totalCoins.value >= StyleService.awardPurchaseCost;
-                      final busy      = controller.isBuyingAward.value;
-                      return _EarnAwardGridPill(
-                        canAfford: canAfford,
-                        busy:      busy,
-                        onTap:     controller.buyAwardWithCoins,
-                      );
-                    }),
-                  ),
+                  // Earn Coins + Earn Award — visible only when ads are actually
+                  // being shown somewhere: ads=true AND (show_ads=true OR moreads=true).
+                  Obx(() {
+                    RemoteAdConfigService? remote;
+                    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+                    final adsOn       = remote?.adsEnabled.value ?? false;
+                    final earnVisible = adsOn;
+                    if (!earnVisible) return const SizedBox.shrink();
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(height: 2.h),
+                        _OptionsRow(
+                          left: _GridPill(
+                            iconData: Icons.monetization_on_rounded,
+                            label: 'EARN COINS',
+                            tintColor: const Color(0xFF107858),
+                            opacity: 0.32,
+                            iconColor: Colors.amber,
+                            onTap: controller.navigateToEarnCoins,
+                          ),
+                          right: Obx(() {
+                            final svc       = Get.find<StyleService>();
+                            final canAfford = svc.totalCoins.value >= StyleService.awardPurchaseCost;
+                            final busy      = controller.isBuyingAward.value;
+                            return _EarnAwardGridPill(
+                              canAfford: canAfford,
+                              busy:      busy,
+                              onTap:     controller.buyAwardWithCoins,
+                            );
+                          }),
+                        ),
+                      ],
+                    );
+                  }),
                   SizedBox(height: 3.h),
                 ],
               ),

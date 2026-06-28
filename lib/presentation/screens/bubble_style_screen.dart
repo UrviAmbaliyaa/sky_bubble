@@ -6,6 +6,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/bubble_styles.dart';
 import '../../data/models/bubble_model.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../widgets/coin_display.dart';
 import '../../data/services/style_service.dart';
@@ -58,10 +59,27 @@ class BubbleStyleScreen extends StatelessWidget {
                       isUnlocked: unlocked,
                       userCoins: coins,
                       onTap: () {
+                        RemoteAdConfigService? remote;
+                        try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+                        final useMoreAds = (remote?.adsEnabled.value     ?? false)
+                            && (remote?.moreAdsEnabled.value ?? false);
+
                         if (unlocked) {
-                          svc.setStyle(style);
+                          if (useMoreAds) {
+                            Get.find<AdService>().showInterstitial(
+                              onDismissed: () => svc.setStyle(style),
+                            );
+                          } else {
+                            svc.setStyle(style);
+                          }
                         } else {
-                          showUnlockDialog(context, style, svc);
+                          if (useMoreAds) {
+                            Get.find<AdService>().showInterstitial(
+                              onDismissed: () => showUnlockDialog(context, style, svc),
+                            );
+                          } else {
+                            showUnlockDialog(context, style, svc);
+                          }
                         }
                       },
                     );

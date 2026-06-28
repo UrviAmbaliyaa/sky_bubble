@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/models/level_config.dart';
 import '../../data/services/ad_service.dart';
 import '../controllers/game_controller.dart';
@@ -153,12 +154,18 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
         ),
 
         // ── Banner ad pinned above the system home indicator ─────────────
-        Positioned(
-          bottom: bottomPad,
-          left: 0,
-          right: 0,
-          child: const _LevelCompleteBanner(),
-        ),
+        Obx(() {
+          RemoteAdConfigService? remote;
+          try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+          final adsOn = remote?.adsEnabled.value ?? false;
+          if (!adsOn) return const SizedBox.shrink();
+          return Positioned(
+            bottom: bottomPad,
+            left: 0,
+            right: 0,
+            child: const _LevelCompleteBanner(),
+          );
+        }),
       ],
     );
   }
@@ -215,7 +222,6 @@ class _LevelCard extends StatelessWidget {
     return Obx(() {
       final doneLv   = ctrl.completedLevel.value;
       final nextLv   = ctrl.level.value;
-      final hearts   = ctrl.lives.value;
       final target   = LevelConfig.scoreTargetForLevel(doneLv);
       final theme    = _LevelTheme.forLevel(doneLv);
       final nextTheme = _LevelTheme.forLevel(nextLv);
@@ -247,14 +253,12 @@ class _LevelCard extends StatelessWidget {
                     _ScoreCounter(scoreAnim: scoreAnim, target: target, theme: theme),
                     SizedBox(height: 2.5.h),
 
-                    // Stats row
-                    Row(
-                      children: [
-                        _StatPill(emoji: '❤️', label: 'Hearts', value: '$hearts', color: const Color(0xFFFF4D6D)),
-                        SizedBox(width: 3.w),
-                        _RewardsPill(gifts: ctrl.sessionGifts.toList()),
-                      ],
-                    ),
+                    // Stars row
+                    _StarsDisplay(stars: ctrl.starsEarned.value),
+                    SizedBox(height: 2.h),
+
+                    // Rewards pill
+                    _RewardsPill(gifts: ctrl.sessionGifts.toList()),
                     SizedBox(height: 2.5.h),
 
                     // Next level badge
@@ -276,10 +280,17 @@ class _LevelCard extends StatelessWidget {
                               label: 'Next Level →',
                               colors: const [Color(0xFF6C63FF), Color(0xFF48CAE4)],
                               onTap: () {
-                                Get.find<AdService>().loadAndShowInterstitial(
-                                  onDismissed: ctrl.continueAfterLevelComplete,
-                                  onFailure:   ctrl.continueAfterLevelComplete,
-                                );
+                                RemoteAdConfigService? remote;
+                                try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+                                final adsOn = remote?.adsEnabled.value ?? false;
+                                if (adsOn) {
+                                  Get.find<AdService>().loadAndShowInterstitial(
+                                    onDismissed: ctrl.continueAfterLevelComplete,
+                                    onFailure:   ctrl.continueAfterLevelComplete,
+                                  );
+                                } else {
+                                  ctrl.continueAfterLevelComplete();
+                                }
                               },
                             ),
                             SizedBox(height: 1.8.h),
@@ -435,32 +446,81 @@ class _ScoreCounter extends StatelessWidget {
   }
 }
 
-// ─── Stat pill ────────────────────────────────────────────────────────────────
+// ─── Stars display ────────────────────────────────────────────────────────────
 
-class _StatPill extends StatelessWidget {
-  final String emoji, label, value;
-  final Color color;
-  const _StatPill({required this.emoji, required this.label, required this.value, required this.color});
+class _StarsDisplay extends StatefulWidget {
+  final int stars;
+  const _StarsDisplay({required this.stars});
+
+  @override
+  State<_StarsDisplay> createState() => _StarsDisplayState();
+}
+
+class _StarsDisplayState extends State<_StarsDisplay> with TickerProviderStateMixin {
+  final List<AnimationController> _ctrls = [];
+  final List<Animation<double>> _scales = [];
+
+  @override
+  void initState() {
+    super.initState();
+    for (int i = 0; i < 3; i++) {
+      final ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
+      final anim = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: ctrl, curve: Curves.elasticOut),
+      );
+      _ctrls.add(ctrl);
+      _scales.add(anim);
+      if (i < widget.stars) {
+        Future.delayed(Duration(milliseconds: 200 + i * 200), () {
+          if (mounted) ctrl.forward();
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _ctrls) c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: 1.5.h),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.07),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.20), width: 1.2),
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (i) {
+            final earned = i < widget.stars;
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 1.5.w),
+              child: AnimatedBuilder(
+                animation: _scales[i],
+                builder: (_, __) => Transform.scale(
+                  scale: earned ? _scales[i].value : 1.0,
+                  child: Icon(
+                    earned ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: earned ? const Color(0xFFFFD700) : Colors.grey.shade300,
+                    size: 9.w,
+                    shadows: earned
+                        ? const [Shadow(color: Color(0xFFFF8F00), blurRadius: 8, offset: Offset(0, 2))]
+                        : null,
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
-        child: Column(
-          children: [
-            Text(emoji, style: TextStyle(fontSize: 16.sp)),
-            SizedBox(height: 0.3.h),
-            Text(value, style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w900, color: color)),
-            Text(label, style: TextStyle(fontSize: 8.5.sp, color: Colors.grey.shade400, fontWeight: FontWeight.w500)),
-          ],
+        SizedBox(height: 0.5.h),
+        Text(
+          widget.stars == 3 ? 'Excellent! 🎉' : widget.stars == 2 ? 'Great job! 👍' : 'Level Complete!',
+          style: TextStyle(
+            fontSize: 10.sp,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey.shade500,
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -474,16 +534,16 @@ class _RewardsPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    int extraHearts = 0, extraCoins = 0, extraAwards = 0;
+    int extraCoins = 0, extraAwards = 0;
     for (final g in gifts) {
-      if (g == 0) extraHearts++;
-      else if (g == 1) extraCoins += 5;
-      else extraAwards++;
+      if (g == 1) extraCoins += 5;
+      else if (g == 2) extraAwards++;
     }
-    final totalCoins = 3 + extraCoins; // 3 fixed level reward + gift coins
+    final totalCoins = 3 + extraCoins;
     final hasGifts   = gifts.isNotEmpty;
 
-    return Expanded(
+    return SizedBox(
+      width: double.infinity,
       child: Container(
         padding: EdgeInsets.symmetric(vertical: 1.5.h),
         decoration: BoxDecoration(
@@ -501,7 +561,6 @@ class _RewardsPill extends StatelessWidget {
               spacing: 1.5.w,
               children: [
                 _badge('🪙', '+$totalCoins'),
-                if (extraHearts > 0) _badge('❤️', '+$extraHearts'),
                 if (extraAwards > 0) _badge('🏅', '+$extraAwards'),
               ],
             ),

@@ -9,6 +9,7 @@ import '../../core/constants/background_assets.dart';
 import '../../data/models/bubble_model.dart';
 import '../../data/models/level_config.dart';
 import '../../data/models/score_model.dart';
+import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/sound_service.dart';
 import '../../data/services/style_service.dart';
@@ -23,15 +24,15 @@ class GameController extends GetxController with WidgetsBindingObserver {
   final RxList<BubbleModel> bubbles = <BubbleModel>[].obs;
   final RxInt score = 0.obs;
   final RxInt level = 1.obs;
-  final RxInt lives = 0.obs;
   final RxBool isGameOver    = false.obs;
   final RxBool isGameRunning = false.obs;
   final RxBool isPaused      = false.obs;
-  final RxBool isHeartsOver  = false.obs;
   final RxString levelUpMessage = ''.obs;
 
+  // ── Time remaining for current level (for HUD display) ───────────────────
+  final RxString timeRemaining = ''.obs;
+
   // ── New-best banner ───────────────────────────────────────────────────────
-  // Shown on the game screen when the player beats their all-time high score.
   final RxBool showNewBestBanner = false.obs;
   final RxInt  newBestScore      = 0.obs;
 
@@ -40,92 +41,70 @@ class GameController extends GetxController with WidgetsBindingObserver {
   final RxInt  snackCompletedLevel = 0.obs;
 
   // ── Level-complete overlay ────────────────────────────────────────────────
-  // Shown full-screen when the player advances to a new level.
   final RxBool showLevelComplete = false.obs;
-  final RxInt  completedLevel    = 0.obs;   // level the player just finished
-  final RxInt  coinsThisLevel    = 0.obs;   // score earned this level (displayed as score)
+  final RxInt  completedLevel    = 0.obs;
+  final RxInt  coinsThisLevel    = 0.obs;
+  final RxInt  starsEarned       = 0.obs;
 
-  // ── Gift screen (shown when player breaks all-time high score) ────────────
-  // 0 = +1 heart, 1 = +5 coins, 2 = +1 award
+  // ── Gift screen ───────────────────────────────────────────────────────────
   final RxBool     showGiftScreen  = false.obs;
   final RxInt      giftRewardType  = 0.obs;
-  // Accumulates all gift types claimed during the current level session.
-  // Cleared when a new level/game starts. Read by LevelCompleteOverlay.
   final RxList<int> sessionGifts   = <int>[].obs;
 
   final _random = math.Random();
   Timer? _gameTimer;
   Timer? _spawnTimer;
-  Timer? _levelTimer;          // fires after 15 min to force-complete the level
-  DateTime? _levelStartTime;  // wall-clock when current level began (or resumed)
-  Duration _levelElapsed = Duration.zero; // accumulated time before last pause
+  Timer? _levelTimer;
+  Timer? _bgChangeTimer;         // fires every 5 min to rotate background
+  Timer? _hudTimer;              // fires every second to update timeRemaining
+  Timer? _lockedBubbleTimer;     // fires every 2 min to spawn a locked bubble
+  DateTime? _levelStartTime;
+  Duration _levelElapsed = Duration.zero;
   int _idCounter = 0;
   Size _screenSize = Size.zero;
 
-  // Guard: ensures each game session's score is written to storage exactly once,
-  // regardless of whether the user exits via a button or the device back key.
   bool _scoreSaved = false;
-
-  // The all-time best score loaded at game start (passed via route arguments
-  // from HomeController so we know when a new best has been beaten).
   int _storedBestScore = 0;
-  // Ensures the new-best banner is only shown once per game session.
   bool _newBestShown = false;
+  int? _startLevel; // set when replaying a specific level from the levels screen
 
   // ─── Background index ─────────────────────────────────────────────────────
-  // Derived from level in a fixed queue: level 1 → bg 0, level 2 → bg 1 …
-  // wraps after all 14 backgrounds. Read-only from outside; updates whenever
-  // level changes.
   int get bgIndex => ((level.value - 1) % BgAssets.all.length).toInt();
 
-  // ─── In-game background (bubble-driven, changes every 200 bubbles spawned) ──
-  // A random background is picked from the full pool each time 200 bubbles
-  // have been spawned since the last change. Reactive so _PremiumBackground
-  // rebuilds automatically.
+  // ─── In-game background (changes every 5 minutes) ────────────────────────
   final RxString gameBgAsset = RxString('');
-  int _totalBubblesSpawned   = 0;   // cumulative spawned this game session
-  int _lastBgBubbleMilestone = 0;   // last 200-bubble boundary we changed bg at
-  List<String> _gameBgPool   = [];  // shuffled background queue for Auto mode
-  int _gameBgPoolIdx         = 0;   // next-to-play index in _gameBgPool
+  List<String> _gameBgPool   = [];
+  int _gameBgPoolIdx         = 0;
 
   // ─── speed ramp ──────────────────────────────────────────────────────────
   int _lastSpeedRampScore = 0;
 
   // ─── special bubble tracking ─────────────────────────────────────────────
-  // The golden 100-pt bubble may only appear once every 10 minutes.
   DateTime? _lastSpecialBubbleTime;
   static const _specialMinGap = Duration(minutes: 5);
-  // Approximate chance per spawn cycle when the gap has elapsed (~1 in 80).
   static const _specialSpawnChance = 80;
 
   // ─── gift bubble tracking ─────────────────────────────────────────────────
-  // Spawned once per level, ~20 s after level start. Tracks the current level
-  // so a new gift bubble becomes eligible each time the player levels up.
   bool _giftBubbleSpawnedThisLevel = false;
   int  _giftBubbleEligibleLevel    = -1;
 
   @override
   void onReady() {
     super.onReady();
-    // Register for app lifecycle events so the game pauses when the app is
-    // minimised/sent to background and auto-resumes on return.
     WidgetsBinding.instance.addObserver(this);
-    // HomeController passes the current best score so we can detect a new high
-    // during gameplay without an extra storage read.
     final args = Get.arguments;
     if (args is Map) {
       _storedBestScore = (args['bestScore'] as int?) ?? 0;
+      _startLevel      = args['startLevel'] as int?;
     }
   }
 
-  // Called by Flutter whenever the app lifecycle state changes.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.paused:
       case AppLifecycleState.inactive:
       case AppLifecycleState.hidden:
-        // App going to background / screen locked — pause and show pause overlay.
         if (isGameRunning.value && !isPaused.value) {
           isPaused.value      = true;
           isGameRunning.value = false;
@@ -133,17 +112,12 @@ class GameController extends GetxController with WidgetsBindingObserver {
         }
         break;
       case AppLifecycleState.resumed:
-        // App returns to foreground — keep the pause overlay visible so the
-        // player consciously taps Resume rather than being thrown back in-game.
-        // Do nothing here; the overlay stays until the player dismisses it.
         break;
       case AppLifecycleState.detached:
         break;
     }
   }
 
-  /// Pause the game due to a navigation gesture (back-swipe, bottom nav bar).
-  /// Stops the game loop and raises the pause overlay without exiting the screen.
   void pauseForNavigation() {
     if (!isGameRunning.value || isPaused.value) return;
     isGameRunning.value = false;
@@ -161,20 +135,12 @@ class GameController extends GetxController with WidgetsBindingObserver {
   void onClose() {
     WidgetsBinding.instance.removeObserver(this);
     _cancelTimers();
-    // Catches the device back-button path: the controller is disposed without
-    // any explicit "navigateHome" call, so we save here as a safety net.
     _persistScore();
     super.onClose();
   }
 
-  // Called by PopScope in GameScreen before the route is popped by a swipe-back
-  // or system gesture.  Saves the score synchronously so that by the time
-  // HomeController.navigateToGame() resumes and reads storage, the data is there.
   void persistScoreOnExit() => _persistScore();
 
-  // ── Score persistence (idempotent) ────────────────────────────────────────
-  // Writes the current score to storage at most once per game session.
-  // Safe to call from multiple code paths (navigateHome, onClose, hearts-out).
   void _persistScore() {
     if (_scoreSaved || score.value <= 0) return;
     _scoreSaved = true;
@@ -190,16 +156,12 @@ class GameController extends GetxController with WidgetsBindingObserver {
   void startGame() {
     final style = Get.find<StyleService>();
     score.value = 0;
-    level.value = style.currentLevel.value.clamp(1, 9999);
-    lives.value = 3;
+    level.value = (_startLevel ?? style.currentLevel.value).clamp(1, 9999);
     isGameOver.value   = false;
-    isHeartsOver.value = false;
     isGameRunning.value = true;
     isPaused.value = false;
     _lastSpeedRampScore    = 0;
-    _totalBubblesSpawned   = 0;
-    _lastBgBubbleMilestone = 0;
-    _scoreSaved   = false; // reset so the new game's score can be saved
+    _scoreSaved   = false;
     _newBestShown = false;
     showNewBestBanner.value = false;
     sessionGifts.clear();
@@ -219,10 +181,13 @@ class GameController extends GetxController with WidgetsBindingObserver {
     _cancelTimers();
     _giftBubbleSpawnedThisLevel = false;
     _giftBubbleEligibleLevel    = -1;
-    _spawnWave();   // initial wave so the screen is never empty at start
+    _spawnWave();
     _startGameLoop();
     _startSpawnTimer();
     _startLevelTimer();
+    _startBgChangeTimer();
+    _startHudTimer();
+    _startLockedBubbleTimer();
     _trySpawnGiftBubble();
   }
 
@@ -246,6 +211,9 @@ class GameController extends GetxController with WidgetsBindingObserver {
       _startGameLoop();
       _startSpawnTimer();
       _resumeLevelTimer();
+      _startBgChangeTimer();
+      _startHudTimer();
+      _startLockedBubbleTimer();
     } else {
       isPaused.value = true;
       isGameRunning.value = false;
@@ -255,10 +223,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
 
   void navigateHome() {
     _cancelTimers();
-    _persistScore(); // idempotent — safe even if already saved
-    // Pass both flags so HomeController can:
-    //   • skip the fade-in animation (fromGame)
-    //   • decide whether to show the celebration popup (lastScore)
+    _persistScore();
     Get.offAllNamed(AppRoutes.home, arguments: {
       'fromGame': true,
       'lastScore': score.value,
@@ -280,36 +245,73 @@ class GameController extends GetxController with WidgetsBindingObserver {
   }
 
   void _scheduleNextSpawn() {
-    // Interval is driven purely by level (2000 ms at Lv1 → 800 ms at Lv100).
     final interval = LevelConfig.spawnIntervalForLevel(level.value);
     _spawnTimer?.cancel();
     _spawnTimer = Timer(Duration(milliseconds: interval), () {
-      // ── CRITICAL: ALWAYS reschedule first, before anything else. ──────────
-      // Previously we only rescheduled inside the `if (isGameRunning)` block,
-      // so if the game was briefly paused/overlaid at the exact moment this
-      // timer fired, the entire spawn chain terminated permanently and bubbles
-      // stopped generating for the rest of the session.
       if (isGameRunning.value) {
         _spawnWave();
       }
-      // Reschedule unconditionally — the chain must never die.
-      // _cancelTimers() sets _spawnTimer = null and cancels the pending timer,
-      // so this call after cancel is harmless (the callback already fired).
       _scheduleNextSpawn();
+    });
+  }
+
+  // ─── HUD timer (updates time remaining every second) ─────────────────────
+  void _startHudTimer() {
+    _hudTimer?.cancel();
+    _hudTimer = Timer.periodic(const Duration(seconds: 1), (_) => _updateTimeRemaining());
+    _updateTimeRemaining();
+  }
+
+  void _updateTimeRemaining() {
+    if (_levelStartTime == null) return;
+    final limit = LevelConfig.timeLimitForLevel(level.value);
+    final elapsed = _levelElapsed + DateTime.now().difference(_levelStartTime!);
+    final remaining = limit - elapsed;
+    if (remaining <= Duration.zero) {
+      timeRemaining.value = '0:00';
+      return;
+    }
+    final m = remaining.inMinutes;
+    final s = remaining.inSeconds % 60;
+    timeRemaining.value = '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  // ─── Background rotation (every 5 minutes) ────────────────────────────────
+  void _startBgChangeTimer() {
+    _bgChangeTimer?.cancel();
+    _bgChangeTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      if (!isGameRunning.value) return;
+      final svc = Get.find<StyleService>();
+      if (svc.autoBackground.value) {
+        if (_gameBgPoolIdx >= _gameBgPool.length) {
+          _gameBgPool    = _buildBgPoolList(svc);
+          _gameBgPoolIdx = 0;
+        }
+        if (_gameBgPool.isNotEmpty) {
+          gameBgAsset.value = _gameBgPool[_gameBgPoolIdx++];
+        }
+      } else {
+        final fixed = svc.fixedBgStyle.value;
+        if (fixed != null) gameBgAsset.value = fixed.assetPath;
+      }
+    });
+  }
+
+  // ─── Locked bubble timer (every 2 minutes) ────────────────────────────────
+  void _startLockedBubbleTimer() {
+    _lockedBubbleTimer?.cancel();
+    _lockedBubbleTimer = Timer.periodic(const Duration(minutes: 2), (_) {
+      if (isGameRunning.value) _spawnLockedBubble();
     });
   }
 
   void _tick() {
     if (!isGameRunning.value) return;
 
-    // ── Spawn-timer watchdog ──────────────────────────────────────────────────
-    // If the spawn timer somehow died (null while game is running), restart it
-    // immediately so bubbles never stop generating.
     if (_spawnTimer == null) {
       _scheduleNextSpawn();
     }
 
-    // Continuous speed multiplier: +0.15× every 5 score points
     final speedMult = LevelConfig.speedMultiplierForScore(score.value);
     final toRemove = <String>[];
 
@@ -321,9 +323,6 @@ class GameController extends GetxController with WidgetsBindingObserver {
       }
       if (b.isPopped) continue;
 
-      // Special bubbles use their fixed speed — never scaled by level.
-      // Normal bubbles: capped at height/300 so even at the fastest level the
-      // crossing time stays ≥ 2 s (60 fps × 300 ticks ÷ screenHeight).
       final double tickSpeed;
       if (b.isSpecial) {
         tickSpeed = b.speed;
@@ -338,7 +337,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
 
       if (b.y < -b.radius * 2) {
         toRemove.add(b.id);
-        _onBubbleEscaped();
+        // No penalty when a bubble escapes — hearts removed
       }
     }
 
@@ -347,120 +346,70 @@ class GameController extends GetxController with WidgetsBindingObserver {
     }
     bubbles.refresh();
 
-    _checkLevelUp();
     _checkSpeedRamp();
     _checkNewBest();
   }
 
-  void _checkLevelUp() {
-    final target = LevelConfig.scoreTargetForLevel(level.value);
-    if (score.value >= target) {
-      final doneLv = level.value;
-      completedLevel.value = doneLv;
-      coinsThisLevel.value = score.value;   // score earned this level (for display)
-
-      // Persist the level's score before advancing.
-      _persistScore();
-
-      // Award 3 coins for completing a level.
-      Get.find<StyleService>().addCoins(3);
-
-      // Advance level — keep score accumulating (do NOT reset to 0).
-      level.value++;
-      _scoreSaved  = false;
-      lives.value  = 3;
-      // Persist the new current level so the user resumes from here.
-      Get.find<StyleService>().updateCurrentLevel(level.value);
-
-      // Pause game, then show the level-complete overlay immediately.
-      // The ad is deferred to when the user taps "Next Level".
-      _cancelTimers();
-      isGameRunning.value = false;
-      showLevelComplete.value = true;
+  // Speed ramp is kept as a no-op for now (score still accumulates)
+  void _checkSpeedRamp() {
+    final rampThreshold = _lastSpeedRampScore + 100;
+    if (score.value >= rampThreshold && score.value > 0) {
+      _lastSpeedRampScore = (score.value ~/ 100) * 100;
     }
-  }
-
-  /// Called by the "Next Level" button on the level-complete overlay.
-  void continueAfterLevelComplete() {
-    showLevelComplete.value = false;
-    sessionGifts.clear(); // gifts shown on overlay — reset for next level
-    // Clear any leftover bubbles and reset score so the new level starts from 0.
-    bubbles.clear();
-    score.value = 0;
-    _lastSpeedRampScore = 0;
-    levelUpMessage.value = '🚀 Level ${level.value} — ${_skinName(level.value)}';
-    Future.delayed(const Duration(seconds: 2), () {
-      if (levelUpMessage.value.contains('Level ${level.value}')) {
-        levelUpMessage.value = '';
-      }
-    });
-    isGameRunning.value = true;
-    _spawnWave();          // seed the first wave immediately
-    _startGameLoop();
-    _startSpawnTimer();
-    _startLevelTimer();   // fresh 15-min window for the new level
-    _trySpawnGiftBubble(); // schedule once-per-level gift bubble
-  }
-
-  String _skinName(int lv) {
-    const names = ['', 'Soap', 'Vivid', 'Neon ✨', 'Gold 🌟',
-        'Crystal 💎', 'Fire 🔥', 'Rainbow 🌈'];
-    return lv < names.length ? names[lv] : 'Rainbow 🌈';
   }
 
   // Fires the Gift screen the first time the player's score surpasses their
   // stored all-time best during this session.
   void _checkNewBest() {
     if (_newBestShown) return;
-    // First-timers: gift at 200+. Returning players: gift when beating previous best (min 200).
     final threshold = _storedBestScore > 200 ? _storedBestScore : 199;
     if (score.value <= threshold) return;
     _newBestShown = true;
     newBestScore.value = score.value;
     showNewBestBanner.value = true;
-    // Pause game and show gift screen directly; ad plays when user opens the gift.
     _cancelTimers();
     isGameRunning.value = false;
-    giftRewardType.value = _random.nextInt(3); // 0=heart, 1=coins, 2=award
-    showGiftScreen.value = true;
+    giftRewardType.value = _random.nextInt(2) + 1; // 1=coins, 2=award (no heart)
+
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final _bAdsOn = remote?.adsEnabled.value ?? false;
+
+    if (_bAdsOn) {
+      Get.find<AdService>().loadAndShowInterstitial(
+        onDismissed: () => showGiftScreen.value = true,
+        onFailure:   () => showGiftScreen.value = true,
+      );
+    } else {
+      showGiftScreen.value = true;
+    }
+
     Future.delayed(const Duration(seconds: 3), () {
       showNewBestBanner.value = false;
     });
   }
 
-  /// Called when the player claims the gift reward.
   void claimGift() {
     showGiftScreen.value = false;
-    sessionGifts.add(giftRewardType.value); // record before applying
+    sessionGifts.add(giftRewardType.value);
     final style = Get.find<StyleService>();
     switch (giftRewardType.value) {
-      case 0:
-        lives.value += 1;      // +1 heart
-        style.recordGiftHeart();
-        break;
       case 1:
-        style.addCoins(5);     // +5 coins
+        style.addCoins(5);
         style.recordGiftCoins();
         break;
       case 2:
-        style.addAward(1);     // +1 award
+        style.addAward(1);
         style.recordGiftAward();
         break;
     }
-    // Resume the game
     isGameRunning.value = true;
     _startGameLoop();
     _startSpawnTimer();
     _resumeLevelTimer();
-  }
-
-  // Speed is now purely level-driven (LevelConfig.speedMultiplierForLevel).
-  // This method is kept as a no-op so call-sites don't need to change.
-  void _checkSpeedRamp() {
-    final rampThreshold = _lastSpeedRampScore + 100;
-    if (score.value >= rampThreshold && score.value > 0) {
-      _lastSpeedRampScore = (score.value ~/ 100) * 100;
-    }
+    _startBgChangeTimer();
+    _startHudTimer();
+    _startLockedBubbleTimer();
   }
 
   // ─── Bubble management ───────────────────────────────────────────────────
@@ -487,19 +436,29 @@ class GameController extends GetxController with WidgetsBindingObserver {
     bubbles.refresh();
   }
 
-  /// Called when the player pops the gift bubble.
-  /// Shows the gift screen immediately; ad plays when the user taps to open it.
   void _triggerGiftBubbleReward() {
     _cancelTimers();
     isGameRunning.value = false;
-    giftRewardType.value = _random.nextInt(3);
-    showGiftScreen.value = true;
+    giftRewardType.value = _random.nextInt(2) + 1; // 1=coins, 2=award
+
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final _gAdsOn = remote?.adsEnabled.value ?? false;
+
+    if (_gAdsOn) {
+      Get.find<AdService>().loadAndShowInterstitial(
+        onDismissed: () => showGiftScreen.value = true,
+        onFailure:   () => showGiftScreen.value = true,
+      );
+    } else {
+      showGiftScreen.value = true;
+    }
   }
 
   void _spawnGiftBubble() {
     final r = _screenSize.shortestSide * 0.13;
     final x = r + _random.nextDouble() * (_screenSize.width - 2 * r);
-    final fixedSpeed = _screenSize.height / (10 * 60.0); // ~10 s crossing
+    final fixedSpeed = _screenSize.height / (10 * 60.0);
     bubbles.add(BubbleModel(
       id: 'gift_${_idCounter++}',
       color: const Color(0xFFFF6B9D),
@@ -517,14 +476,12 @@ class GameController extends GetxController with WidgetsBindingObserver {
 
   void _trySpawnGiftBubble() {
     final currentLvl = level.value;
-    // Reset eligibility when the player levels up
     if (currentLvl != _giftBubbleEligibleLevel) {
       _giftBubbleSpawnedThisLevel = false;
       _giftBubbleEligibleLevel = currentLvl;
     }
     if (!_giftBubbleSpawnedThisLevel) {
       _giftBubbleSpawnedThisLevel = true;
-      // Delay the gift bubble by ~20 s so it doesn't appear right at level start
       Future.delayed(const Duration(seconds: 20), () {
         if (isGameRunning.value && !isGameOver.value) {
           _spawnGiftBubble();
@@ -533,13 +490,30 @@ class GameController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  /// Radius range: minR = shortestSide * 0.055, maxR = shortestSide * 0.095
-  /// Score: smallest bubble (minR) → 1 pt, biggest normal bubble (maxR) → 5 pts
-  /// Special (golden) bubble always awards 10 pts (set directly in _spawnSpecialBubble).
+  // Spawns a locked-style teaser bubble to entice the user to unlock styles.
+  void _spawnLockedBubble() {
+    if (_screenSize == Size.zero) return;
+    final r = _screenSize.shortestSide * 0.12;
+    final x = r + _random.nextDouble() * (_screenSize.width - 2 * r);
+    final fixedSpeed = _screenSize.height / (12 * 60.0);
+    bubbles.add(BubbleModel(
+      id: 'locked_${_idCounter++}',
+      color: const Color(0xFF9E9E9E),
+      x: x,
+      y: _screenSize.height + r * 2,
+      radius: r,
+      speed: fixedSpeed,
+      driftAngle: _random.nextDouble() * math.pi * 2,
+      driftAmplitude: 2.0,
+      driftFrequency: 0.02,
+      pointValue: 0,
+      isLocked: true,
+    ));
+  }
+
   int _scoreForRadius(double r) {
     final minR = _screenSize.shortestSide * 0.055;
     final maxR = _screenSize.shortestSide * 0.095;
-    // t = 0 when r is at minimum (smallest), t = 1 when r is at maximum (biggest)
     final t = ((r - minR) / (maxR - minR)).clamp(0.0, 1.0);
     return (1 + (t * 4).round()).clamp(1, 5);
   }
@@ -549,78 +523,34 @@ class GameController extends GetxController with WidgetsBindingObserver {
     return DateTime.now().difference(_lastSpecialBubbleTime!) >= _specialMinGap;
   }
 
-  // ── Wave spawn ────────────────────────────────────────────────────────────
-  // Spawns a random number of bubbles in a single wave.
-  //
-  // Scenarios handled:
-  //  • Game paused / over         → guard at call-site via isGameRunning
-  //  • Screen size not yet set    → early-return when _screenSize is zero
-  //  • Screen already at capacity → capacity == 0, nothing spawned
-  //  • Capacity < full wave size  → waveSize clamped to remaining capacity
-  //  • Special bubble eligible    → at most 1 special per wave, rest normal
-  //  • Special takes last slot    → normal loop runs 0 times (correct)
   void _spawnWave() {
     if (_screenSize == Size.zero) return;
 
     final config = LevelConfig.forScore(score.value);
     final active = bubbles.where((b) => !b.isPopped).length;
     final capacity = config.maxBubbles - active;
-    if (capacity <= 0) return; // screen full — skip this wave entirely
+    if (capacity <= 0) return;
 
-    // Pick a random wave size within the level-appropriate range, then
-    // clamp so we never exceed the remaining screen capacity.
     final (minW, maxW) = LevelConfig.waveSizeRange(level.value);
     final rawWave = minW + _random.nextInt((maxW - minW + 1).clamp(1, 99));
     final waveSize = rawWave.clamp(1, capacity);
 
     int spawned = 0;
 
-    // One chance per wave to include the rare special bubble.
-    // It counts toward the wave total so the wave size stays predictable.
     if (_canSpawnSpecial() && _random.nextInt(_specialSpawnChance) == 0) {
       _spawnSpecialBubble();
       spawned++;
     }
 
-    // Fill the remaining wave slots with normal bubbles.
     while (spawned < waveSize) {
       _spawnNormalBubble();
       spawned++;
     }
-
-    // ── Bubble-count background rotation (every 200 spawned) ──────────────
-    _totalBubblesSpawned += spawned;
-    final bgMilestone = (_totalBubblesSpawned ~/ 200) * 200;
-    if (bgMilestone > _lastBgBubbleMilestone) {
-      _lastBgBubbleMilestone = bgMilestone;
-      final svc = Get.find<StyleService>();
-      if (svc.autoBackground.value) {
-        // Queue-based: each background shown once before any repeats.
-        if (_gameBgPoolIdx >= _gameBgPool.length) {
-          _gameBgPool    = _buildBgPoolList(svc);
-          _gameBgPoolIdx = 0;
-        }
-        if (_gameBgPool.isNotEmpty) {
-          gameBgAsset.value = _gameBgPool[_gameBgPoolIdx++];
-        }
-      } else {
-        // Fixed mode: keep the pinned background at all times.
-        final fixed = svc.fixedBgStyle.value;
-        if (fixed != null) gameBgAsset.value = fixed.assetPath;
-      }
-    }
   }
 
-  // Spawns a single normal bubble. All capacity / special logic lives in
-  // _spawnWave; this method only builds the BubbleModel.
   void _spawnNormalBubble() {
     final r = _screenSize.shortestSide * (0.055 + _random.nextDouble() * 0.04);
     final x = r + _random.nextDouble() * (_screenSize.width - 2 * r);
-    // Base speed: 0.0018–0.0026 × screen height per tick at 60 fps.
-    // Combined with speedMultiplierForLevel (0.30 → 1.00 over 100 levels):
-    //   Level  1: ~0.00054–0.00078 × h  →  crossing ≈ 6–7 s  (very relaxed)
-    //   Level 50: ~0.00104–0.00151 × h  →  crossing ≈ 3.5 s
-    //   Level100: ~0.0018–0.0026  × h   →  crossing ≈ 2 s    (challenging)
     final baseSpd = _screenSize.height * (0.0018 + _random.nextDouble() * 0.0008);
 
     final palette = AppColors.bubbleColorsForLevel(level.value);
@@ -639,11 +569,9 @@ class GameController extends GetxController with WidgetsBindingObserver {
   }
 
   void _spawnSpecialBubble() {
-    // Large, slow, fixed-speed golden bubble — stands out visually.
-    // Radius: 1.8× the normal max; speed locked to a 6-second screen crossing.
     final r = _screenSize.shortestSide * 0.17;
     final x = r + _random.nextDouble() * (_screenSize.width - 2 * r);
-    final fixedSpeed = _screenSize.height / (8 * 60.0); // always ~8 s crossing
+    final fixedSpeed = _screenSize.height / (8 * 60.0);
 
     _lastSpecialBubbleTime = DateTime.now();
     bubbles.add(BubbleModel(
@@ -661,23 +589,7 @@ class GameController extends GetxController with WidgetsBindingObserver {
     ));
   }
 
-  void _onBubbleEscaped() {
-    lives.value -= 1;
-    if (lives.value <= 0) {
-      lives.value = 0;
-      isGameRunning.value = false;
-      _cancelTimers();
-      _persistScore(); // save the score when hearts run out
-      isHeartsOver.value = true;
-    }
-  }
-
   // ── Background pool helper ────────────────────────────────────────────────
-  // Builds a shuffled queue for Auto mode:
-  //   • Unlocked premium backgrounds first (shuffled) — highest priority
-  //   • Then free backgrounds (shuffled)
-  // Each background appears exactly once before the queue resets, so no
-  // background repeats until all others have been shown.
   List<String> _buildBgPoolList(StyleService svc) {
     final rng      = math.Random();
     final unlocked = svc.unlockedBackgrounds.toList()..shuffle(rng);
@@ -691,46 +603,20 @@ class GameController extends GetxController with WidgetsBindingObserver {
     ];
   }
 
-  /// Cost in coins to buy a second chance.
-  static const int chanceCoinCost = 5;
-
-  bool get canAffordChance =>
-      Get.find<StyleService>().totalCoins.value >= chanceCoinCost;
-
-  /// Restore hearts and resume — shared implementation.
-  void resetHearts() {
-    lives.value = 3;
-    isHeartsOver.value = false;
-    isGameRunning.value = true;
-    _startGameLoop();
-    _startSpawnTimer();
-    _resumeLevelTimer();
-  }
-
-  /// Spend [chanceCoinCost] coins for a second chance.
-  void getChanceWithCoins() {
-    final svc = Get.find<StyleService>();
-    if (svc.totalCoins.value < chanceCoinCost) return;
-    svc.spendCoins(chanceCoinCost);
-    resetHearts();
-  }
-
-  /// Watch a single interstitial ad for a second chance.
-  void getChanceWithAd() {
-    Get.find<AdService>().showInterstitial(onDismissed: resetHearts);
-  }
-
   void _cancelTimers() {
     _gameTimer?.cancel();
     _gameTimer = null;
-    // Cancel and null the spawn timer so the watchdog in _tick() can detect
-    // a dead chain and restart it when the game resumes.
     _spawnTimer?.cancel();
     _spawnTimer = null;
+    _bgChangeTimer?.cancel();
+    _bgChangeTimer = null;
+    _hudTimer?.cancel();
+    _hudTimer = null;
+    _lockedBubbleTimer?.cancel();
+    _lockedBubbleTimer = null;
     _pauseLevelTimer();
   }
 
-  // Starts (or restarts after a fresh level) the 15-minute level time limit.
   void _startLevelTimer() {
     _levelTimer?.cancel();
     _levelElapsed = Duration.zero;
@@ -738,7 +624,6 @@ class GameController extends GetxController with WidgetsBindingObserver {
     _scheduleLevelTimeout();
   }
 
-  // Pauses the level timer — call when game pauses/overlays show.
   void _pauseLevelTimer() {
     if (_levelStartTime != null) {
       _levelElapsed += DateTime.now().difference(_levelStartTime!);
@@ -748,14 +633,14 @@ class GameController extends GetxController with WidgetsBindingObserver {
     _levelTimer = null;
   }
 
-  // Resumes the level timer after a pause — fires with the remaining time.
   void _resumeLevelTimer() {
     _levelStartTime = DateTime.now();
     _scheduleLevelTimeout();
   }
 
   void _scheduleLevelTimeout() {
-    final remaining = LevelConfig.levelTimeLimit - _levelElapsed;
+    final limit     = LevelConfig.timeLimitForLevel(level.value);
+    final remaining = limit - _levelElapsed;
     if (remaining <= Duration.zero) {
       _forceLevelComplete();
       return;
@@ -766,22 +651,71 @@ class GameController extends GetxController with WidgetsBindingObserver {
     });
   }
 
+  int _calculateStars() {
+    final target = LevelConfig.scoreTargetForLevel(level.value);
+    if (score.value >= target) return 3;
+    if (score.value >= target ~/ 2) return 2;
+    return 1;
+  }
+
   void _forceLevelComplete() {
     final doneLv = level.value;
     completedLevel.value = doneLv;
     coinsThisLevel.value = score.value;
+    starsEarned.value    = _calculateStars();
+
     _persistScore();
-    // Award 3 coins for completing the level.
     Get.find<StyleService>().addCoins(3);
+    Get.find<StyleService>().saveLevelStars(doneLv, starsEarned.value);
+
     level.value++;
     _scoreSaved  = false;
-    lives.value  = 3;
     Get.find<StyleService>().updateCurrentLevel(level.value);
+
     _cancelTimers();
     isGameRunning.value = false;
-    Get.find<AdService>().loadAndShowInterstitial(
-      onDismissed: () => showLevelComplete.value = true,
-      onFailure:   () => showLevelComplete.value = true,
-    );
+
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final _adsOn = remote?.adsEnabled.value ?? false;
+
+    if (_adsOn) {
+      Get.find<AdService>().loadAndShowInterstitial(
+        onDismissed: () => showLevelComplete.value = true,
+        onFailure:   () => showLevelComplete.value = true,
+      );
+    } else {
+      showLevelComplete.value = true;
+    }
+  }
+
+  /// Called by the "Next Level" button on the level-complete overlay.
+  void continueAfterLevelComplete() {
+    showLevelComplete.value = false;
+    sessionGifts.clear();
+    bubbles.clear();
+    score.value = 0;
+    _lastSpeedRampScore = 0;
+    levelUpMessage.value = '🚀 Level ${level.value} — ${_skinName(level.value)}';
+    Future.delayed(const Duration(seconds: 2), () {
+      if (levelUpMessage.value.contains('Level ${level.value}')) {
+        levelUpMessage.value = '';
+      }
+    });
+    isGameRunning.value = true;
+    _spawnWave();
+    _startGameLoop();
+    _startSpawnTimer();
+    _startLevelTimer();
+    _startBgChangeTimer();
+    _startHudTimer();
+    _startLockedBubbleTimer();
+    _trySpawnGiftBubble();
+  }
+
+  String _skinName(int lv) {
+    const names = ['', 'Soap', 'Vivid', 'Neon ✨', 'Gold 🌟',
+        'Crystal 💎', 'Fire 🔥', 'Rainbow 🌈'];
+    return lv < names.length ? names[lv] : 'Rainbow 🌈';
   }
 }
