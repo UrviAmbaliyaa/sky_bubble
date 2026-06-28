@@ -1,7 +1,7 @@
 name: bubble_pumping
 description: "Sky Bubble Burst - Kids Game"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+2
 
 environment:
   sdk: ^3.7.2
@@ -13,7 +13,6 @@ dependencies:
   get_storage: ^2.1.1
   audioplayers: ^6.0.0
   cupertino_icons: ^1.0.8
-  syncfusion_flutter_datepicker: ^28.1.33
   flutter_sizer: ^1.0.5
   url_launcher: ^6.3.2
   apsl_admob_ads_flutter: ^1.5.0

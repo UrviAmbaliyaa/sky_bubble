@@ -1170,35 +1170,9 @@ const _kFallbackMap = <String, List<Color>>{
   'assets/backgrounds/bs_morning.png':          [Color(0xFFBF360C), Color(0xFFE64A19), Color(0xFFFF7043), Color(0xFFFFCCBC)],
 };
 
-class _PremiumBackground extends StatefulWidget {
+class _PremiumBackground extends StatelessWidget {
   final GameController controller;
   const _PremiumBackground({required this.controller});
-
-  @override
-  State<_PremiumBackground> createState() => _PremiumBackgroundState();
-}
-
-class _PremiumBackgroundState extends State<_PremiumBackground>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _parallaxCtrl;
-
-  @override
-  void initState() { super.initState(); _onInit(); }
-
-  @override
-  void dispose() { _onDispose(); super.dispose(); }
-
-  void _onInit() {
-    _parallaxCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 16),
-    )..repeat();
-    _parallaxCtrl.addListener(() => setState(() {}));
-  }
-
-  void _onDispose() {
-    _parallaxCtrl.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1210,13 +1184,12 @@ class _PremiumBackgroundState extends State<_PremiumBackground>
       if (!styleSvc.autoBackground.value && styleSvc.fixedBgStyle.value != null) {
         // Fixed mode: always show the pinned background, live-updates immediately
         assetPath = styleSvc.fixedBgStyle.value!.assetPath;
-      } else if (widget.controller.gameBgAsset.value.isNotEmpty) {
-        assetPath = widget.controller.gameBgAsset.value;
+      } else if (controller.gameBgAsset.value.isNotEmpty) {
+        assetPath = controller.gameBgAsset.value;
       } else {
         assetPath = styleSvc.currentBgAsset.value;
       }
-      final fallbackColors =
-          _kFallbackMap[assetPath] ?? _kDefaultFallback;
+      final fallbackColors = _kFallbackMap[assetPath] ?? _kDefaultFallback;
 
       return AnimatedSwitcher(
         duration: const Duration(milliseconds: 800),
@@ -1225,7 +1198,7 @@ class _PremiumBackgroundState extends State<_PremiumBackground>
         child: SafeAssetBackground(
           key: ValueKey(assetPath),
           assetPath: assetPath,
-          progress: _parallaxCtrl.value,
+          progress: 0,
           fallback: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(

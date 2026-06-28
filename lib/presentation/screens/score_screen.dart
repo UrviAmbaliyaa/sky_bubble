@@ -1,9 +1,7 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
-import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
@@ -1417,419 +1415,52 @@ class _ResetChip extends StatelessWidget {
 
 // ── Week picker — always snaps to Mon–Sun, max 7 days ────────────────────────
 
-void _showWeekPicker(BuildContext context, ScoreController ctrl) {
-  showModalBottomSheet(
+Future<void> _showWeekPicker(BuildContext context, ScoreController ctrl) async {
+  final picked = await showDatePicker(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => _WeekPickerSheet(
-      initialWeekStart: ctrl.selectedWeekStart.value,
-      onPicked: (monday) => ctrl.setWeekForDate(monday),
+    initialDate: ctrl.selectedWeekStart.value,
+    firstDate: DateTime(2020),
+    lastDate: DateTime.now(),
+    helpText: 'Select any day in the week',
+    builder: (ctx, child) => Theme(
+      data: ThemeData.light().copyWith(
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF43A047),
+          onPrimary: Colors.white,
+          surface: Colors.white,
+          onSurface: Color(0xFF1A1A2E),
+        ),
+      ),
+      child: child!,
     ),
   );
+  if (picked != null) ctrl.setWeekForDate(picked);
 }
 
-class _WeekPickerSheet extends StatefulWidget {
-  final DateTime initialWeekStart;
-  final void Function(DateTime monday) onPicked;
-  const _WeekPickerSheet({required this.initialWeekStart, required this.onPicked});
-
-  @override
-  State<_WeekPickerSheet> createState() => _WeekPickerSheetState();
-}
-
-class _WeekPickerSheetState extends State<_WeekPickerSheet> {
-  static const _primary = Color(0xFF43A047);
-  static const _primaryLight = Color(0xFFDCEDC8);
-  static const _ms = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  late DateRangePickerController _ctrl;
-  late DateTime _monday;   // always Monday
-  late DateTime _sunday;   // always Sunday = monday + 6
-
-  @override
-  void initState() { super.initState(); _onInit(); }
-
-  @override
-  void dispose() { _onDispose(); super.dispose(); }
-
-  void _onInit() {
-    _monday = widget.initialWeekStart;
-    _sunday = _monday.add(const Duration(days: 6));
-    _ctrl = DateRangePickerController();
-    _ctrl.selectedRange = PickerDateRange(_monday, _sunday);
-    _ctrl.displayDate = _monday;
-  }
-
-  void _onDispose() => _ctrl.dispose();
-
-  DateTime _norm(DateTime d) => DateTime(d.year, d.month, d.day);
-
-  // Snap any tapped date to its Monday–Sunday week.
-  void _onSelectionChanged(DateRangePickerSelectionChangedArgs args) {
-    DateTime? tapped;
-    final val = args.value;
-    if (val is DateTime) {
-      tapped = _norm(val);
-    } else if (val is PickerDateRange && val.startDate != null) {
-      tapped = _norm(val.startDate!);
-    }
-    if (tapped == null) return;
-
-    // Compute Monday of the tapped date's week.
-    final mon = tapped.subtract(Duration(days: (tapped.weekday - 1) % 7));
-    final sun = mon.add(const Duration(days: 6));
-    // Clamp sunday to today if it would be in the future.
-    final today = _norm(DateTime.now());
-    final clampedSun = sun.isAfter(today) ? today : sun;
-
-    setState(() {
-      _monday = mon;
-      _sunday = clampedSun;
-    });
-    // Update the picker to show the full week highlighted.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ctrl.selectedRange = PickerDateRange(_monday, _sunday);
-    });
-  }
-
-  String _fmt(DateTime d) => '${_ms[d.month - 1]} ${d.day}, ${d.year}';
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPad = MediaQuery.of(context).padding.bottom;
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(20, 14, 20, bottomPad + 8),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Drag handle
-            Center(child: Container(width: 40, height: 4,
-                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 16),
-            // Header
-            Row(children: [
-              const Text('Select Week', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textDark)),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: _primaryLight, borderRadius: BorderRadius.circular(8)),
-                child: const Text('Max 7 days', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _primary)),
-              ),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Container(width: 32, height: 32,
-                    decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                    child: Icon(Icons.close_rounded, size: 18, color: Colors.grey.shade600)),
-              ),
-            ]),
-            const SizedBox(height: 4),
-            Align(alignment: Alignment.centerLeft,
-                child: Text('Tap any day — its full Mon–Sun week is selected',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500))),
-            const SizedBox(height: 14),
-            // Calendar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: SfDateRangePicker(
-                controller: _ctrl,
-                selectionMode: DateRangePickerSelectionMode.range,
-                minDate: DateTime(2020),
-                maxDate: DateTime.now(),
-                allowViewNavigation: true,
-                showNavigationArrow: true,
-                navigationDirection: DateRangePickerNavigationDirection.horizontal,
-                navigationMode: DateRangePickerNavigationMode.snap,
-                backgroundColor: Colors.white,
-                headerStyle: const DateRangePickerHeaderStyle(
-                  textAlign: TextAlign.center,
-                  backgroundColor: _primary,
-                  textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
-                ),
-                monthViewSettings: DateRangePickerMonthViewSettings(
-                  firstDayOfWeek: 1,
-                  viewHeaderHeight: 36,
-                  viewHeaderStyle: const DateRangePickerViewHeaderStyle(
-                    backgroundColor: Color(0xFFF1F8E9),
-                    textStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)),
-                  ),
-                ),
-                selectionColor: _primary,
-                startRangeSelectionColor: _primary,
-                endRangeSelectionColor: _primary,
-                rangeSelectionColor: _primaryLight,
-                rangeTextStyle: const TextStyle(color: _primary, fontWeight: FontWeight.w700),
-                selectionTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                todayHighlightColor: _primary,
-                monthCellStyle: DateRangePickerMonthCellStyle(
-                  todayTextStyle: const TextStyle(color: _primary, fontWeight: FontWeight.w800),
-                  disabledDatesTextStyle: TextStyle(color: Colors.grey.shade300),
-                  textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1A1A2E)),
-                  leadingDatesTextStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                ),
-                onSelectionChanged: _onSelectionChanged,
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Selected range preview
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: _primaryLight,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _primary.withOpacity(0.35)),
-              ),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.date_range_rounded, size: 16, color: _primary),
-                const SizedBox(width: 8),
-                Text(
-                  '${_fmt(_monday)}  →  ${_fmt(_sunday)}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _primary),
-                ),
-              ]),
-            ),
-            const SizedBox(height: 12),
-            // Apply button
-            SizedBox(
-              width: double.infinity, height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
-                  foregroundColor: Colors.white,
-                  elevation: 2,
-                  shadowColor: _primary.withOpacity(0.40),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  widget.onPicked(_monday);
-                },
-                child: const Text('Apply Week', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-              ),
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-void _showCalendarSheet(BuildContext context, {
-  DateTime? initialStart, DateTime? initialEnd,
-  required void Function(DateTime start, DateTime? end) onPicked,
-}) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (_) => _CalendarSheet(initialStart: initialStart, initialEnd: initialEnd, onPicked: onPicked),
-  );
-}
-
-void _showDateCalendarPicker(BuildContext context, ScoreController ctrl) {
+Future<void> _showDateCalendarPicker(BuildContext context, ScoreController ctrl) async {
   final filter = ctrl.dateRangeFilter.value;
-  _showCalendarSheet(context, initialStart: filter?.start, initialEnd: filter?.end,
-      onPicked: (start, end) => ctrl.setDateRangeFilter(DateTimeRange(start: start, end: end ?? start)));
-}
-
-
-class _CalendarSheet extends StatelessWidget {
-  final DateTime? initialStart;
-  final DateTime? initialEnd;
-  final void Function(DateTime start, DateTime? end) onPicked;
-  const _CalendarSheet({this.initialStart, this.initialEnd, required this.onPicked});
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
-            const SizedBox(height: 16),
-            Row(children: [
-              const Text('Select Date', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textDark)),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => Navigator.of(context).pop(),
-                child: Container(
-                  width: 32, height: 32,
-                  decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                  child: Icon(Icons.close_rounded, size: 18, color: Colors.grey.shade600),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 4),
-            Align(alignment: Alignment.centerLeft,
-                child: Text('Tap once to pick · Tap twice for a range', style: TextStyle(fontSize: 12, color: Colors.grey.shade500))),
-            const SizedBox(height: 16),
-            _AppCalendar(
-              initialStart: initialStart,
-              initialEnd: initialEnd,
-              onApply: (start, end) { Navigator.of(context).pop(); onPicked(start, end); },
-            ),
-            const SizedBox(height: 8),
-          ]),
+  final picked = await showDateRangePicker(
+    context: context,
+    firstDate: DateTime(2020),
+    lastDate: DateTime.now(),
+    initialDateRange: filter,
+    helpText: 'Select date range',
+    builder: (ctx, child) => Theme(
+      data: ThemeData.light().copyWith(
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF1565C0),
+          onPrimary: Colors.white,
+          surface: Colors.white,
+          onSurface: Color(0xFF1A1A2E),
         ),
       ),
-    );
-  }
-}
-
-class _AppCalendar extends StatefulWidget {
-  final DateTime? initialStart;
-  final DateTime? initialEnd;
-  final void Function(DateTime start, DateTime? end) onApply;
-  const _AppCalendar({this.initialStart, this.initialEnd, required this.onApply});
-  @override
-  State<_AppCalendar> createState() => _AppCalendarState();
-}
-
-class _AppCalendarState extends State<_AppCalendar> {
-  static const _primary = Color(0xFF1565C0);
-  static const _primaryLight = Color(0xFFDEF0FB);
-  static const _monthShorts = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-  late DateRangePickerController _ctrl;
-  DateTime? _start;
-  DateTime? _end;
-
-  @override
-  void initState() { super.initState(); _onInit(); }
-
-  @override
-  void dispose() { _onDispose(); super.dispose(); }
-
-  void _onInit() {
-    _ctrl = DateRangePickerController();
-    _start = widget.initialStart != null ? _norm(widget.initialStart!) : null;
-    _end = widget.initialEnd != null ? _norm(widget.initialEnd!) : null;
-    if (_start != null && _end != null && _same(_start!, _end!)) _end = null;
-    if (_start != null && _end != null) _ctrl.selectedRange = PickerDateRange(_start, _end);
-    else if (_start != null) _ctrl.selectedDate = _start;
-    _ctrl.displayDate = _start ?? DateTime.now();
-  }
-
-  void _onDispose() => _ctrl.dispose();
-
-  DateTime _norm(DateTime d) => DateTime(d.year, d.month, d.day);
-  bool _same(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
-
-  void _onSelectionChanged(DateRangePickerSelectionChangedArgs args) {
-    setState(() {
-      final val = args.value;
-      if (val is DateTime) { _start = _norm(val); _end = null; }
-      else if (val is PickerDateRange) {
-        _start = val.startDate != null ? _norm(val.startDate!) : null;
-        _end = val.endDate != null ? _norm(val.endDate!) : null;
-        if (_start != null && _end != null && _same(_start!, _end!)) _end = null;
-      }
-    });
-  }
-
-  String _fmt(DateTime d) => '${_monthShorts[d.month - 1]} ${d.day}, ${d.year}';
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: SfDateRangePicker(
-          controller: _ctrl,
-          selectionMode: DateRangePickerSelectionMode.extendableRange,
-          minDate: DateTime(2020),
-          maxDate: DateTime.now(),
-          allowViewNavigation: true,
-          showNavigationArrow: true,
-          navigationDirection: DateRangePickerNavigationDirection.horizontal,
-          navigationMode: DateRangePickerNavigationMode.snap,
-          backgroundColor: Colors.white,
-          headerStyle: const DateRangePickerHeaderStyle(
-            textAlign: TextAlign.center,
-            backgroundColor: _primary,
-            textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white),
-          ),
-          monthViewSettings: DateRangePickerMonthViewSettings(
-            firstDayOfWeek: 1,
-            viewHeaderHeight: 36,
-            viewHeaderStyle: const DateRangePickerViewHeaderStyle(
-              backgroundColor: Color(0xFFF0F4FF),
-              textStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)),
-            ),
-          ),
-          selectionColor: _primary,
-          startRangeSelectionColor: _primary,
-          endRangeSelectionColor: _primary,
-          rangeSelectionColor: _primaryLight,
-          rangeTextStyle: const TextStyle(color: _primary, fontWeight: FontWeight.w600),
-          selectionTextStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-          todayHighlightColor: _primary,
-          monthCellStyle: DateRangePickerMonthCellStyle(
-            todayTextStyle: const TextStyle(color: _primary, fontWeight: FontWeight.w800),
-            disabledDatesTextStyle: TextStyle(color: Colors.grey.shade300),
-            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1A1A2E)),
-            leadingDatesTextStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-          ),
-          onSelectionChanged: _onSelectionChanged,
-        ),
-      ),
-      const SizedBox(height: 8),
-      // Preview chip
-      _start == null
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.grey.shade200)),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.touch_app_rounded, size: 15, color: Colors.grey.shade400),
-                const SizedBox(width: 8),
-                Text('Tap a date to select', style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
-              ]),
-            )
-          : Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(color: _primaryLight, borderRadius: BorderRadius.circular(10), border: Border.all(color: _primary.withOpacity(0.30))),
-              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.event_rounded, size: 15, color: _primary),
-                const SizedBox(width: 8),
-                Text(
-                  _end == null ? _fmt(_start!) : '${_fmt(_start!)}  →  ${_fmt(_end!)}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: _primary),
-                ),
-              ]),
-            ),
-      const SizedBox(height: 12),
-      SizedBox(
-        width: double.infinity, height: 50,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _start != null ? _primary : Colors.grey.shade300,
-            foregroundColor: Colors.white,
-            elevation: _start != null ? 2 : 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          ),
-          onPressed: _start != null ? () => widget.onApply(_start!, _end) : null,
-          child: const Text('Apply', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-        ),
-      ),
-      const SizedBox(height: 4),
-    ]);
-  }
+      child: child!,
+    ),
+  );
+  if (picked != null) ctrl.setDateRangeFilter(picked);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
 
 String _fmtDate(DateTime d) {
   const s = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
