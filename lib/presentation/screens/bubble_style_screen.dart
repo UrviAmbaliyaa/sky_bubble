@@ -37,7 +37,7 @@ class BubbleStyleScreen extends StatelessWidget {
             backgroundAsset: 'assets/backgrounds/premium_bg_29.png',
             titleIcon: Icons.bubble_chart_rounded,
             title: 'Bubble Styles',
-            subtitle: 'Classic is free · earn 🪙 coins to unlock more',
+            subtitle: 'Earn 🪙 coins to unlock more',
           ),
 
           // ── Scrollable list — SafeArea for bottom home indicator ──────────

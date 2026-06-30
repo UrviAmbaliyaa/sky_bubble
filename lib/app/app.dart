@@ -13,9 +13,9 @@ import 'routes/app_routes.dart';
 // White status bar icons on every screen — enforced at root level so no
 // individual screen or navigation event can override it.
 const _statusBarStyle = SystemUiOverlayStyle(
-  statusBarColor: Colors.transparent,
-  statusBarIconBrightness: Brightness.light,
-  statusBarBrightness: Brightness.dark,
+  statusBarColor: Color(0x80FFFFFF),
+  statusBarIconBrightness: Brightness.dark,
+  statusBarBrightness: Brightness.light,
 );
 
 class BubblePopApp extends StatelessWidget {

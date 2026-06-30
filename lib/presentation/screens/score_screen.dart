@@ -26,9 +26,9 @@ class ScoreScreen extends GetView<ScoreController> {
             titleIcon: Icons.bar_chart_rounded,
             title: 'My Progress',
             subtitleWidget: Obx(() => Text(
-              '⭐ Best ${controller.globalBest.value}  •  🎮 ${controller.allDateSummaries.fold(0, (s, d) => s + d.gamesPlayed)} games',
+              '⭐ Best ${formatScore(controller.globalBest.value)}  •  🎮 ${controller.allDateSummaries.fold(0, (s, d) => s + d.gamesPlayed)} games',
               style: TextStyle(
-                fontSize: 8.5.sp,
+                fontSize: 13,
                 color: Colors.white.withValues(alpha: 0.75),
                 height: 1.4,
               ),
@@ -517,7 +517,7 @@ class _DateCard extends StatelessWidget {
                   Row(children: [
                     _MiniPill(label: '🎮 ${summary.gamesPlayed}', color: const Color(0xFF4FC3F7)),
                     const SizedBox(width: 6),
-                    _MiniPill(label: '🏅 Best ${summary.bestScore}', color: const Color(0xFFFF9100)),
+                    _MiniPill(label: '🏅 Best ${formatScore(summary.bestScore)}', color: const Color(0xFFFF9100)),
                   ]),
                 ]),
               ),
@@ -646,15 +646,24 @@ class _WeekTab extends StatelessWidget {
         gradient: const [Color(0xFF43A047), Color(0xFF81C784)],
         onLabelTap: () => _showWeekPicker(context, ctrl),
       ),
-      if (!ctrl.isCurrentWeek)
-        _ResetChip(
-          label: 'Reset to This Week',
-          color: const Color(0xFF43A047),
-          onTap: () => ctrl.setWeekForDate(DateTime.now()),
-        ),
       if (ctrl.weekAllEmpty)
-        Expanded(child: _EmptyState(showPlayButton: !ctrl.canGoNextWeek))
-      else
+        Expanded(child: _EmptyState(
+          showPlayButton: !ctrl.canGoNextWeek,
+          bottomAction: !ctrl.isCurrentWeek
+              ? _ResetChip(
+                  label: 'Reset to This Week',
+                  color: const Color(0xFF43A047),
+                  onTap: () => ctrl.setWeekForDate(DateTime.now()),
+                )
+              : null,
+        ))
+      else ...[
+        if (!ctrl.isCurrentWeek)
+          _ResetChip(
+            label: 'Reset to This Week',
+            color: const Color(0xFF43A047),
+            onTap: () => ctrl.setWeekForDate(DateTime.now()),
+          ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -667,6 +676,7 @@ class _WeekTab extends StatelessWidget {
             ),
           ),
         ),
+      ],
     ]));
   }
 }
@@ -808,7 +818,7 @@ class _DayProgressRowState extends State<_DayProgressRow>
             ),
             if (e.hasData) ...[
               const SizedBox(height: 4),
-              Text('🏅 Best ${e.bestScore} pts',
+              Text('🏅 Best ${formatScore(e.bestScore)} pts',
                   style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
             ],
           ]),
@@ -858,15 +868,24 @@ class _MonthTab extends StatelessWidget {
         onNext: () => ctrl.setMonthYear(1, ctrl.selectedYear.value + 1),
         onTap: () => _showYearPicker(context, ctrl),
       ),
-      if (!ctrl.isCurrentMonthPeriod)
-        _ResetChip(
-          label: 'Reset to This Month',
-          color: const Color(0xFF9C27B0),
-          onTap: () => ctrl.setMonthYear(DateTime.now().month, DateTime.now().year),
-        ),
       if (!ctrl.selectedYearHasData)
-        Expanded(child: _EmptyState(showPlayButton: ctrl.selectedYear.value == DateTime.now().year))
-      else
+        Expanded(child: _EmptyState(
+          showPlayButton: ctrl.selectedYear.value == DateTime.now().year,
+          bottomAction: !ctrl.isCurrentMonthPeriod
+              ? _ResetChip(
+                  label: 'Reset to This Month',
+                  color: const Color(0xFF9C27B0),
+                  onTap: () => ctrl.setMonthYear(DateTime.now().month, DateTime.now().year),
+                )
+              : null,
+        ))
+      else ...[
+        if (!ctrl.isCurrentMonthPeriod)
+          _ResetChip(
+            label: 'Reset to This Month',
+            color: const Color(0xFF9C27B0),
+            onTap: () => ctrl.setMonthYear(DateTime.now().month, DateTime.now().year),
+          ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -888,6 +907,7 @@ class _MonthTab extends StatelessWidget {
             }),
           ),
         ),
+      ],
     ]));
   }
 }
@@ -1293,7 +1313,8 @@ void _showYearPicker(BuildContext context, ScoreController ctrl) {
 
 class _EmptyState extends StatefulWidget {
   final bool showPlayButton;
-  const _EmptyState({this.showPlayButton = false});
+  final Widget? bottomAction;
+  const _EmptyState({this.showPlayButton = false, this.bottomAction});
   @override
   State<_EmptyState> createState() => _EmptyStateState();
 }
@@ -1369,6 +1390,10 @@ class _EmptyStateState extends State<_EmptyState> with SingleTickerProviderState
                       style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1.5)),
                 ),
               ),
+            ],
+            if (widget.bottomAction != null) ...[
+              const SizedBox(height: 20),
+              widget.bottomAction!,
             ],
           ]),
         ),

@@ -332,7 +332,7 @@ class _GameHUD extends StatelessWidget {
                       Icon(Icons.stars_rounded, color: AppColors.scoreGold, size: 5.5.w),
                       SizedBox(width: 1.5.w),
                       Text(
-                        '${controller.score.value}',
+                        formatScore(controller.score.value),
                         style: TextStyle(fontSize: 15.5.sp, fontWeight: FontWeight.w900, color: AppColors.textDark),
                       ),
                     ],
@@ -377,8 +377,7 @@ class _GameHUD extends StatelessWidget {
               ),
               SizedBox(width: 2.w),
               _SoundToggleButton(),
-              SizedBox(width: 2.w),
-              _PauseButton(onTap: controller.togglePause),
+              
             ],
           ),
         ),
@@ -604,7 +603,7 @@ class _NewBestBannerState extends State<_NewBestBanner>
           child: Transform.scale(
             scale: _scale.value,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.6.h),
+              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [Color(0xFFFFB300), Color(0xFFFF6F00)],
@@ -796,7 +795,7 @@ class _PauseOverlayState extends State<_PauseOverlay>
                             children: [
                               _PauseStatChip(
                                 emoji: '⭐',
-                                label: '${widget.controller.score.value} pts',
+                                label: '${formatScore(widget.controller.score.value)} pts',
                                 bg: const Color(0xFFFFF8E1),
                                 border: const Color(0xFFFFCA28),
                                 textColor: const Color(0xFF7A5300),
@@ -1061,7 +1060,7 @@ class _ScoreRow extends StatelessWidget {
       children: [
         _ResultTile(
           label: 'SCORE',
-          value: '$score',
+          value: formatScore(score),
           color: AppColors.scoreGold,
           icon: Icons.stars_rounded,
         ),

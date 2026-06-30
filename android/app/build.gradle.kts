@@ -45,30 +45,20 @@ android {
         versionName = flutter.versionName
     }
 
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.getByName("release")
+    // buildTypes {
+    //    release {
+     //       signingConfig = signingConfigs.getByName("debug")
 
             // ProGuard / R8 — keeps AdMob SDK classes from being stripped in release
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
+       //     isMinifyEnabled = true
+         //   isShrinkResources = true
+           // proguardFiles(
+             //   getDefaultProguardFile("proguard-android-optimize.txt"),
+               // "proguard-rules.pro"
+            //)
+        //}
+    //}
 
-    // Produce one APK per ABI when using `--split-per-abi`.
-    // Each device downloads only its architecture slice, cutting APK size by ~50%.
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = false
-        }
-    }
 }
 
 flutter {

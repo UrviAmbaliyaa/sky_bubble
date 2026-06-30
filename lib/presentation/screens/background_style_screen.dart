@@ -131,7 +131,7 @@ class _AutoCardState extends State<_AutoCard> {
                     ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(21),
+              borderRadius: BorderRadius.circular(22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -358,7 +358,7 @@ class _BgCardState extends State<_BgCard> {
                     ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(21),
+              borderRadius: BorderRadius.circular(22),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

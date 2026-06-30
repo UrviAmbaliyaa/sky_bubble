@@ -63,7 +63,7 @@ class ScreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final svc    = Get.find<StyleService>();
-    final heroH  = MediaQuery.of(context).size.height * 0.26;
+    final heroH  = MediaQuery.of(context).size.height * 0.28;
     final topPad = MediaQuery.of(context).padding.top;
 
     return ClipRRect(
@@ -239,20 +239,18 @@ class ScreenHeader extends StatelessWidget {
                               gradEnd: AppColors.levelMapCurrentEnd,
                             ),
                           ),
-                          Expanded(
-                            child: HeaderStatChip(
-                              icon: Icons.emoji_events_rounded,
-                              label: 'Target',
-                              value: '${LevelConfig.scoreTargetForLevel(current)} pts',
-                              gradStart: AppColors.levelMapTargetStart,
-                              gradEnd: AppColors.levelMapTargetEnd,
-                            ),
+                          HeaderStatChip(
+                            icon: Icons.emoji_events_rounded,
+                            label: 'Target',
+                            value: '${LevelConfig.scoreTargetForLevel(current)} pts',
+                            gradStart: AppColors.levelMapTargetStart,
+                            gradEnd: AppColors.levelMapTargetEnd,
                           ),
-                          Expanded(
+                          Flexible(
                             child: HeaderStatChip(
                               icon: Icons.lock_rounded,
-                              label: 'Left',
-                              value: '${100 - current + 1} Lvls',
+                              label: 'Levels',
+                              value: '${100 - current + 1} L',
                               gradStart: AppColors.levelMapLeftStart,
                               gradEnd: AppColors.levelMapLeftEnd,
                             ),
@@ -295,7 +293,7 @@ class HeaderStatChip extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+          padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 7.sp),
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(14),
@@ -303,10 +301,11 @@ class HeaderStatChip extends StatelessWidget {
                 color: Colors.white.withValues(alpha: 0.30), width: 1),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Container(
-                padding: EdgeInsets.all(1.2.w),
+                padding: EdgeInsets.all(1.5.w),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                       colors: [gradStart, gradEnd]),
@@ -376,7 +375,7 @@ class _HeaderCoinPills extends StatelessWidget {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.28),
                 borderRadius: BorderRadius.circular(20),
@@ -384,18 +383,18 @@ class _HeaderCoinPills extends StatelessWidget {
                     color: const Color(0xFFFFD700).withValues(alpha: 0.65),
                     width: 1.2),
               ),
-              child: CoinDisplay(amount: coins, imageSize: 14, fontSize: 12, gap: 4),
+              child: CoinDisplay(amount: coins, imageSize: 16, fontSize: 13, gap: 4),
             ),
           ),
         ),
-        SizedBox(width: 2.w),
+        const SizedBox(width: 8),
         // Awards
         ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.black.withValues(alpha: 0.28),
                 borderRadius: BorderRadius.circular(20),
@@ -406,11 +405,11 @@ class _HeaderCoinPills extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('🏅', style: TextStyle(fontSize: 13, height: 1.0)),
-                  SizedBox(width: 1.w),
+                  const Text('🏅', style: TextStyle(fontSize: 16, height: 1.0)),
+                  const SizedBox(width: 4),
                   Text('$awards',
                       style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
                           height: 1.0)),

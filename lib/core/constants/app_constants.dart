@@ -30,3 +30,15 @@ class AppDimensions {
   static const double iconSizeM       = 24.0;
   static const double iconSizeL       = 32.0;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SCORE FORMATTER  — compact display for arbitrarily large scores.
+//  Examples: 999 → "999"  |  12500 → "12.5K"  |  2300000 → "2.3M"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+String formatScore(num score) {
+  if (score >= 1000000000) return '${(score / 1000000000).toStringAsFixed(1)}B';
+  if (score >= 1000000)    return '${(score / 1000000).toStringAsFixed(1)}M';
+  if (score >= 1000)       return '${(score / 1000).toStringAsFixed(1)}K';
+  return '$score';
+}

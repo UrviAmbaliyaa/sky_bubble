@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../controllers/splash_controller.dart';
@@ -8,7 +9,17 @@ class SplashScreen extends GetView<SplashController> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(body: _SplashBody(controller: controller));
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+    );
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: _SplashBody(controller: controller),
+    );
   }
 }
 
@@ -21,11 +32,13 @@ class _SplashBody extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.asset(
-          'assets/images/splash_screen.png',
-          fit: BoxFit.cover,
-          width: 100.w,
-          height: 100.h,
+        Center(
+          child: Image.asset(
+            'assets/images/splash_screen.png',
+            width: double.infinity,
+            height: double.infinity,
+            fit: BoxFit.cover,
+          ),
         ),
         Positioned(
           bottom: 10.h,
