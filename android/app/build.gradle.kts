@@ -45,19 +45,21 @@ android {
         versionName = flutter.versionName
     }
 
-    // buildTypes {
-    //    release {
-     //       signingConfig = signingConfigs.getByName("debug")
-
-            // ProGuard / R8 — keeps AdMob SDK classes from being stripped in release
-       //     isMinifyEnabled = true
-         //   isShrinkResources = true
-           // proguardFiles(
-             //   getDefaultProguardFile("proguard-android-optimize.txt"),
-               // "proguard-rules.pro"
-            //)
-        //}
-    //}
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.getByName("release")
+            
+            // 启用代码混淆和资源压缩
+            isMinifyEnabled = true
+            isShrinkResources = true
+            
+            // 正确配置 ProGuard 文件
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
+    }
 
 }
 

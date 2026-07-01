@@ -108,7 +108,7 @@ class _AutoCardState extends State<_AutoCard> {
               color: isAuto
                   ? const Color(0xFF6C63FF).withOpacity(0.08)
                   : Colors.white,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(25),
               border: Border.all(
                 color: isAuto ? const Color(0xFF6C63FF) : const Color(0xFFE8ECF5),
                 width: isAuto ? 2.5 : 1.2,
@@ -331,7 +331,7 @@ class _BgCardState extends State<_BgCard> {
             duration: const Duration(milliseconds: 220),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(25),
               border: Border.all(
                 color: isPinned
                     ? const Color(0xFF6C63FF)
@@ -344,7 +344,7 @@ class _BgCardState extends State<_BgCard> {
                   ? [
                       BoxShadow(
                         color: const Color(0xFF6C63FF).withOpacity(0.28),
-                        blurRadius: 18,
+                        blurRadius: 22,
                         spreadRadius: 2,
                         offset: const Offset(0, 6),
                       ),
@@ -352,7 +352,7 @@ class _BgCardState extends State<_BgCard> {
                   : [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.07),
-                        blurRadius: 12,
+                        blurRadius: 22,
                         offset: const Offset(0, 4),
                       ),
                     ],
