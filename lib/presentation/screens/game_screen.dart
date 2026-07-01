@@ -316,7 +316,7 @@ class _GameHUD extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-        padding: EdgeInsets.fromLTRB(4.w,  1.h, 4.w, 1.h),
+        padding: EdgeInsets.fromLTRB(4.w,  2.5.h, 4.w, 1.h),
         child: SizedBox(
           height: 10.w,   // single source of truth for all HUD element heights
           child: Row(

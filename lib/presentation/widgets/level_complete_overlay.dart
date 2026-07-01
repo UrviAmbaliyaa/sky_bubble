@@ -134,7 +134,7 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay>
         // ── Main card (leaves room for the banner + safe area below) ─────
         Positioned(
           top: 0, left: 0, right: 0,
-          bottom: bannerH + bottomPad + 10,
+          bottom: bannerH + bottomPad + 28,
           child: Center(
             child: AnimatedBuilder(
               animation: _cardCtrl,
