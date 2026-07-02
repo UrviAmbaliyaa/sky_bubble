@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../../app/routes/app_routes.dart';
+import '../../core/constants/app_constants.dart';
 import '../../core/constants/background_assets.dart';
 import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/style_service.dart';
+import '../controllers/home_controller.dart';
 import '../widgets/screen_header.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -42,10 +44,12 @@ class LevelsScreen extends StatelessWidget {
               child: Obx(() {
                 final current = _svc.currentLevel.value;
                 return ListView.builder(
-                  padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 10.h),
-                  itemCount: totalRows,
+                  padding: EdgeInsets.fromLTRB(4.w, 1.h, 4.w, 10.h),
+                  itemCount: totalRows + 1,
                   itemBuilder: (_, rowIdx) {
-                    final start  = rowIdx * _kPerRow + 1;
+                    if (rowIdx == 0) return _LearningBanner(svc: _svc);
+                    final actualRow = rowIdx - 1;
+                    final start  = actualRow * _kPerRow + 1;
                     final end    = (start + _kPerRow - 1).clamp(1, _kMaxLevel);
                     final levels = List.generate(end - start + 1, (i) => start + i);
                     return _SnakeRow(
@@ -53,7 +57,7 @@ class LevelsScreen extends StatelessWidget {
                       reversed:  false,
                       current:   current,
                       svc:       _svc,
-                      isLastRow: rowIdx == totalRows - 1,
+                      isLastRow: actualRow == totalRows - 1,
                     );
                   },
                 );
@@ -128,15 +132,23 @@ class _LevelNode extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: 0.9.h),
       child: GestureDetector(
         onTap: state == _NodeState.locked ? null : () {
-          RemoteAdConfigService? remote;
-          try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
-          final adsOn   = remote?.adsEnabled.value     ?? false;
-          final moreAds = remote?.moreAdsEnabled.value ?? false;
-          void goToGame() => Get.toNamed(AppRoutes.game, arguments: {'bestScore': 0, 'startLevel': level});
-          if (adsOn && moreAds) {
-            Get.find<AdService>().showInterstitial(onDismissed: goToGame);
+          HomeController? homeCtrl;
+          try { homeCtrl = Get.find<HomeController>(); } catch (_) {}
+          if (homeCtrl != null) {
+            homeCtrl.showModeSelection(startLevel: level);
           } else {
-            goToGame();
+            // Fallback: HomeController not in stack, navigate directly to game
+            RemoteAdConfigService? remote;
+            try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+            final adsOn   = remote?.adsEnabled.value     ?? false;
+            final moreAds = remote?.moreAdsEnabled.value ?? false;
+            void goToGame() => Get.toNamed(AppRoutes.game,
+                arguments: {'bestScore': 0, 'startLevel': level});
+            if (adsOn && moreAds) {
+              Get.find<AdService>().showInterstitial(onDismissed: goToGame);
+            } else {
+              goToGame();
+            }
           }
         },
         child: Obx(() {
@@ -168,6 +180,9 @@ class _LevelNode extends StatelessWidget {
               ),
               SizedBox(height: 0.3.h),
               _LevelStars(level: level, state: state, svc: svc),
+              // 📚 badge if this level was cleared in learning mode
+              if (svc.learningLevel.value > level)
+                Text('📚', style: TextStyle(fontSize: 8.sp)),
             ],
           );
         }),
@@ -355,5 +370,95 @@ class _LockedOverlay extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ─── Learning mode banner (top of level map) ─────────────────────────────────
+
+class _LearningBanner extends StatelessWidget {
+  final StyleService svc;
+  const _LearningBanner({required this.svc});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final lvl   = svc.learningLevel.value;
+      final words = svc.totalWordsLearned.value;
+      if (words == 0) return const SizedBox.shrink(); // never played learning
+
+      String tierEmoji;
+      String tierLabel;
+      Color  tierColor;
+      if (lvl <= 10)       { tierEmoji = '🌱'; tierLabel = 'Easy';   tierColor = const Color(0xFF43A047); }
+      else if (lvl <= 30)  { tierEmoji = '🌿'; tierLabel = 'Medium'; tierColor = const Color(0xFF0288D1); }
+      else if (lvl <= 60)  { tierEmoji = '🌳'; tierLabel = 'Hard';   tierColor = const Color(0xFF7B1FA2); }
+      else                 { tierEmoji = '🔥'; tierLabel = 'Expert'; tierColor = const Color(0xFFE64A19); }
+
+      return GestureDetector(
+        onTap: () => Get.toNamed(AppRoutes.learning),
+        child: Container(
+          margin: EdgeInsets.fromLTRB(0, 0.5.h, 0, 1.5.h),
+          padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [const Color(0xFF1A237E), tierColor.withOpacity(0.85)],
+              begin: Alignment.centerLeft,
+              end:   Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color:      tierColor.withOpacity(0.30),
+                blurRadius: 12,
+                offset:     const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(children: [
+            Text(tierEmoji, style: const TextStyle(fontSize: 28)),
+            SizedBox(width: 3.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '📚 Learning Progress',
+                    style: TextStyle(
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  Text(
+                    'Level $lvl • $tierLabel tier • $words words learned',
+                    style: TextStyle(
+                      fontSize: 8.5.sp,
+                      color: Colors.white.withOpacity(0.80),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'Play',
+                style: TextStyle(
+                  fontSize: 9.sp,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ]),
+        ),
+      );
+    });
   }
 }

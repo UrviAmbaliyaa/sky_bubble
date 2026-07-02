@@ -16,7 +16,7 @@ if (keyPropertiesFile.exists()) {
 
 android {
     namespace = "com.bubble.skybubbleburst"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = "28.2.13676358"
 
     compileOptions {
@@ -39,7 +39,7 @@ android {
 
     defaultConfig {
         applicationId = "com.bubble.skybubbleburst"
-        minSdk = 23
+        minSdk = 24
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

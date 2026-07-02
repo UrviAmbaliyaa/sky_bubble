@@ -21,6 +21,8 @@ class BubbleModel {
   final bool isGift;
   /// True for a locked-style teaser bubble — shows a lock icon, 0 pts on pop.
   final bool isLocked;
+  /// Letter displayed on this bubble in learning mode (null in game mode).
+  final String? letter;
 
   BubbleModel({
     required this.id,
@@ -39,6 +41,7 @@ class BubbleModel {
     this.isSpecial = false,
     this.isGift = false,
     this.isLocked = false,
+    this.letter,
   });
 
   bool get isActive => !isPopped || isBursting;

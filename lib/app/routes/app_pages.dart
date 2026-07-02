@@ -8,6 +8,10 @@ import '../../presentation/screens/bubble_style_screen.dart';
 import '../../presentation/screens/background_style_screen.dart';
 import '../../presentation/screens/ad_watch_screen.dart';
 import '../../presentation/screens/more_options_screen.dart';
+import '../../presentation/screens/learning_screen.dart';
+import '../../presentation/screens/settings_screen.dart';
+import '../../presentation/screens/game_hub_screen.dart';
+import '../../presentation/screens/learning_hub_screen.dart';
 import '../bindings/app_bindings.dart';
 import 'app_routes.dart';
 
@@ -63,6 +67,27 @@ class AppPages {
       name: AppRoutes.moreOptions,
       page: () => const MoreOptionsScreen(),
       binding: MoreOptionsBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.learning,
+      page: () => const LearningScreen(),
+      binding: LearningBinding(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.settings,
+      page: () => const SettingsScreen(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.gameHub,
+      page: () => const GameHubScreen(),
+      transition: Transition.rightToLeft,
+    ),
+    GetPage(
+      name: AppRoutes.learningHub,
+      page: () => const LearningHubScreen(),
       transition: Transition.rightToLeft,
     ),
   ];

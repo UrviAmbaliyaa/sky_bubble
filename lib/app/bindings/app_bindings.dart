@@ -6,6 +6,7 @@ import '../../presentation/controllers/score_controller.dart';
 import '../../presentation/controllers/ad_watch_controller.dart';
 import '../../presentation/controllers/splash_controller.dart';
 import '../../presentation/controllers/more_options_controller.dart';
+import '../../presentation/controllers/learning_controller.dart';
 
 class SplashBinding extends Bindings {
   @override
@@ -58,5 +59,12 @@ class MoreOptionsBinding extends Bindings {
   @override
   void dependencies() {
     Get.put<MoreOptionsController>(MoreOptionsController());
+  }
+}
+
+class LearningBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.put<LearningController>(LearningController());
   }
 }

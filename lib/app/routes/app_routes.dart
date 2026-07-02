@@ -8,4 +8,8 @@ abstract class AppRoutes {
   static const backgroundStyle = '/background-style';
   static const adWatch     = '/ad-watch';
   static const moreOptions = '/more-options';
+  static const learning     = '/learning';
+  static const settings     = '/settings';
+  static const gameHub      = '/game-hub';
+  static const learningHub  = '/learning-hub';
 }

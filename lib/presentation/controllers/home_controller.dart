@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/constants/app_constants.dart';
@@ -157,41 +159,66 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     showCelebration.value = false;
   }
 
-  Future<void> navigateToGame() async {
+  /// Shows the mode-selection bottom sheet (Game vs Learning).
+  /// Called from the Play button and from the Levels screen.
+  void showModeSelection({int? startLevel}) {
+    Get.bottomSheet(
+      _ModeSelectionSheet(
+        onGameSelected: () {
+          Get.back();
+          _navigateToGameWithLevel(startLevel: startLevel);
+        },
+        onLearningSelected: () {
+          Get.back();
+          _navigateToLearning(startLevel: startLevel);
+        },
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      enableDrag: true,
+    );
+  }
+
+  Future<void> navigateToGame() async => showModeSelection();
+
+  Future<void> _navigateToGameWithLevel({int? startLevel}) async {
     RemoteAdConfigService? remote;
     try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
     final adsOn   = remote?.adsEnabled.value     ?? false;
     final moreAds = remote?.moreAdsEnabled.value ?? false;
 
+    Future<void> doNav() async {
+      final args = <String, dynamic>{'bestScore': bestScore.value};
+      if (startLevel != null) args['startLevel'] = startLevel;
+      await Get.toNamed(AppRoutes.game, arguments: args);
+      await Future.delayed(const Duration(milliseconds: 150));
+      _loadStats();
+    }
+
     if (adsOn && moreAds) {
-      Get.find<AdService>().showInterstitial(onDismissed: _doNavigateToGame);
+      Get.find<AdService>().showInterstitial(onDismissed: doNav);
     } else {
-      await _doNavigateToGame();
+      await doNav();
     }
   }
 
-  Future<void> _doNavigateToGame() async {
-    await Get.toNamed(AppRoutes.game, arguments: {'bestScore': bestScore.value});
-    await Future.delayed(const Duration(milliseconds: 150));
-    _loadStats();
+  Future<void> _navigateToLearning({int? startLevel}) async {
+    final args = <String, dynamic>{};
+    if (startLevel != null) args['startLevel'] = startLevel;
+    await Get.toNamed(AppRoutes.learning, arguments: args.isEmpty ? null : args);
   }
 
-  Future<void> navigateToScores() async {
-    await Get.toNamed(AppRoutes.score);
-    _loadStats();
-  }
+  
 
   void refreshStats() => _loadStats();
 
   // ── Navigation ─────────────────────────────────────────────────────────────
 
-  void navigateToBubbleStyle()  => Get.toNamed(AppRoutes.bubbleStyle);
-  void navigateToLevels()       => Get.toNamed(AppRoutes.levels);
-  void navigateToBackground()   => Get.toNamed(AppRoutes.backgroundStyle);
-  void navigateToEarnCoins()    => Get.toNamed(AppRoutes.adWatch);
+  
   void navigateToMoreOptions()  => Get.toNamed(AppRoutes.moreOptions);
-  void navigateToSettings()     => Get.snackbar('Settings', 'Coming soon!',
-      snackPosition: SnackPosition.TOP);
+  void navigateToSettings()     => Get.toNamed(AppRoutes.settings);
+  void navigateToGameHub()      => Get.toNamed(AppRoutes.gameHub);
+  void navigateToLearningHub()  => Get.toNamed(AppRoutes.learningHub);
   void navigateToHelpSupport()  => Get.snackbar('Help & Support', 'Coming soon!',
       snackPosition: SnackPosition.TOP);
 
@@ -206,13 +233,7 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     if (isBuyingAward.value) return;
     final styleSvc = Get.find<StyleService>();
 
-    if (styleSvc.totalCoins.value < StyleService.awardPurchaseCost) {
-      NotEnoughCoinsDialog.show(
-        currentCoins: styleSvc.totalCoins.value,
-        onWatchAds:   navigateToEarnCoins,
-      );
-      return;
-    }
+   
 
     isBuyingAward.value = true;
     RemoteAdConfigService? remote;
@@ -241,5 +262,189 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
     } else {
       complete();
     }
+  }
+}
+
+// ─── Mode Selection Bottom Sheet ──────────────────────────────────────────────
+// Displayed when the user taps Play or a level — lets them choose Game or Learning.
+
+class _ModeSelectionSheet extends StatelessWidget {
+  final VoidCallback onGameSelected;
+  final VoidCallback onLearningSelected;
+
+  const _ModeSelectionSheet({
+    required this.onGameSelected,
+    required this.onLearningSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: Container(
+          padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 5.h),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D1B4A).withOpacity(0.88),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.18),
+              width: 1.2,
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle
+              Container(
+                width: 10.w, height: 0.6.h,
+                margin: EdgeInsets.only(bottom: 2.5.h),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.30),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Text(
+                'Choose Your Mode',
+                style: TextStyle(
+                  fontSize: 16.sp,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              SizedBox(height: 0.6.h),
+              Text(
+                'How would you like to play?',
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  color: Colors.white60,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              SizedBox(height: 3.h),
+              // Cards row
+              Row(
+                children: [
+                  Expanded(
+                    child: _ModeCard(
+                      icon: Icons.bubble_chart_rounded,
+                      emoji: '🫧',
+                      title: 'GAME',
+                      subtitle: 'Pop bubbles\n& earn points',
+                      gradient: const [Color(0xFF6C63FF), Color(0xFF4A90E2)],
+                      glowColor: const Color(0xFF6C63FF),
+                      onTap: onGameSelected,
+                    ),
+                  ),
+                  SizedBox(width: 4.w),
+                  Expanded(
+                    child: _ModeCard(
+                      icon: Icons.menu_book_rounded,
+                      emoji: '📚',
+                      title: 'LEARN',
+                      subtitle: 'Spell words\nwith bubbles',
+                      gradient: const [Color(0xFF43E97B), Color(0xFF38D9A9)],
+                      glowColor: const Color(0xFF43E97B),
+                      onTap: onLearningSelected,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeCard extends StatefulWidget {
+  final IconData icon;
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final List<Color> gradient;
+  final Color glowColor;
+  final VoidCallback onTap;
+
+  const _ModeCard({
+    required this.icon,
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.gradient,
+    required this.glowColor,
+    required this.onTap,
+  });
+
+  @override
+  State<_ModeCard> createState() => _ModeCardState();
+}
+
+class _ModeCardState extends State<_ModeCard> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 110),
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 3.h, horizontal: 3.w),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: widget.gradient,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: widget.glowColor.withOpacity(0.45),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(widget.emoji,
+                  style: TextStyle(fontSize: 26.sp)),
+              SizedBox(height: 1.2.h),
+              Text(
+                widget.title,
+                style: TextStyle(
+                  fontSize: 14.5.sp,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: 2.0,
+                ),
+              ),
+              SizedBox(height: 0.6.h),
+              Text(
+                widget.subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9.5.sp,
+                  color: Colors.white.withOpacity(0.82),
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -46,6 +46,21 @@ class StyleService extends GetxService {
   final RxSet<BackgroundStyle> unlockedBackgrounds =
       <BackgroundStyle>{}.obs; // premium ones the user bought
 
+  // ── Learning mode progress (persisted) ────────────────────────────────────
+  final RxInt learningLevel      = 1.obs;
+  final RxInt totalWordsLearned  = 0.obs;
+
+  void saveLearningProgress({required int level, required int totalWords}) {
+    if (level > learningLevel.value) {
+      learningLevel.value = level;
+      _storage.writeLearningLevel(level);
+    }
+    if (totalWords > totalWordsLearned.value) {
+      totalWordsLearned.value = totalWords;
+      _storage.writeLearningTotalWords(totalWords);
+    }
+  }
+
   // ── Level stars (1–3 per completed level) ─────────────────────────────────
   final RxMap<int, int> levelStars = <int, int>{}.obs;
 
@@ -91,10 +106,12 @@ class StyleService extends GetxService {
   // ─────────────────────────────────────────────────────────────────────────
 
   void _loadAll() {
-    totalCoins.value   = _storage.readCoins();
-    totalAwards.value  = _storage.readAwards();
-    currentLevel.value = _storage.readCurrentLevel();
-    levelStars.value   = _storage.readLevelStars();
+    totalCoins.value      = _storage.readCoins();
+    totalAwards.value     = _storage.readAwards();
+    currentLevel.value    = _storage.readCurrentLevel();
+    levelStars.value      = _storage.readLevelStars();
+    learningLevel.value   = _storage.readLearningLevel();
+    totalWordsLearned.value = _storage.readLearningTotalWords();
     giftedHearts.value = _storage.readGiftedHearts();
     giftedCoins.value  = _storage.readGiftedCoins();
     giftedAwards.value = _storage.readGiftedAwards();

@@ -138,6 +138,20 @@ class StorageService extends GetxService {
     _box.write(_levelStarsKey, stars.map((k, v) => MapEntry(k.toString(), v)));
   }
 
+  // ── Learning mode progress ────────────────────────────────────────────────
+  static const _learningLevelKey = 'learning_level';
+  static const _learningWordsKey = 'learning_words_total';
+
+  int readLearningLevel() {
+    try { return (_box.read(_learningLevelKey) as num?)?.toInt() ?? 1; } catch (_) { return 1; }
+  }
+  void writeLearningLevel(int level) => _box.write(_learningLevelKey, level);
+
+  int readLearningTotalWords() {
+    try { return (_box.read(_learningWordsKey) as num?)?.toInt() ?? 0; } catch (_) { return 0; }
+  }
+  void writeLearningTotalWords(int count) => _box.write(_learningWordsKey, count);
+
   // ── Auto / fixed background preference ───────────────────────────────────
   static const _autoBgKey  = 'auto_bg';
   static const _fixedBgKey = 'fixed_bg';

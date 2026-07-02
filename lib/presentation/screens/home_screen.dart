@@ -24,10 +24,21 @@ class HomeScreen extends GetView<HomeController> {
         fit: StackFit.expand,
         children: [
           const RepaintBoundary(child: _Background()),
-          const SafeArea(child: _HomeUI()),
-          // Celebration overlay removed — the 🏆 New High Score banner now
-          // appears directly on the game screen while the player is still
-          // playing, making it more immediate and correctly positioned.
+          SafeArea(
+            child: Stack(
+              children: [
+                const _HomeUI(),
+                // Floating settings button — top-right
+                Positioned(
+                  top: 1.5.h,
+                  right: 4.w,
+                  child: _SettingsButton(
+                    onTap: Get.find<HomeController>().navigateToSettings,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -64,94 +75,44 @@ class _HomeUI extends GetView<HomeController> {
         child: Column(
           children: [
             SizedBox(height: 1.5.h),
-            const _HomeStatsRow(),
-            Spacer(),
+            // ── Stats row (original position, right-padded for settings btn) ──
             Padding(
-              padding: EdgeInsets.symmetric(horizontal: 5.w),
-              child: _PlayButton(onPressed: controller.navigateToGame),
+              padding: EdgeInsets.only(right: 15.w),
+              child: const _HomeStatsRow(),
             ),
-            SizedBox(height: 3.h),
-            // 2-column option grid
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 5.w),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _OptionsRow(
-                    left: _GridPill(
-                      iconData: Icons.bar_chart_rounded,
-                      label: 'PROGRESS',
-                      tintColor: const Color(0xFFD0D8E0),
-                      opacity: 0.32,
-                      iconColor: Colors.amber,
-                      onTap: controller.navigateToScores,
+            const Spacer(),
+            // ── Game + Learning hub cards ─────────────────────────────────
+            SafeArea(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 5.w),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _HubCard(
+                        emoji: '🫧',
+                        title: 'GAME',
+                        subtitle: 'Pop bubbles\n& earn points',
+                        gradient: const [Color(0xFF6C63FF), Color(0xFF4A90E2)],
+                        glowColor: const Color(0xFF6C63FF),
+                        onTap: controller.navigateToGameHub,
+                      ),
                     ),
-                    right: _GridPill(
-                      iconData: Icons.bubble_chart_rounded,
-                      label: 'STYLE',
-                      tintColor: const Color(0xFF7090AA),
-                      opacity: 0.32,
-                      onTap: controller.navigateToBubbleStyle,
+                    SizedBox(width: 4.w),
+                    Expanded(
+                      child: _HubCard(
+                        emoji: '🎓',
+                        title: 'LEARNING',
+                        subtitle: 'Spell words\nwith bubbles',
+                        gradient: const [Color(0xFF43E97B), Color(0xFF38D9A9)],
+                        glowColor: const Color(0xFF43E97B),
+                        onTap: controller.navigateToLearningHub,
+                      ),
                     ),
-                  ),
-                  SizedBox(height: 2.h),
-                  _OptionsRow(
-                    left: _GridPill(
-                      iconData: Icons.menu_book_rounded,
-                      label: 'LEVELS',
-                      tintColor: const Color(0xFF2850C0),
-                      opacity: 0.32,
-                      onTap: controller.navigateToLevels,
-                    ),
-                    right: _GridPill(
-                      iconData: Icons.wb_sunny_rounded,
-                      label: 'BACKGROUND',
-                      tintColor: const Color(0xFF904888),
-                      opacity: 0.32,
-                      iconColor: Colors.amber,
-                      onTap: controller.navigateToBackground,
-                    ),
-                  ),
-                  // Earn Coins + Earn Award — visible only when ads are actually
-                  // being shown somewhere: ads=true AND (show_ads=true OR moreads=true).
-                  Obx(() {
-                    RemoteAdConfigService? remote;
-                    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
-                    final adsOn       = remote?.adsEnabled.value ?? false;
-                    final earnVisible = adsOn;
-                    if (!earnVisible) return const SizedBox.shrink();
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(height: 2.h),
-                        _OptionsRow(
-                          left: _GridPill(
-                            iconData: Icons.monetization_on_rounded,
-                            label: 'EARN COINS',
-                            tintColor: const Color(0xFF107858),
-                            opacity: 0.32,
-                            iconColor: Colors.amber,
-                            onTap: controller.navigateToEarnCoins,
-                          ),
-                          right: Obx(() {
-                            final svc       = Get.find<StyleService>();
-                            final canAfford = svc.totalCoins.value >= StyleService.awardPurchaseCost;
-                            final busy      = controller.isBuyingAward.value;
-                            return _EarnAwardGridPill(
-                              canAfford: canAfford,
-                              busy:      busy,
-                              onTap:     controller.buyAwardWithCoins,
-                            );
-                          }),
-                        ),
-                      ],
-                    );
-                  }),
-                  SizedBox(height: 3.h),
-                ],
+                  ],
+                ),
               ),
             ),
-          ],
+            SizedBox(height: 3.h),],
         ),
       ),
     );
@@ -324,66 +285,144 @@ class _CoinStatChip extends StatelessWidget {
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  PLAY BUTTON  — circular, layered, 3-D glow design
+//  SETTINGS BUTTON  — top-right icon
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _PlayButton extends StatefulWidget {
-  final VoidCallback onPressed;
-  const _PlayButton({required this.onPressed});
+class _SettingsButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _SettingsButton({required this.onTap});
 
   @override
-  State<_PlayButton> createState() => _PlayButtonState();
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            width: 11.w, height: 11.w,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.16),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.30), width: 1.2),
+            ),
+            child: Icon(Icons.settings_rounded, color: Colors.white, size: 6.w),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _PlayButtonState extends State<_PlayButton> {
+// ═══════════════════════════════════════════════════════════════════════════════
+//  HUB CARD  — Game / Learning entry cards on home
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _HubCard extends StatefulWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final List<Color> gradient;
+  final Color glowColor;
+  final VoidCallback onTap;
+
+  const _HubCard({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.gradient,
+    required this.glowColor,
+    required this.onTap,
+  });
+
+  @override
+  State<_HubCard> createState() => _HubCardState();
+}
+
+class _HubCardState extends State<_HubCard> {
   bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    final ctrl = Get.find<HomeController>();
-
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onPressed();
-      },
+      onTapDown:   (_) => setState(() => _pressed = true),
+      onTapUp:     (_) { setState(() => _pressed = false); widget.onTap(); },
       onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedBuilder(
-        animation: ctrl.pulseAnim,
-        builder: (_, child) => AnimatedScale(
-          scale: _pressed ? 0.93 : ctrl.pulseAnim.value,
-          duration: const Duration(milliseconds: 120),
-          curve: Curves.easeOut,
-          child: child,
-        ),
+      child: AnimatedScale(
+        scale: _pressed ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 120),
         child: Container(
-          width: 55.w,
-          height: 6.8.h,
+          padding: EdgeInsets.symmetric(vertical: 3.5.h, horizontal: 3.w),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(31),
-            gradient: const LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [AppColors.earnCoin, AppColors.primaryDeep],
+            gradient: LinearGradient(
+              colors: widget.gradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(28),
             boxShadow: [
-              BoxShadow(color: AppColors.primaryDeep.withOpacity(0.50), blurRadius: 20, offset: const Offset(0, 8)),
-              BoxShadow(color: AppColors.earnCoin.withOpacity(0.22), blurRadius: 6, offset: const Offset(0, 2)),
+              BoxShadow(
+                color: widget.glowColor.withOpacity(0.55),
+                blurRadius: 28,
+                offset: const Offset(0, 10),
+              ),
             ],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.play_arrow_rounded, color: Colors.white, size: 8.w),
-              SizedBox(width: 2.w),
               Text(
-                'PLAY',
+                widget.emoji,
+                style: const TextStyle(
+                  fontFamily: '',
+                  fontFamilyFallback: ['Apple Color Emoji', 'Noto Color Emoji'],
+                  fontSize: 36,
+                ),
+              ),
+              SizedBox(height: 1.5.h),
+              Text(
+                widget.title,
                 style: TextStyle(
-                  fontSize: 19.sp,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
-                  letterSpacing: 3.0,
+                  letterSpacing: 2.0,
+                ),
+              ),
+              SizedBox(height: 0.6.h),
+              Text(
+                widget.subtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9.sp,
+                  color: Colors.white.withOpacity(0.82),
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                ),
+              ),
+              SizedBox(height: 1.5.h),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 0.8.h),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.22),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.play_arrow_rounded, color: Colors.white, size: 5.w),
+                    SizedBox(width: 1.w),
+                    Text(
+                      'GO',
+                      style: TextStyle(
+                        fontSize: 10.sp,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

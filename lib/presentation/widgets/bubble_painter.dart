@@ -50,8 +50,41 @@ class BubblePainter extends CustomPainter {
         } else {
           _paintWithStyle(canvas, b);
         }
+        // Overlay letter on top for learning mode bubbles
+        if (b.letter != null) {
+          _paintLetter(canvas, b);
+        }
       }
     }
+  }
+
+  void _paintLetter(Canvas canvas, BubbleModel b) {
+    final fontSize = b.radius * 1.10;
+    // Constraint width = bubble diameter so textAlign: center is truly centered.
+    final constraintW = b.radius * 2.0;
+    final textStyle = ui.TextStyle(
+      color: Colors.white,
+      fontSize: fontSize,
+      fontWeight: ui.FontWeight.w900,
+      shadows: const [
+        ui.Shadow(color: Color(0xCC000000), blurRadius: 8, offset: Offset(0, 2)),
+      ],
+    );
+    final builder = ui.ParagraphBuilder(
+      ui.ParagraphStyle(
+        textAlign: TextAlign.center,
+        maxLines: 1,
+      ),
+    )
+      ..pushStyle(textStyle)
+      ..addText(b.letter!);
+    final para = builder.build()
+      ..layout(ui.ParagraphConstraints(width: constraintW));
+    // Draw so the paragraph rect is centred exactly on (b.x, b.y).
+    canvas.drawParagraph(
+      para,
+      Offset(b.x - constraintW / 2, b.y - para.height / 2),
+    );
   }
 
   void _paintWithStyle(Canvas canvas, BubbleModel b) {

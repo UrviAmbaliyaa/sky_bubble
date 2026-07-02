@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../app/routes/app_routes.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
+import '../../data/services/style_service.dart';
 import '../controllers/score_controller.dart';
 import '../widgets/screen_header.dart';
 
@@ -42,7 +43,8 @@ class ScoreScreen extends GetView<ScoreController> {
                 switch (controller.selectedTab.value) {
                   case 0:  return _DateTab(ctrl: controller);
                   case 1:  return _WeekTab(ctrl: controller);
-                  default: return _MonthTab(ctrl: controller);
+                  case 2:  return _MonthTab(ctrl: controller);
+                  default: return const _LearningTab();
                 }
               }),
             ),
@@ -65,6 +67,7 @@ class _TabStrip extends StatelessWidget {
     ('📅', 'Dates'),
     ('📆', 'Week'),
     ('🗓', 'Month'),
+    ('📚', 'Learn'),
   ];
 
   @override
@@ -1310,6 +1313,301 @@ void _showYearPicker(BuildContext context, ScoreController ctrl) {
 }
 
 
+
+// ════════════════════════════════════════════════════════════════════════════
+//  LEARNING TAB
+// ════════════════════════════════════════════════════════════════════════════
+
+class _LearningTab extends StatelessWidget {
+  const _LearningTab();
+
+  static const _tiers = [
+    (range: '1 – 10',  label: 'Easy',   emoji: '🌱', color: Color(0xFF43A047)),
+    (range: '11 – 30', label: 'Medium',  emoji: '🌿', color: Color(0xFF0288D1)),
+    (range: '31 – 60', label: 'Hard',    emoji: '🌳', color: Color(0xFF7B1FA2)),
+    (range: '61+',     label: 'Expert',  emoji: '🔥', color: Color(0xFFE64A19)),
+  ];
+
+  int _tierIndex(int level) {
+    if (level <= 10)  return 0;
+    if (level <= 30)  return 1;
+    if (level <= 60)  return 2;
+    return 3;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final svc = Get.find<StyleService>();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Obx(() {
+        final lvl   = svc.learningLevel.value;
+        final words = svc.totalWordsLearned.value;
+        final tier  = _tierIndex(lvl);
+        final t     = _tiers[tier];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Hero stats card ─────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF1A237E),
+                    t.color.withOpacity(0.80),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color:      t.color.withOpacity(0.35),
+                    blurRadius: 18,
+                    offset:     const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Trophy / level badge
+                  Container(
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(t.emoji, style: const TextStyle(fontSize: 28)),
+                        Text(
+                          'Lvl $lvl',
+                          style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${t.label} Tier',
+                          style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w900,
+                            color: Colors.white, letterSpacing: 0.5,
+                          ),
+                        ),
+                        Text(
+                          'Levels ${t.range}',
+                          style: TextStyle(
+                            fontSize: 12, color: Colors.white.withOpacity(0.75),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(children: [
+                          _StatPill(
+                            icon: Icons.menu_book_rounded,
+                            label: '$words Words',
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 8),
+                          _StatPill(
+                            icon: Icons.star_rounded,
+                            label: '${(lvl - 1)} Levels Done',
+                            color: const Color(0xFFFFD700),
+                          ),
+                        ]),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Difficulty tier cards ────────────────────────────────────────
+            const Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: Text(
+                'DIFFICULTY TIERS',
+                style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w800,
+                  color: AppColors.textMedium, letterSpacing: 1.8,
+                ),
+              ),
+            ),
+
+            ..._tiers.asMap().entries.map((e) {
+              final i       = e.key;
+              final t2      = e.value;
+              final reached = tier >= i;
+              final active  = tier == i;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: active
+                        ? t2.color.withOpacity(0.70)
+                        : Colors.transparent,
+                    width: 2.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: active
+                          ? t2.color.withOpacity(0.18)
+                          : Colors.black.withOpacity(0.05),
+                      blurRadius: 10, offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(children: [
+                  // Emoji badge
+                  Container(
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(
+                      color: reached
+                          ? t2.color.withOpacity(0.12)
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Center(
+                      child: Text(
+                        reached ? t2.emoji : '🔒',
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Text(
+                            t2.label,
+                            style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w800,
+                              color: reached ? AppColors.textDark : Colors.grey.shade400,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          if (active)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: t2.color,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'CURRENT',
+                                style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900,
+                                    color: Colors.white, letterSpacing: 0.8),
+                              ),
+                            ),
+                          if (reached && !active)
+                            const Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(Icons.check_circle_rounded,
+                                  color: Color(0xFF43A047), size: 16),
+                            ),
+                        ]),
+                        Text(
+                          'Levels ${t2.range} • ${t2.label == "Easy" ? "3" : t2.label == "Medium" ? "4" : t2.label == "Hard" ? "5" : "6"}-letter words',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: reached ? AppColors.textMedium : Colors.grey.shade300,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (reached && !active)
+                    Icon(Icons.emoji_events_rounded, color: t2.color, size: 22),
+                  if (!reached)
+                    Icon(Icons.lock_rounded, color: Colors.grey.shade300, size: 20),
+                ]),
+              );
+            }),
+
+            const SizedBox(height: 8),
+
+            // ── Play Learning button ─────────────────────────────────────────
+            GestureDetector(
+              onTap: () => Get.toNamed(AppRoutes.learning),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [t.color, t.color.withOpacity(0.75)],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color:      t.color.withOpacity(0.40),
+                      blurRadius: 14, offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('📚', style: TextStyle(fontSize: 20)),
+                    SizedBox(width: 8),
+                    Text(
+                      'CONTINUE LEARNING',
+                      style: TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w900,
+                        color: Colors.white, letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+class _StatPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _StatPill({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: color, size: 13),
+        const SizedBox(width: 4),
+        Text(label,
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+      ]),
+    );
+  }
+}
 
 class _EmptyState extends StatefulWidget {
   final bool showPlayButton;
