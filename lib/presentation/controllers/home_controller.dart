@@ -9,7 +9,6 @@ import '../../core/services/remote_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/style_service.dart';
 import '../../domain/usecases/score_usecases.dart';
-import '../widgets/not_enough_coins_dialog.dart';
 
 class HomeController extends GetxController with GetTickerProviderStateMixin {
   final GetScoresUseCase _getScores;
@@ -162,21 +161,8 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
   /// Shows the mode-selection bottom sheet (Game vs Learning).
   /// Called from the Play button and from the Levels screen.
   void showModeSelection({int? startLevel}) {
-    Get.bottomSheet(
-      _ModeSelectionSheet(
-        onGameSelected: () {
-          Get.back();
-          _navigateToGameWithLevel(startLevel: startLevel);
-        },
-        onLearningSelected: () {
-          Get.back();
-          _navigateToLearning(startLevel: startLevel);
-        },
-      ),
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      enableDrag: true,
-    );
+              _navigateToGameWithLevel(startLevel: startLevel);
+
   }
 
   Future<void> navigateToGame() async => showModeSelection();
@@ -268,97 +254,97 @@ class HomeController extends GetxController with GetTickerProviderStateMixin {
 // ─── Mode Selection Bottom Sheet ──────────────────────────────────────────────
 // Displayed when the user taps Play or a level — lets them choose Game or Learning.
 
-class _ModeSelectionSheet extends StatelessWidget {
-  final VoidCallback onGameSelected;
-  final VoidCallback onLearningSelected;
+// class _ModeSelectionSheet extends StatelessWidget {
+//   final VoidCallback onGameSelected;
+//   final VoidCallback onLearningSelected;
 
-  const _ModeSelectionSheet({
-    required this.onGameSelected,
-    required this.onLearningSelected,
-  });
+//   const _ModeSelectionSheet({
+//     required this.onGameSelected,
+//     required this.onLearningSelected,
+//   });
 
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 5.h),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0D1B4A).withOpacity(0.88),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.18),
-              width: 1.2,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle
-              Container(
-                width: 10.w, height: 0.6.h,
-                margin: EdgeInsets.only(bottom: 2.5.h),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.30),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              Text(
-                'Choose Your Mode',
-                style: TextStyle(
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: 0.8,
-                ),
-              ),
-              SizedBox(height: 0.6.h),
-              Text(
-                'How would you like to play?',
-                style: TextStyle(
-                  fontSize: 11.sp,
-                  color: Colors.white60,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              SizedBox(height: 3.h),
-              // Cards row
-              Row(
-                children: [
-                  Expanded(
-                    child: _ModeCard(
-                      icon: Icons.bubble_chart_rounded,
-                      emoji: '🫧',
-                      title: 'GAME',
-                      subtitle: 'Pop bubbles\n& earn points',
-                      gradient: const [Color(0xFF6C63FF), Color(0xFF4A90E2)],
-                      glowColor: const Color(0xFF6C63FF),
-                      onTap: onGameSelected,
-                    ),
-                  ),
-                  SizedBox(width: 4.w),
-                  Expanded(
-                    child: _ModeCard(
-                      icon: Icons.menu_book_rounded,
-                      emoji: '📚',
-                      title: 'LEARN',
-                      subtitle: 'Spell words\nwith bubbles',
-                      gradient: const [Color(0xFF43E97B), Color(0xFF38D9A9)],
-                      glowColor: const Color(0xFF43E97B),
-                      onTap: onLearningSelected,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return ClipRRect(
+//       borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+//       child: BackdropFilter(
+//         filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+//         child: Container(
+//           padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 5.h),
+//           decoration: BoxDecoration(
+//             color: const Color(0xFF0D1B4A).withOpacity(0.88),
+//             borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+//             border: Border.all(
+//               color: Colors.white.withOpacity(0.18),
+//               width: 1.2,
+//             ),
+//           ),
+//           child: Column(
+//             mainAxisSize: MainAxisSize.min,
+//             children: [
+//               // Handle
+//               Container(
+//                 width: 10.w, height: 0.6.h,
+//                 margin: EdgeInsets.only(bottom: 2.5.h),
+//                 decoration: BoxDecoration(
+//                   color: Colors.white.withOpacity(0.30),
+//                   borderRadius: BorderRadius.circular(4),
+//                 ),
+//               ),
+//               Text(
+//                 'Choose Your Mode',
+//                 style: TextStyle(
+//                   fontSize: 16.sp,
+//                   fontWeight: FontWeight.w900,
+//                   color: Colors.white,
+//                   letterSpacing: 0.8,
+//                 ),
+//               ),
+//               SizedBox(height: 0.6.h),
+//               Text(
+//                 'How would you like to play?',
+//                 style: TextStyle(
+//                   fontSize: 11.sp,
+//                   color: Colors.white60,
+//                   fontWeight: FontWeight.w500,
+//                 ),
+//               ),
+//               SizedBox(height: 3.h),
+//               // Cards row
+//               Row(
+//                 children: [
+//                   Expanded(
+//                     child: _ModeCard(
+//                       icon: Icons.bubble_chart_rounded,
+//                       emoji: '🫧',
+//                       title: 'GAME',
+//                       subtitle: 'Pop bubbles\n& earn points',
+//                       gradient: const [Color(0xFF6C63FF), Color(0xFF4A90E2)],
+//                       glowColor: const Color(0xFF6C63FF),
+//                       onTap: onGameSelected,
+//                     ),
+//                   ),
+//                   SizedBox(width: 4.w),
+//                   Expanded(
+//                     child: _ModeCard(
+//                       icon: Icons.menu_book_rounded,
+//                       emoji: '📚',
+//                       title: 'LEARN',
+//                       subtitle: 'Spell words\nwith bubbles',
+//                       gradient: const [Color(0xFF43E97B), Color(0xFF38D9A9)],
+//                       glowColor: const Color(0xFF43E97B),
+//                       onTap: onLearningSelected,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 class _ModeCard extends StatefulWidget {
   final IconData icon;

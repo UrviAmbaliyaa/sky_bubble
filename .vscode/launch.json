@@ -5,22 +5,14 @@
       "name": "Flutter (Android)",
       "type": "dart",
       "request": "launch",
-      "program": "lib/main.dart",
-      "args": [
-        "--target-platform",
-        "android-arm64"
-      ]
+      "program": "lib/main.dart"
     },
     {
       "name": "Flutter (Android - release)",
       "type": "dart",
       "request": "launch",
       "program": "lib/main.dart",
-      "flutterMode": "release",
-      "args": [
-        "--target-platform",
-        "android-arm64"
-      ]
+      "flutterMode": "release"
     }
   ]
 }

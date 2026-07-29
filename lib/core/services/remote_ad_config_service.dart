@@ -21,9 +21,9 @@ class RemoteAdConfigService extends GetxService {
   // ── Hard-coded fallback values (used offline / before first fetch) ──────────
   static const bool   _defaultAds            = true;
   static const bool   _defaultMoreAds        = false;
-  static const String _defaultBannerId       = 'ca-app-pub-8536272432230680/8012325727';
-  static const String _defaultInterstitialId = 'ca-app-pub-8536272432230680/2774601057';
-  static const String _defaultAppId          = 'ca-app-pub-8536272432230680~9983882940';
+  static const String _defaultBannerId       = 'ca-app-pub-8028748386746773/2020855764';
+  static const String _defaultInterstitialId = 'ca-app-pub-8028748386746773/4922231132';
+  static const String _defaultAppId          = 'ca-app-pub-8028748386746773~3717080813';
 
   // ── Remote Config key names (must match Firebase console exactly) ───────────
   static const _kAds            = 'ads';
@@ -88,7 +88,8 @@ class RemoteAdConfigService extends GetxService {
     return this;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // ────────────
   //  APPLY — read activated values into reactive observables
   // ─────────────────────────────────────────────────────────────────────────
 

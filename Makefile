@@ -7,14 +7,14 @@ run:
 	@echo "→ Uninstalling old APK to free emulator storage..."
 	-@adb shell pm uninstall $(PACKAGE) 2>/dev/null || true
 	@echo "→ Running arm64 debug build..."
-	fvm flutter run --target-platform android-arm64
+	fvm flutter run
 
 # ── Android emulator — release ───────────────────────────────────────────────
 release:
 	@echo "→ Uninstalling old APK to free emulator storage..."
 	-@adb shell pm uninstall $(PACKAGE) 2>/dev/null || true
 	@echo "→ Running arm64 release build..."
-	fvm flutter run --release --target-platform android-arm64
+	fvm flutter run --release
 
 # ── Build release APK (for manual install / testing) ─────────────────────────
 build:

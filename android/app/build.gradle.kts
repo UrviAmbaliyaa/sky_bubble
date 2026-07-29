@@ -40,7 +40,7 @@ android {
     defaultConfig {
         applicationId = "com.bubble.skybubbleburst"
         minSdk = 24
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
