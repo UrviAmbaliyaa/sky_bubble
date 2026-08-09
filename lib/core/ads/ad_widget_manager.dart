@@ -28,23 +28,31 @@ class AdIds {
   static const _kTestInterAndroid   = 'ca-app-pub-3940256099942544/1033173712';
   static const _kTestInterIOS       = 'ca-app-pub-3940256099942544/4411468910';
 
-  /// Active Banner Ad Unit ID based on platform & environment
+  /// Active Banner Ad Unit ID based on platform, live mode & environment
   static String get banner {
-    if (kDebugMode) {
-      return Platform.isIOS ? _kTestBannerIOS : _kTestBannerAndroid;
-    }
     FirestoreAdConfigService? config;
     try { config = Get.find<FirestoreAdConfigService>(); } catch (_) {}
+
+    final isLive = config?.adLiveMode.value ?? false;
+
+    // Use test IDs in debug mode OR if ad_live_mode is false in Firestore
+    if (kDebugMode || !isLive) {
+      return Platform.isIOS ? _kTestBannerIOS : _kTestBannerAndroid;
+    }
     return config?.bannerId.value ?? '';
   }
 
-  /// Active Interstitial Ad Unit ID based on platform & environment
+  /// Active Interstitial Ad Unit ID based on platform, live mode & environment
   static String get interstitial {
-    if (kDebugMode) {
-      return Platform.isIOS ? _kTestInterIOS : _kTestInterAndroid;
-    }
     FirestoreAdConfigService? config;
     try { config = Get.find<FirestoreAdConfigService>(); } catch (_) {}
+
+    final isLive = config?.adLiveMode.value ?? false;
+
+    // Use test IDs in debug mode OR if ad_live_mode is false in Firestore
+    if (kDebugMode || !isLive) {
+      return Platform.isIOS ? _kTestInterIOS : _kTestInterAndroid;
+    }
     return config?.interstitialId.value ?? '';
   }
 
