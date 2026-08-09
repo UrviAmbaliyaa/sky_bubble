@@ -7,7 +7,7 @@ import 'package:get/get.dart';
 //  REMOTE AD CONFIG SERVICE
 //
 //  Fetches all ad flags and AdMob IDs from Firebase Remote Config.
-//  Falls back to the hard-coded defaults below when offline or on first launch.
+//  If Firebase is unreachable or IDs are empty in release mode, ads are disabled.
 //
 //  Remote Config keys (match exactly what is in the Firebase console):
 //    ads            – bool  – master gate for standard ads + Earn buttons
@@ -18,12 +18,12 @@ import 'package:get/get.dart';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class RemoteAdConfigService extends GetxService {
-  // ── Hard-coded fallback values (used offline / before first fetch) ──────────
+  // ── Default values before first fetch ───────────────────────────────────────
   static const bool   _defaultAds            = true;
   static const bool   _defaultMoreAds        = false;
-  static const String _defaultBannerId       = 'ca-app-pub-8028748386746773/2020855764';
-  static const String _defaultInterstitialId = 'ca-app-pub-8028748386746773/4922231132';
-  static const String _defaultAppId          = 'ca-app-pub-8028748386746773~3717080813';
+  static const String _defaultBannerId       = '';
+  static const String _defaultInterstitialId = '';
+  static const String _defaultAppId          = '';
 
   // ── Remote Config key names (must match Firebase console exactly) ───────────
   static const _kAds            = 'ads';
@@ -39,8 +39,16 @@ class RemoteAdConfigService extends GetxService {
   final RxString interstitialId = _defaultInterstitialId.obs;
   final RxString appId          = _defaultAppId.obs;
 
-  // Keep showAds as an alias for adsEnabled so existing call-sites compile.
-  RxBool get showAds => adsEnabled;
+  // Returns true if all required AdMob IDs are available (in debug mode, test IDs are used).
+  bool get hasValidAdConfig {
+    if (kDebugMode) return true;
+    return bannerId.value.trim().isNotEmpty &&
+        interstitialId.value.trim().isNotEmpty &&
+        appId.value.trim().isNotEmpty;
+  }
+
+  // Keep showAds as an alias for adsEnabled (guarded by hasValidAdConfig).
+  RxBool get showAds => (adsEnabled.value && hasValidAdConfig).obs;
 
   late final FirebaseRemoteConfig _rc;
 
@@ -88,8 +96,7 @@ class RemoteAdConfigService extends GetxService {
     return this;
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // ────────────
+  // ─────────────────────────────────────────────────────────────────────────
   //  APPLY — read activated values into reactive observables
   // ─────────────────────────────────────────────────────────────────────────
 

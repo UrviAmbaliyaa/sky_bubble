@@ -23,9 +23,10 @@ class GlobalBannerWidget extends StatelessWidget {
     final remote = Get.find<RemoteAdConfigService>();
     final navSvc = Get.find<NavigationService>();
     return Obx(() {
-      final adsOn   = remote.adsEnabled.value;   // ads field — master gate
-      final moreAds = remote.moreAdsEnabled.value;
-      final route   = navSvc.currentRoute.value;
+      final adsOn       = remote.adsEnabled.value;   // ads field — master gate
+      final moreAds     = remote.moreAdsEnabled.value;
+      final validConfig = remote.hasValidAdConfig;
+      final route       = navSvc.currentRoute.value;
 
       // No bottom banner on home, splash, game screen, or before first nav.
       // Game screen has its own top banner — a second bottom banner is unwanted.
@@ -34,8 +35,8 @@ class GlobalBannerWidget extends StatelessWidget {
           || route == AppRoutes.game
           || route.isEmpty;
 
-      // Global banner: ads=true AND moreads=true (show_ads is irrelevant here).
-      if (!adsOn || !moreAds || isExcluded) return child;
+      // Global banner: ads=true AND moreads=true AND validConfig.
+      if (!adsOn || !moreAds || !validConfig || isExcluded) return child;
 
       final mq          = MediaQuery.of(context);
       final bottomInset = mq.viewInsets.bottom;

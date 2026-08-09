@@ -10,12 +10,8 @@ import '../../core/services/remote_ad_config_service.dart';
 // ═══════════════════════════════════════════════════════════════════════════════
 //  AD SERVICE  —  powered by apsl_admob_ads_flutter
 //
-//  App ID  : ca-app-pub-8536272432230680~9983882940
-//  Publisher: pub-8536272432230680
-//
-//  [✓] Banner ID       : ca-app-pub-8536272432230680/8012325727
-//  [✓] Interstitial ID : ca-app-pub-8536272432230680/2774601057
-//  [✓] App ID          : ca-app-pub-8536272432230680~9983882940  (AndroidManifest)
+//  Production IDs are loaded dynamically from AdCredentials (gitignored)
+//  and Firebase Remote Config.
 //
 //  Safety rules:
 //  1. Test IDs in debug, real IDs in release — automatic via SkyBubbleBurstAdsIdManager.
@@ -159,6 +155,17 @@ class AdService extends GetxService with WidgetsBindingObserver {
     required VoidCallback onDismissed,
     required VoidCallback onFailure,
   }) {
+    RemoteAdConfigService? remote;
+    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    final adsOn       = remote?.adsEnabled.value     ?? false;
+    final validConfig = remote?.hasValidAdConfig     ?? false;
+
+    if (!adsOn || !validConfig) {
+      _logd('Ads disabled or missing Firebase config — skipping interstitial');
+      onDismissed();
+      return;
+    }
+
     StreamSubscription<AdEvent>? sub;
 
     void cleanup() {
