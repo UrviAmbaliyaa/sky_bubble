@@ -14,7 +14,7 @@ import '../widgets/not_enough_coins_dialog.dart';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // ── Replace with your hosted privacy policy URL ────────────────────────────
-const _kPrivacyPolicyUrl = 'https://pandav.github.io/privacy-policy';
+const _kPrivacyPolicyUrl = 'https://sarav-dev.blogspot.com/2026/07/privacy-policy-sky-bubble-burst.html';
 
 class MoreOptionsController extends GetxController {
   // ── Reactive state ─────────────────────────────────────────────────────────

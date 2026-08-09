@@ -9,9 +9,9 @@ const _kTestBannerId       = 'ca-app-pub-3940256099942544/6300978111';
 const _kTestInterstitialId = 'ca-app-pub-3940256099942544/1033173712';
 
 // ── Hard-coded prod fallback (also stored in RemoteAdConfigService) ────────
-const _kProdAppId          = 'ca-app-pub-8536272432230680~9983882940';
-const _kProdBannerId       = 'ca-app-pub-8536272432230680/8012325727';
-const _kProdInterstitialId = 'ca-app-pub-8536272432230680/2774601057';
+const _kProdAppId          = 'ca-app-pub-8028748386746773~3717080813';
+const _kProdBannerId       = 'ca-app-pub-8028748386746773/2020855764';
+const _kProdInterstitialId = 'ca-app-pub-8028748386746773/4922231132';
 
 class SkyBubbleBurstAdsIdManager extends AdsIdManager {
   const SkyBubbleBurstAdsIdManager();

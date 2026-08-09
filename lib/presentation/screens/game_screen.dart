@@ -381,7 +381,7 @@ class _GameHUD extends StatelessWidget {
             ],
           ),
         ),
-      );;
+      );
   }
 }
 
@@ -405,7 +405,6 @@ class _HudCard extends StatelessWidget {
     );
   }
 }
-
 
 class _SoundToggleButton extends StatelessWidget {
   _SoundToggleButton();
@@ -435,29 +434,6 @@ class _SoundToggleButton extends StatelessWidget {
         ),
       );
     });
-  }
-}
-
-class _PauseButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _PauseButton({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.92),
-            borderRadius: BorderRadius.circular(AppDimensions.radiusM),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
-          ),
-          child: Icon(Icons.pause_rounded, color: AppColors.textDark, size: 6.w),
-        ),
-      ),
-    );
   }
 }
 

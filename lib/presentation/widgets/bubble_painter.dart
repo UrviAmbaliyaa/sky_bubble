@@ -144,9 +144,9 @@ class BubblePainter extends CustomPainter {
     );
   }
 
-  void _sparkle(Canvas canvas, double cx, double cy, double r) {
+  void _sparkle(Canvas canvas, double cx, double cy, double r, {Color? color}) {
     canvas.drawCircle(
-        Offset(cx, cy), r, Paint()..color = Colors.white.withOpacity(0.88));
+        Offset(cx, cy), r, Paint()..color = (color ?? Colors.white).withOpacity(0.88));
   }
 
   void _caustic(Canvas canvas, BubbleModel b) {
@@ -958,23 +958,14 @@ class BubblePainter extends CustomPainter {
       canvas.restore();
     }
 
-    // ── Rainbow iridescent rim — same full-spectrum sweep as Classic Soap ───
-    _rimStroke(canvas, b, [
-      Colors.white.withOpacity(0.95),
-      _dogGlowColors[index].withOpacity(0.88),
-      Colors.cyanAccent.withOpacity(0.82),
-      Colors.purpleAccent.withOpacity(0.78),
-      Colors.pinkAccent.withOpacity(0.74),
-      Colors.white.withOpacity(0.88),
-      Colors.lightBlueAccent.withOpacity(0.80),
-      Colors.white.withOpacity(0.95),
-    ]); // default widthFactor: 0.13 — same thickness as Classic Soap
+    // ── Rainbow iridescent rim — uses dedicated dog rim palette ───
+    _rimStroke(canvas, b, _dogRimPalettes[index]);
 
     // Top-left specular highlight (soap-bubble style oval)
     _highlight(canvas, b.x - r * 0.22, b.y - r * 0.28, r * 0.72, r * 0.46);
 
-    // Small sparkle
-    _sparkle(canvas, b.x + r * 0.14, b.y - r * 0.54, r * 0.09);
+    // Small sparkle with custom dog sparkle color
+    _sparkle(canvas, b.x + r * 0.14, b.y - r * 0.54, r * 0.09, color: _dogSparkleColors[index]);
   }
 
   // ══════════════════════════════════════════════════════════
