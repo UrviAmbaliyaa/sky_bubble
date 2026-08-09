@@ -7,7 +7,7 @@ import 'package:get/get.dart';
 import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/background_assets.dart';
-import '../../core/services/remote_ad_config_service.dart';
+import '../../core/services/firestore_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../../data/services/sound_service.dart';
 import '../../data/services/style_service.dart';
@@ -152,10 +152,10 @@ class _GameBodyState extends State<_GameBody>
           )),
         ),
        Obx(() {
-          RemoteAdConfigService? remote;
-          try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
-          final adsOn   = remote?.adsEnabled.value     ?? false;
-          final moreAds = remote?.moreAdsEnabled.value ?? false;
+          FirestoreAdConfigService? config;
+          try { config = Get.find<FirestoreAdConfigService>(); } catch (_) {}
+          final adsOn   = config?.adsEnabled.value     ?? false;
+          final moreAds = config?.moreAdsEnabled.value ?? false;
           if (!adsOn || !moreAds) return const SizedBox.shrink();
           return Positioned(
             bottom: 0,
@@ -276,8 +276,8 @@ class _BannerAdWidgetState extends State<_BannerAdWidget> {
 
       if (!isPremiumBg && !_adFailed.value) {
         try {
-          // Game banner: show whenever ads=true. Only hidden when ads=false.
-          shouldShow = Get.find<RemoteAdConfigService>().adsEnabled.value;
+          // Game banner: show whenever ad_visible=true. Only hidden when ad_visible=false.
+          shouldShow = Get.find<FirestoreAdConfigService>().adsEnabled.value;
         } catch (_) {}
       }
 
@@ -792,10 +792,10 @@ class _PauseOverlayState extends State<_PauseOverlay>
                             gradient: const [Color(0xFF43E97B), Color(0xFF11998E)],
                             glowColor: const Color(0xFF43E97B),
                             onTap: () {
-                              RemoteAdConfigService? remote;
-                              try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
-                              final adsOn   = remote?.adsEnabled.value     ?? false;
-                              final moreAds = remote?.moreAdsEnabled.value ?? false;
+                              FirestoreAdConfigService? config;
+                              try { config = Get.find<FirestoreAdConfigService>(); } catch (_) {}
+                              final adsOn   = config?.adsEnabled.value     ?? false;
+                              final moreAds = config?.moreAdsEnabled.value ?? false;
                               if (adsOn && moreAds) {
                                 Get.find<AdService>().showInterstitial(
                                   onDismissed: widget.controller.togglePause,

@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
-import '../../core/services/remote_ad_config_service.dart';
+import '../../core/services/firestore_ad_config_service.dart';
 import '../../data/services/ad_service.dart';
 import '../controllers/game_controller.dart';
 
@@ -92,9 +92,9 @@ class _GiftScreenOverlayState extends State<GiftScreenOverlay>
 
   void _openGift() {
     if (_opened) return;
-    RemoteAdConfigService? remote;
-    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
-    final adsOn = remote?.adsEnabled.value ?? false;
+    FirestoreAdConfigService? config;
+    try { config = Get.find<FirestoreAdConfigService>(); } catch (_) {}
+    final adsOn = config?.adsEnabled.value ?? false;
     if (adsOn) {
       Get.find<AdService>().loadAndShowInterstitial(
         onDismissed: _doOpen,

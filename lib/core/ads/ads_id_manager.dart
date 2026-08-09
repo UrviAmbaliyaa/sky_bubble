@@ -1,7 +1,7 @@
 import 'package:apsl_admob_ads_flutter/apsl_admob_ads_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import '../services/remote_ad_config_service.dart';
+import '../services/firestore_ad_config_service.dart';
 
 // ── Google's official test IDs — used in DEBUG builds ─────────────────────
 const _kTestAppId          = 'ca-app-pub-3940256099942544~3347511713';
@@ -25,14 +25,14 @@ class SkyBubbleBurstAdsIdManager extends AdsIdManager {
       ];
     }
 
-    // In release: retrieve IDs fetched dynamically from Firebase Remote Config.
+    // In release: retrieve IDs fetched dynamically from Cloud Firestore (app_config/admob).
     // If unavailable, return empty strings (ads will remain disabled).
-    RemoteAdConfigService? remote;
-    try { remote = Get.find<RemoteAdConfigService>(); } catch (_) {}
+    FirestoreAdConfigService? config;
+    try { config = Get.find<FirestoreAdConfigService>(); } catch (_) {}
 
-    final banner       = remote?.bannerId.value       ?? '';
-    final interstitial = remote?.interstitialId.value ?? '';
-    final app          = remote?.appId.value          ?? '';
+    final banner       = config?.bannerId.value       ?? '';
+    final interstitial = config?.interstitialId.value ?? '';
+    final app          = _kTestAppId;
 
     return [
       AppAdIds(
