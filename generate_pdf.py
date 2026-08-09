@@ -116,7 +116,7 @@ class GradientBanner(Flowable):
         # Meta row  ——  date | developer | platform
         c.setFillColorRGB(1, 1, 1, 0.65)
         c.setFont("Helvetica", 8.5)
-        meta = "Effective: June 12, 2025    ·    Developer: Pandav    ·    Platform: Google Play (Android)"
+        meta = "Effective: June 12, 2025    ·    Developer: Sarav Italiya     ·    Platform: Google Play (Android)"
         c.drawString(0, h - 54*mm, meta)
 
         # Bottom badge strip
@@ -364,7 +364,7 @@ def on_page(canvas, doc):
         canvas.setFont("Helvetica", 7.5)
         canvas.drawString(MARGIN_L, PAGE_H - 11.5*mm, "Sky Bubble Burst  ·  Privacy Policy")
         canvas.setFont("Helvetica", 7.5)
-        canvas.drawRightString(PAGE_W - MARGIN_R, PAGE_H - 11.5*mm, "Pandav · developerpandav16@gmail.com")
+        canvas.drawRightString(PAGE_W - MARGIN_R, PAGE_H - 11.5*mm, "Sarav · sarav20732@gmail.com")
 
         # ── Dot separator
         canvas.setFillColor(C_PRIMARY)
@@ -378,7 +378,7 @@ def on_page(canvas, doc):
     # ── Footer
     canvas.setFillColor(C_TEXT_MUTED)
     canvas.setFont("Helvetica", 7.5)
-    canvas.drawString(MARGIN_L, 9*mm, "© 2025 Pandav. All rights reserved. com.pandav.skybubbleburst")
+    canvas.drawString(MARGIN_L, 9*mm, "© 2025 Sarav. All rights reserved. com.bubble.skybubbleburst")
     canvas.drawRightString(PAGE_W - MARGIN_R, 9*mm, f"Page {page_num}")
 
     # ── Small accent dot in footer
@@ -531,8 +531,8 @@ def build():
         topMargin=1.8*cm,
         bottomMargin=2.2*cm,
         title="Privacy Policy – Sky Bubble Burst",
-        author="Pandav",
-        subject="Privacy Policy for Sky Bubble Burst (com.pandav.skybubbleburst)",
+        author="Sarav",
+        subject="Privacy Policy for Sky Bubble Burst (com.bubble.skybubbleburst)",
         creator="Sky Bubble Burst Privacy Policy Generator",
         keywords="privacy policy, sky bubble burst, admob, google play, android",
     )
@@ -613,9 +613,9 @@ def build():
     story.append(Spacer(1, 3*mm))
 
     story.append(Paragraph(
-        "This Privacy Policy describes how <b>Pandav</b> (“we,” “us,” or “our”) handles "
+        "This Privacy Policy describes how <b>Sarav</b> (“we,” “us,” or “our”) handles "
         "information in connection with the mobile game <b>Sky Bubble Burst</b> "
-        "(Android package: <font name='Courier' size='8.5'>com.pandav.skybubbleburst</font>), "
+        "(Android package: <font name='Courier' size='8.5'>com.bubble.skybubbleburst</font>), "
         "available on Google Play.",
         S["body"]))
     story.append(Paragraph(
@@ -945,7 +945,7 @@ def build():
     story.append(Paragraph(
         "Parents and guardians with questions about their child's use of Sky Bubble Burst, "
         "or who wish to request deletion of locally stored data, may contact us at "
-        "<b>developerpandav16@gmail.com</b>. Data can also be deleted immediately by clearing "
+        "<b>sarav20732@gmail.com</b>. Data can also be deleted immediately by clearing "
         "the app's data through Android Settings.",
         S["body"]))
     story.append(Spacer(1, 4*mm))
@@ -1086,10 +1086,10 @@ def build():
         "For any questions, concerns, or requests regarding this Privacy Policy:", S["body"]))
 
     contact_rows = [
-        ["Developer / Data Controller", "Pandav"],
-        ["Email",                       "developerpandav16@gmail.com"],
+        ["Developer / Data Controller", "Sarav"],
+        ["Email",                       "sarav20732@gmail.comß"],
         ["App Name",                    "Sky Bubble Burst"],
-        ["Package Name",                "com.pandav.skybubbleburst"],
+        ["Package Name",                "com.bubble.skybubbleburst"],
         ["Platform",                    "Google Play (Android)"],
         ["Response Time",               "Within 30 days of verified request"],
     ]
@@ -1194,9 +1194,9 @@ def build():
         Paragraph("🫧  Sky Bubble Burst", ParagraphStyle(
             "fb", fontName="Helvetica-Bold", fontSize=11, textColor=C_PRIMARY)),
         Paragraph(
-            "© 2025 Pandav. All rights reserved.<br/>"
+            "© 2025 Sarav. All rights reserved.<br/>"
             "<font color='#475569' size='8'>Effective: June 12, 2025  ·  Last Updated: June 12, 2025</font><br/>"
-            "<font color='#3B82F6' size='8'>developerpandav16@gmail.com</font>",
+            "<font color='#3B82F6' size='8'>sarav20732@gmail.com</font>",
             ParagraphStyle("fm", fontName="Helvetica", fontSize=9, leading=14,
                            textColor=C_TEXT_SEC, alignment=TA_RIGHT)),
     ]]

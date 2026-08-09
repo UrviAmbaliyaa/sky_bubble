@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_sizer/flutter_sizer.dart';
 import 'package:get/get.dart';
 import '../../app/routes/app_routes.dart';
-import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../data/services/style_service.dart';
 import '../controllers/score_controller.dart';
